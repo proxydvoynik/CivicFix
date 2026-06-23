@@ -1,6 +1,6 @@
 # CivicFix
 
-CivicFix (formerly SpotFix) is an AI-powered hyperlocal issue reporting platform that enables citizens to identify, verify, track, and resolve community infrastructure problems with transparency and accountability.
+CivicFix is an AI-powered hyperlocal issue reporting platform that enables citizens to identify, verify, track, and resolve community infrastructure problems with transparency and accountability.
 
 ## Features
 
