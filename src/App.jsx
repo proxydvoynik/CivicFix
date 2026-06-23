@@ -190,7 +190,7 @@ function App() {
 
     const interval = setInterval(() => {
       const randomLog = logPool[Math.floor(Math.random() * logPool.length)];
-      setAiLogs(prev => [...prev, { id: Date.now(), ...randomLog }].slice(-10));
+      setAiLogs(prev => [...prev, { id: `log-${Date.now()}-${Math.random()}`, ...randomLog }].slice(-10));
     }, 9500);
 
     return () => clearInterval(interval);
@@ -244,7 +244,7 @@ Report Reference: #CF-9818`
         ...prev
       ]);
 
-      setAiLogs(prev => [...prev, { id: Date.now(), type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
+      setAiLogs(prev => [...prev, { id: `log-refresh-${Date.now()}`, type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
     }, 1000);
   };
 
@@ -262,7 +262,7 @@ Report Reference: #CF-9818`
         
         // Log AI action
         setAiLogs(prevLogs => [...prevLogs, { 
-          id: Date.now(), 
+          id: `log-verify-${id}-${Date.now()}-${Math.random()}`, 
           type: "success", 
           text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
         }]);
@@ -287,7 +287,7 @@ Report Reference: #CF-9818`
     setTimeout(() => {
       setIsImageVerifying(false);
       setImageVerified(true);
-      setAiLogs(prev => [...prev, { id: Date.now(), type: "success", text: "Gemini Vision API: Image analyzed. Confirmed structural road cracking." }]);
+      setAiLogs(prev => [...prev, { id: `log-upload-${Date.now()}`, type: "success", text: "Gemini Vision API: Image analyzed. Confirmed structural road cracking." }]);
     }, 1500);
   };
 
@@ -352,7 +352,7 @@ Report Reference: #CF-${generatedRef}`
       setFormDetails("");
       setImageVerified(false);
       
-      setAiLogs(prev => [...prev, { id: Date.now(), type: "success", text: `Report successfully uploaded and pinned to ${formZone} layout.` }]);
+      setAiLogs(prev => [...prev, { id: `log-submit-${Date.now()}`, type: "success", text: `Report successfully uploaded and pinned to ${formZone} layout.` }]);
     }, 2000);
   };
 
@@ -1078,7 +1078,7 @@ Report Reference: #CF-${generatedRef}`
                   <button
                     onClick={() => {
                       setAiLogs(prev => [...prev, { 
-                        id: Date.now(), 
+                        id: `log-dispatch-${activeLetter.id}-${Date.now()}`, 
                         type: "success", 
                         text: `Dispatched formal PWD notice for report #CF-${activeLetter.id.toString().substring(0, 4)} to Municipal Board.` 
                       }]);
