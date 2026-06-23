@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   MapPin, Activity, PlusCircle, RefreshCw, 
   CheckCircle2, Send, Globe, Search, Shield, X, 
@@ -11,15 +11,18 @@ import { db, isFirebaseConfigured } from './lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment } from 'firebase/firestore';
 import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini';
 
+// Leaflet Maps Imports
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
-  { name: "Thalassery Bus Stand Area", availability: 97.2, active: 2, resolved: 41, severity: "warning", coordinates: { x: 42, y: 38 }, sparkline: [98, 97.5, 97.2, 97.0, 97.3, 97.2] },
-  { name: "Court Road Junction", availability: 99.0, active: 1, resolved: 58, severity: "normal", coordinates: { x: 55, y: 52 }, sparkline: [99, 99.1, 98.9, 99.0, 99.0, 99.0] },
-  { name: "Overbury's Folly Sector", availability: 94.6, active: 4, resolved: 32, severity: "critical", coordinates: { x: 30, y: 65 }, sparkline: [96, 95.2, 94.8, 94.1, 94.5, 94.6] },
-  { name: "Sea Bridge Lane", availability: 98.1, active: 1, resolved: 29, severity: "normal", coordinates: { x: 22, y: 78 }, sparkline: [98.5, 98.2, 98.0, 98.1, 98.3, 98.1] },
-  { name: "Gundopp Street Block", availability: 99.5, active: 0, resolved: 24, severity: "normal", coordinates: { x: 68, y: 32 }, sparkline: [99.5, 99.5, 99.5, 99.5, 99.5, 99.5] },
-  { name: "Chirakkara Ward", availability: 96.8, active: 3, resolved: 37, severity: "warning", coordinates: { x: 80, y: 48 }, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
+  { name: "Thalassery Bus Stand Area", availability: 97.2, active: 2, resolved: 41, severity: "warning", lat: 11.7511, lng: 75.4921, sparkline: [98, 97.5, 97.2, 97.0, 97.3, 97.2] },
+  { name: "Court Road Junction", availability: 99.0, active: 1, resolved: 58, severity: "normal", lat: 11.7490, lng: 75.4891, sparkline: [99, 99.1, 98.9, 99.0, 99.0, 99.0] },
+  { name: "Overbury's Folly Sector", availability: 94.6, active: 4, resolved: 32, severity: "critical", lat: 11.7455, lng: 75.4852, sparkline: [96, 95.2, 94.8, 94.1, 94.5, 94.6] },
+  { name: "Sea Bridge Lane", availability: 98.1, active: 1, resolved: 29, severity: "normal", lat: 11.7420, lng: 75.4810, sparkline: [98.5, 98.2, 98.0, 98.1, 98.3, 98.1] },
+  { name: "Gundopp Street Block", availability: 99.5, active: 0, resolved: 24, severity: "normal", lat: 11.7535, lng: 75.4985, sparkline: [99.5, 99.5, 99.5, 99.5, 99.5, 99.5] },
+  { name: "Chirakkara Ward", availability: 96.8, active: 3, resolved: 37, severity: "warning", lat: 11.7570, lng: 75.4840, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
 ];
 
 // Mock Recent Issues Feed for Thalassery
@@ -35,6 +38,8 @@ const initialIssues = [
     verifications: 1,
     user: "Adithya V.",
     streetViewStatus: "verified",
+    lat: 11.7490,
+    lng: 75.4891,
     details: "Deep crater in the middle of the road, causing severe traffic block and safety risks for two-wheelers.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -62,6 +67,8 @@ Report Reference: #CF-9811`
     verifications: 2,
     user: "Nihal P.",
     streetViewStatus: "verified",
+    lat: 11.7455,
+    lng: 75.4852,
     details: "Water logged up to 60 cm under the railway bridge. Cars and autos are turning back.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -89,6 +96,8 @@ Report Reference: #CF-9812`
     verifications: 0,
     user: "Shahana M.",
     streetViewStatus: "unverified",
+    lat: 11.7511,
+    lng: 75.4921,
     details: "Commercial waste and plastic bags piled near the parking lot, attracting stray dogs.",
     letterDrafted: `To,
 The Health Inspector,
@@ -114,6 +123,8 @@ Report Reference: #CF-9813`
     verifications: 1,
     user: "Ramesh Kumar",
     streetViewStatus: "verified",
+    lat: 11.7420,
+    lng: 75.4810,
     details: "Cover slab of storm drain is broken, leaving a 1-meter deep open hole on the pedestrian walkway.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -157,9 +168,19 @@ function App() {
   const [formType, setFormType] = useState("Severe Pothole");
   const [formDetails, setFormDetails] = useState("");
   const [formZone, setFormZone] = useState("Court Road Junction");
+  const [formLat, setFormLat] = useState(11.7490);
+  const [formLng, setFormLng] = useState(75.4891);
   const [isImageVerifying, setIsImageVerifying] = useState(false);
   const [imageVerified, setImageVerified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Map & Leaflet References
+  const mapRef = useRef(null);
+  const [mapInstance, setMapInstance] = useState(null);
+  const reportMarkersGroup = useRef(null);
+  const wardMarkersGroup = useRef(null);
+  const tempPlacementMarker = useRef(null);
+  const hazardCirclesGroup = useRef(null);
 
   // Gemini & Upload States
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -184,130 +205,8 @@ function App() {
 
   const logEndRef = useRef(null);
 
-  // Auto-generate AI logs periodically
-  useEffect(() => {
-    const logPool = [
-      { type: "info", text: "Scanning coords (11.7455, 75.4852) near Railway underpass..." },
-      { type: "success", text: "AI verified pothole at Court Road. Deduplication matching found 0 near records." },
-      { type: "info", text: "Updating volunteer reputation logs. Ashwin Raj awarded +20 karma." },
-      { type: "success", text: "Drafted municipal notice #CF-9820 for new drainage issue." },
-      { type: "warning", text: "High tide prediction: Stormwater drain backing up near Sea Bridge Lane." },
-      { type: "info", text: "Comparing StreetView archives with today's report from Chirakkara Ward..." }
-    ];
-
-    const interval = setInterval(() => {
-      const randomLog = logPool[Math.floor(Math.random() * logPool.length)];
-      setAiLogs(prev => [...prev, { id: `log-${Date.now()}-${Math.random()}`, ...randomLog }].slice(-10));
-    }, 9500);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Real-time Firestore sync & Auto-population
-  useEffect(() => {
-    if (!isFirebaseConfigured) {
-      console.log("Firebase is not configured. Running CiviFix with local mock state.");
-      return;
-    }
-
-    console.log("Firebase is configured. Initializing real-time sync...");
-    const q = query(collection(db, 'reports'), orderBy('id', 'desc'));
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const reportsList = [];
-      querySnapshot.forEach((doc) => {
-        reportsList.push({ docId: doc.id, ...doc.data() });
-      });
-
-      if (reportsList.length === 0) {
-        console.log("Firestore reports collection is empty. Pre-populating default reports...");
-        try {
-          for (const issue of initialIssues) {
-            await addDoc(collection(db, 'reports'), issue);
-          }
-          setAiLogs(prev => [...prev, { id: `log-sync-init-${Date.now()}`, type: "success", text: "Firestore: Pre-populated default reports." }]);
-        } catch (err) {
-          console.error("Error pre-populating Firestore:", err);
-        }
-      } else {
-        setReports(reportsList);
-      }
-    }, (error) => {
-      console.error("Firestore onSnapshot error:", error);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Sync ward statistics dynamically based on current reports list
-  const districts = initialDistricts.map(d => {
-    const activeCount = reports.filter(r => r.zone === d.name).length;
-    const computedAvailability = parseFloat((100 - activeCount * 0.6).toFixed(1));
-    const severity = activeCount >= 4 ? "critical" : (activeCount >= 2 ? "warning" : "normal");
-    return {
-      ...d,
-      active: activeCount,
-      availability: Math.min(100, Math.max(0, computedAvailability)),
-      severity: severity
-    };
-  });
-
-  // Handle Refresh Action
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    
-    // Simulate new data arrival
-    const generatedRef = Math.floor(1000 + Math.random() * 9000);
-    const mockIssue = {
-      id: Date.now(),
-      type: "Broken Streetlight",
-      location: "Centenary Park Path (Near Fort Entrance)",
-      zone: "Overbury's Folly Sector",
-      timeAgo: "Just now",
-      severity: "warning",
-      votes: 1,
-      verifications: 0,
-      user: "Gautham P.",
-      streetViewStatus: "verified",
-      details: "Three consecutive streetlights are out, causing absolute pitch darkness along the walking pathway.",
-      letterDrafted: `To,
-The Municipal Commissioner,
-Thalassery Municipal Corporation,
-Thalassery, Kannur - 670101.
-
-Subject: Request for replacement of streetlights near Centenary Park pathway.
-
-Respected Sir/Madam,
-I request the electrical department of Thalassery Municipality to replace broken streetlights near the Centenary Park walking pathway. The dark area is unsafe for evening walkers.
-
-Coordinates: Lat 11.7410, Lng 75.4830
-Report Reference: #CF-${generatedRef}`
-    };
-
-    if (isFirebaseConfigured) {
-      try {
-        await addDoc(collection(db, 'reports'), mockIssue);
-        setAiLogs(prev => [...prev, { id: `log-refresh-db-${Date.now()}`, type: "success", text: "Firestore: Refreshed and added new streetlight alert." }]);
-      } catch (error) {
-        console.error("Failed to add refresh doc to Firestore:", error);
-      }
-    } else {
-      setReports(prev => [mockIssue, ...prev]);
-      setAiLogs(prev => [...prev, { id: `log-refresh-local-${Date.now()}`, type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
-    }
-
-    // Add to dispatch queue
-    setDispatchQueue(prev => [
-      { id: `CF-${generatedRef}`, type: "Light", location: "Centenary Path", status: "Notice drafted", progress: 10, color: "text-amber-400" },
-      ...prev
-    ]);
-
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
-
   // Upvote/Downvote report
-  const handleVote = async (id, docId) => {
+  const handleVote = useCallback(async (id, docId) => {
     if (isFirebaseConfigured && docId) {
       try {
         const docRef = doc(db, 'reports', docId);
@@ -324,10 +223,10 @@ Report Reference: #CF-${generatedRef}`
     } else {
       setReports(prev => prev.map(r => r.id === id ? { ...r, votes: r.votes + 1 } : r));
     }
-  };
+  }, [reports]);
 
   // Verify issue locally (Gamification Verification loop)
-  const handleVerify = async (id, docId) => {
+  const handleVerify = useCallback(async (id, docId) => {
     if (isFirebaseConfigured && docId) {
       try {
         const report = reports.find(r => r.docId === docId);
@@ -385,7 +284,771 @@ Report Reference: #CF-${generatedRef}`
         return r;
       }));
     }
+  }, [reports]);
+
+
+
+  // Real-time Firestore sync & Auto-population
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      console.log("Firebase is not configured. Running CiviFix with local mock state.");
+      return;
+    }
+
+    console.log("Firebase is configured. Initializing real-time sync...");
+    const q = query(collection(db, 'reports'), orderBy('id', 'desc'));
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const reportsList = [];
+      querySnapshot.forEach((doc) => {
+        reportsList.push({ docId: doc.id, ...doc.data() });
+      });
+
+      if (reportsList.length === 0) {
+        console.log("Firestore reports collection is empty. Pre-populating default reports...");
+        try {
+          for (const issue of initialIssues) {
+            await addDoc(collection(db, 'reports'), issue);
+          }
+          setAiLogs(prev => [...prev, { id: `log-sync-init-${Date.now()}`, type: "success", text: "Firestore: Pre-populated default reports." }]);
+        } catch (err) {
+          console.error("Error pre-populating Firestore:", err);
+        }
+      } else {
+        setReports(reportsList);
+      }
+    }, (error) => {
+      console.error("Firestore onSnapshot error:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync ward statistics dynamically based on current reports list
+  const districts = initialDistricts.map(d => {
+    const activeCount = reports.filter(r => r.zone === d.name).length;
+    const computedAvailability = parseFloat((100 - activeCount * 0.6).toFixed(1));
+    const severity = activeCount >= 4 ? "critical" : (activeCount >= 2 ? "warning" : "normal");
+    return {
+      ...d,
+      active: activeCount,
+      availability: Math.min(100, Math.max(0, computedAvailability)),
+      severity: severity
+    };
+  });
+
+  // Calculate distance between two coordinates in km (Haversine Formula)
+  const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   };
+
+  // Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const boundaryLimit = L.latLngBounds([11.7150, 75.4450], [11.7950, 75.5350]);
+
+    // Initialize Map centered on Thalassery Town with restricted panning bounds and zoom levels
+    const map = L.map(mapRef.current, {
+      center: [11.7490, 75.4891],
+      zoom: 14,
+      minZoom: 13,
+      maxZoom: 18,
+      maxBounds: boundaryLimit,
+      maxBoundsViscosity: 1.0,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    // Add CartoDB Dark Matter tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20
+    }).addTo(map);
+
+    // Draw custom dashed irregular boundary polygon for Thalassery Municipality
+    const thalasseryPolygonCoords = [
+      [11.766385, 75.4695947],
+      [11.7650957, 75.4711298],
+      [11.7640887, 75.4726003],
+      [11.7637939, 75.4730407],
+      [11.7630997, 75.4736629],
+      [11.7624012, 75.4742047],
+      [11.7619837, 75.4745239],
+      [11.7616581, 75.4746795],
+      [11.7614608, 75.4747557],
+      [11.7613797, 75.4748136],
+      [11.7606812, 75.475578],
+      [11.7603057, 75.4759455],
+      [11.7600536, 75.4761708],
+      [11.7597855, 75.476301],
+      [11.7595048, 75.476325],
+      [11.7593998, 75.4763719],
+      [11.7590085, 75.4768601],
+      [11.7587651, 75.4772063],
+      [11.7585623, 75.4773362],
+      [11.7584519, 75.4774068],
+      [11.7579455, 75.4774942],
+      [11.7578951, 75.4775495],
+      [11.7578873, 75.4776916],
+      [11.7578741, 75.4779357],
+      [11.7576982, 75.4782468],
+      [11.7570863, 75.4790139],
+      [11.756871, 75.4791963],
+      [11.7565617, 75.4795833],
+      [11.7562513, 75.4797837],
+      [11.7562172, 75.479828],
+      [11.7559821, 75.4804958],
+      [11.7559333, 75.4805802],
+      [11.7557314, 75.4807895],
+      [11.7550985, 75.4814655],
+      [11.7546967, 75.4818919],
+      [11.7543195, 75.4821342],
+      [11.7539667, 75.4824659],
+      [11.7535229, 75.4830962],
+      [11.7531527, 75.4833752],
+      [11.7528664, 75.4835388],
+      [11.7525566, 75.4836488],
+      [11.7522782, 75.4836112],
+      [11.7521889, 75.483622],
+      [11.7521495, 75.4836488],
+      [11.7520287, 75.4838821],
+      [11.7518055, 75.4841343],
+      [11.7516112, 75.4842201],
+      [11.7513092, 75.4842657],
+      [11.7512672, 75.4842925],
+      [11.7511779, 75.4844373],
+      [11.7510046, 75.4844642],
+      [11.7507919, 75.4844277],
+      [11.750503, 75.4842952],
+      [11.7504164, 75.4842174],
+      [11.7503586, 75.4841799],
+      [11.7503035, 75.4841986],
+      [11.7495052, 75.4850382],
+      [11.7492688, 75.4851133],
+      [11.74898, 75.4851267],
+      [11.748397, 75.4850703],
+      [11.7479007, 75.484888],
+      [11.7477746, 75.4848692],
+      [11.7476617, 75.4848745],
+      [11.7474273, 75.4850489],
+      [11.7473046, 75.4851186],
+      [11.7470945, 75.4851964],
+      [11.7467216, 75.485183],
+      [11.746417, 75.4851803],
+      [11.7463172, 75.485242],
+      [11.7462909, 75.4853493],
+      [11.7464458, 75.4860735],
+      [11.7464852, 75.4866126],
+      [11.746501, 75.4869345],
+      [11.7464196, 75.4874468],
+      [11.7463145, 75.4877713],
+      [11.7462489, 75.4879564],
+      [11.7458397, 75.4886081],
+      [11.7454859, 75.4892378],
+      [11.7454428, 75.4893199],
+      [11.7450934, 75.4898366],
+      [11.7447021, 75.4903811],
+      [11.7445104, 75.4906467],
+      [11.7442295, 75.4909685],
+      [11.7440666, 75.4911187],
+      [11.743917, 75.4912877],
+      [11.7437646, 75.4914299],
+      [11.7435047, 75.4917195],
+      [11.7433, 75.491874],
+      [11.7431528, 75.4920226],
+      [11.7428193, 75.4923016],
+      [11.7425908, 75.4924464],
+      [11.7423938, 75.4925296],
+      [11.7422851, 75.492584],
+      [11.7421745, 75.4926395],
+      [11.7421155, 75.492669],
+      [11.7418817, 75.4928327],
+      [11.7416848, 75.4930338],
+      [11.7414274, 75.4931572],
+      [11.7411569, 75.4933181],
+      [11.7409285, 75.4934871],
+      [11.740721, 75.4937097],
+      [11.7404952, 75.4938707],
+      [11.740335, 75.493935],
+      [11.7402797, 75.4939778],
+      [11.74016, 75.4940704],
+      [11.7400645, 75.4941443],
+      [11.7399716, 75.4941958],
+      [11.7397257, 75.494332],
+      [11.7395603, 75.494795],
+      [11.739274, 75.4946834],
+      [11.7390219, 75.4948658],
+      [11.738849, 75.494972],
+      [11.738417, 75.495265],
+      [11.738176, 75.495423],
+      [11.737961, 75.4956356],
+      [11.7377509, 75.4957482],
+      [11.7374883, 75.4959279],
+      [11.7372808, 75.4960701],
+      [11.7371495, 75.4962149],
+      [11.736879, 75.4964402],
+      [11.7366875, 75.4965631],
+      [11.7365825, 75.4966041],
+      [11.7365085, 75.4966761],
+      [11.7364245, 75.4967381],
+      [11.7363305, 75.4967991],
+      [11.7362565, 75.4968701],
+      [11.7361715, 75.4969511],
+      [11.7361615, 75.4969611],
+      [11.7359326, 75.497108],
+      [11.7357283, 75.4973157],
+      [11.7356873, 75.4973457],
+      [11.7354523, 75.4974737],
+      [11.7354413, 75.4974827],
+      [11.7351973, 75.4976497],
+      [11.7350053, 75.4978167],
+      [11.734797, 75.497834],
+      [11.73474, 75.4977827],
+      [11.7346901, 75.4977518],
+      [11.7346507, 75.4977518],
+      [11.7346179, 75.4978162],
+      [11.7345601, 75.4978484],
+      [11.7343343, 75.4978618],
+      [11.7340625, 75.4978725],
+      [11.7340165, 75.4979114],
+      [11.7340008, 75.4981139],
+      [11.7339115, 75.498189],
+      [11.733771, 75.498211],
+      [11.733616, 75.498223],
+      [11.7331762, 75.4982507],
+      [11.7329766, 75.4983526],
+      [11.7322977, 75.4988045],
+      [11.7320653, 75.49905],
+      [11.7321467, 75.4991626],
+      [11.7323515, 75.4993182],
+      [11.7325511, 75.4994228],
+      [11.732819, 75.499506],
+      [11.7329529, 75.4995757],
+      [11.7330508, 75.4996744],
+      [11.7331787, 75.4998446],
+      [11.7332563, 75.4999512],
+      [11.7332812, 75.5000404],
+      [11.7332983, 75.5002235],
+      [11.7334269, 75.5003891],
+      [11.7336687, 75.5003731],
+      [11.733902, 75.5008714],
+      [11.7339965, 75.5011362],
+      [11.734049, 75.5013796],
+      [11.7341274, 75.501572],
+      [11.7342294, 75.5018457],
+      [11.7342511, 75.501986],
+      [11.7342749, 75.502144],
+      [11.7342885, 75.5022893],
+      [11.7342759, 75.5023546],
+      [11.7343365, 75.5025814],
+      [11.7343841, 75.5028574],
+      [11.7344013, 75.5029902],
+      [11.7343947, 75.5030519],
+      [11.7344209, 75.5031994],
+      [11.7344209, 75.5034032],
+      [11.7344052, 75.5035856],
+      [11.7343448, 75.5037332],
+      [11.734288, 75.503961],
+      [11.734236, 75.504135],
+      [11.7341321, 75.5043313],
+      [11.734076, 75.504457],
+      [11.7340244, 75.5046344],
+      [11.7339666, 75.5048034],
+      [11.733895, 75.504957],
+      [11.7338169, 75.5051225],
+      [11.733735, 75.505254],
+      [11.733613, 75.505401],
+      [11.733509, 75.505549],
+      [11.733423, 75.5057046],
+      [11.7333442, 75.505718],
+      [11.7332812, 75.5056939],
+      [11.7331709, 75.5056858],
+      [11.7329949, 75.5057153],
+      [11.7329529, 75.505777],
+      [11.7329503, 75.5058092],
+      [11.733016, 75.506005],
+      [11.7330291, 75.5060962],
+      [11.7329871, 75.5061659],
+      [11.7329083, 75.5062491],
+      [11.732819, 75.5062625],
+      [11.7327139, 75.5062437],
+      [11.7324369, 75.506001],
+      [11.7324093, 75.5059996],
+      [11.7323857, 75.5060157],
+      [11.73206, 75.5063269],
+      [11.7317029, 75.5067319],
+      [11.7316648, 75.5067185],
+      [11.7315505, 75.5066071],
+      [11.7312275, 75.5063014],
+      [11.7311934, 75.5063014],
+      [11.7311527, 75.5063336],
+      [11.7310246, 75.5064886],
+      [11.730957, 75.5065924],
+      [11.7309807, 75.5066621],
+      [11.7312407, 75.5068928],
+      [11.7313011, 75.5069974],
+      [11.7313063, 75.5071503],
+      [11.7307496, 75.5081695],
+      [11.7303451, 75.5086899],
+      [11.7300274, 75.5090547],
+      [11.7298278, 75.5092692],
+      [11.7294916, 75.5096045],
+      [11.7291029, 75.5099398],
+      [11.7287011, 75.5102348],
+      [11.7283729, 75.5104548],
+      [11.727963, 75.510756],
+      [11.727543, 75.5110583],
+      [11.7272252, 75.5113238],
+      [11.727065, 75.5114096],
+      [11.7269494, 75.5114204],
+      [11.7267105, 75.511415],
+      [11.7266107, 75.5114633],
+      [11.7264032, 75.5115572],
+      [11.7263244, 75.5116323],
+      [11.7261852, 75.5117691],
+      [11.7260854, 75.51182],
+      [11.7257834, 75.5119434],
+      [11.7256258, 75.512048],
+      [11.725497, 75.512144],
+      [11.7253606, 75.5122733],
+      [11.7252266, 75.5123484],
+      [11.7249745, 75.5124906],
+      [11.7247014, 75.512622],
+      [11.7246095, 75.5127078],
+      [11.7245149, 75.5128098],
+      [11.7244335, 75.5128714],
+      [11.7240448, 75.5130672],
+      [11.7238111, 75.5131893],
+      [11.7237349, 75.513255],
+      [11.7236194, 75.5133542],
+      [11.7235406, 75.5134374],
+      [11.7233856, 75.5135393],
+      [11.7230416, 75.5136386],
+      [11.7229707, 75.5136761],
+      [11.7228446, 75.5137646],
+      [11.7224609, 75.515036],
+      [11.722297, 75.5167054],
+      [11.7231364, 75.5175021],
+      [11.7235616, 75.5183687],
+      [11.7221757, 75.5192895],
+      [11.7223951, 75.519817],
+      [11.722717, 75.5205908],
+      [11.7234804, 75.5211052],
+      [11.7248055, 75.5211018],
+      [11.7258379, 75.521026],
+      [11.7261557, 75.521576],
+      [11.7264787, 75.5222744],
+      [11.7263397, 75.5231828],
+      [11.7244672, 75.5245108],
+      [11.7239319, 75.5248904],
+      [11.7245272, 75.5269971],
+      [11.7263111, 75.5265863],
+      [11.7297556, 75.5280262],
+      [11.7308021, 75.5295467],
+      [11.7318557, 75.5316406],
+      [11.7338569, 75.5324869],
+      [11.7345344, 75.533093],
+      [11.7347614, 75.5333738],
+      [11.7347255, 75.5337714],
+      [11.7344193, 75.5371629],
+      [11.7355085, 75.5390774],
+      [11.737652, 75.5393067],
+      [11.742184, 75.5398572],
+      [11.7427937, 75.5399313],
+      [11.7464068, 75.5400164],
+      [11.7466682, 75.5399212],
+      [11.7492138, 75.5389945],
+      [11.7498253, 75.5382848],
+      [11.7498253, 75.5367235],
+      [11.7504645, 75.53661],
+      [11.7516874, 75.5361558],
+      [11.7518263, 75.5347364],
+      [11.7524378, 75.5333738],
+      [11.7535549, 75.5326358],
+      [11.7551892, 75.532437],
+      [11.7575515, 75.5327777],
+      [11.7579405, 75.5313016],
+      [11.7579061, 75.530928],
+      [11.7581224, 75.5292766],
+      [11.7569737, 75.5284881],
+      [11.7576854, 75.5272832],
+      [11.7591677, 75.5263634],
+      [11.7591764, 75.5257423],
+      [11.7593305, 75.5251445],
+      [11.7599151, 75.5246446],
+      [11.7593103, 75.5233814],
+      [11.7588048, 75.5222258],
+      [11.7585107, 75.5215533],
+      [11.7583834, 75.520849],
+      [11.7582337, 75.5200213],
+      [11.758385, 75.5197132],
+      [11.7588274, 75.5188119],
+      [11.7591809, 75.5182286],
+      [11.7598122, 75.5175282],
+      [11.75997, 75.5172863],
+      [11.7600881, 75.5170593],
+      [11.7598623, 75.5166006],
+      [11.7592212, 75.5163234],
+      [11.7588221, 75.5156904],
+      [11.7593169, 75.513868],
+      [11.7616318, 75.5150628],
+      [11.7619702, 75.5142764],
+      [11.7607915, 75.5137753],
+      [11.7588694, 75.5114472],
+      [11.7595023, 75.5097833],
+      [11.7584662, 75.5088388],
+      [11.7584279, 75.5079823],
+      [11.7585764, 75.5077398],
+      [11.7587867, 75.5073964],
+      [11.7589787, 75.5072234],
+      [11.7601226, 75.5065655],
+      [11.7616144, 75.5063295],
+      [11.7625452, 75.5060268],
+      [11.763449, 75.5058933],
+      [11.7639324, 75.5054109],
+      [11.7644203, 75.5049459],
+      [11.7652669, 75.5043289],
+      [11.7655809, 75.5044006],
+      [11.7656902, 75.5044255],
+      [11.7664108, 75.5045026],
+      [11.767158, 75.5040224],
+      [11.7684337, 75.5030249],
+      [11.7685287, 75.5029506],
+      [11.7700575, 75.5028414],
+      [11.7708102, 75.5029065],
+      [11.7718033, 75.5030328],
+      [11.7728872, 75.502875],
+      [11.7733067, 75.5016887],
+      [11.7745719, 75.5014264],
+      [11.7751239, 75.5009058],
+      [11.7752207, 75.5004218],
+      [11.7752966, 75.5000424],
+      [11.7748294, 75.4986474],
+      [11.7749412, 75.4983184],
+      [11.7756405, 75.4976952],
+      [11.7765142, 75.4967837],
+      [11.7771243, 75.4955086],
+      [11.7779949, 75.4949447],
+      [11.7783807, 75.4946948],
+      [11.7794261, 75.4940991],
+      [11.7804056, 75.4939186],
+      [11.7812611, 75.4945827],
+      [11.7817769, 75.4952896],
+      [11.7826907, 75.4951715],
+      [11.7829007, 75.4943991],
+      [11.7827012, 75.4938304],
+      [11.7823596, 75.4931829],
+      [11.7818573, 75.4925868],
+      [11.7819593, 75.492208],
+      [11.7828482, 75.4919368],
+      [11.7837178, 75.4915409],
+      [11.7838064, 75.4908062],
+      [11.7838446, 75.4887372],
+      [11.7835932, 75.4872446],
+      [11.7835467, 75.4859486],
+      [11.7834486, 75.4842323],
+      [11.7820486, 75.484335],
+      [11.780812, 75.4840511],
+      [11.7798129, 75.4824042],
+      [11.7794781, 75.4816808],
+      [11.7776162, 75.4794666],
+      [11.7770294, 75.4787888],
+      [11.7756708, 75.4772195],
+      [11.7749901, 75.4750382],
+      [11.7739202, 75.4737465],
+      [11.7722528, 75.4727956],
+      [11.7712668, 75.4721566],
+      [11.7706352, 75.4717472],
+      [11.770238, 75.4714898],
+      [11.7689876, 75.4710765],
+      [11.7688207, 75.4710214],
+      [11.7675423, 75.4705388],
+      [11.766385, 75.4695947]
+    ];
+
+    L.polygon(thalasseryPolygonCoords, {
+      color: '#ef4444',
+      fillColor: '#ef4444',
+      fillOpacity: 0.015,
+      weight: 1.5,
+      dashArray: '5, 8'
+    }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
+      permanent: true,
+      direction: 'top',
+      className: 'custom-town-tooltip'
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    setMapInstance(map);
+
+    // Add click handler to pick coordinates
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      setFormLat(lat);
+      setFormLng(lng);
+
+      // Auto-find closest district
+      let closestDistrict = initialDistricts[0];
+      let minDistance = Infinity;
+      
+      initialDistricts.forEach(d => {
+        const dist = getDistance(lat, lng, d.lat, d.lng);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestDistrict = d;
+        }
+      });
+
+      setFormZone(closestDistrict.name);
+      setIsReportModalOpen(true);
+
+      // Add temporary marker
+      if (tempPlacementMarker.current) {
+        tempPlacementMarker.current.setLatLng([lat, lng]);
+      } else {
+        const tempIcon = L.divIcon({
+          className: 'custom-temp-marker',
+          html: '<div class="w-4 h-4 rounded-full bg-blue-500 border border-white animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
+        });
+        tempPlacementMarker.current = L.marker([lat, lng], { icon: tempIcon }).addTo(map);
+      }
+
+      setAiLogs(prev => [...prev, { 
+        id: `log-click-${Date.now()}`, 
+        type: "info", 
+        text: `Map clicked: Coords set to (${lat.toFixed(4)}, ${lng.toFixed(4)}). Auto-selected ${closestDistrict.name.split(" ")[0]}.` 
+      }]);
+    });
+
+    return () => {
+      map.remove();
+    };
+  }, []);
+
+  // Sync ward overlay markers
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    if (!wardMarkersGroup.current) {
+      wardMarkersGroup.current = L.layerGroup().addTo(mapInstance);
+    } else {
+      wardMarkersGroup.current.clearLayers();
+    }
+
+    districts.forEach(d => {
+      let colorClass = 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.7)]';
+      if (d.severity === 'critical') colorClass = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]';
+      else if (d.severity === 'warning') colorClass = 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.7)]';
+
+      const wardIcon = L.divIcon({
+        className: 'custom-ward-marker',
+        html: `<div class="w-6 h-6 rounded-full border border-[#1b1d24]/60 flex items-center justify-center bg-[#101115]/90 backdrop-blur-sm shadow-xl"><div class="w-2.5 h-2.5 rounded-full ${colorClass}"></div></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      const marker = L.marker([d.lat, d.lng], { icon: wardIcon });
+      marker.bindTooltip(`<strong>${d.name}</strong><br/>Uptime Status: ${d.availability}% stable`, {
+        direction: 'top',
+        className: 'custom-tooltip font-mono text-[10px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-2 rounded shadow-2xl'
+      });
+
+      marker.on('click', () => {
+        setSelectedZone(d.name);
+        setAiLogs(prev => [...prev, { id: `log-ward-${Date.now()}`, type: "info", text: `Viewport focus aligned with regional coordinates for: ${d.name}` }]);
+      });
+
+      wardMarkersGroup.current.addLayer(marker);
+    });
+  }, [districts, mapInstance]);
+
+  // Sync report pins dynamically
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    if (!reportMarkersGroup.current) {
+      reportMarkersGroup.current = L.layerGroup().addTo(mapInstance);
+    } else {
+      reportMarkersGroup.current.clearLayers();
+    }
+
+    reports.forEach(issue => {
+      if (!issue.lat || !issue.lng) return;
+
+      const pingBg = issue.severity === 'critical' ? 'bg-red-400' : 'bg-amber-400';
+      const bgClass = issue.severity === 'critical' ? 'bg-red-500' : 'bg-amber-500';
+
+      const markerIcon = L.divIcon({
+        className: 'custom-issue-marker',
+        html: `
+          <div class="relative flex items-center justify-center">
+            <span class="absolute flex h-5 w-5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full ${pingBg} opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 ${bgClass} border border-black/40 shadow-lg"></span>
+            </span>
+          </div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      const marker = L.marker([issue.lat, issue.lng], { icon: markerIcon });
+
+      const popupDiv = document.createElement('div');
+      popupDiv.className = 'font-mono text-xs text-[#e2e8f0]';
+      popupDiv.style.minWidth = '220px';
+      
+      const badgeColor = issue.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/20' : 'bg-amber-950/40 text-amber-400 border-amber-500/20';
+
+      popupDiv.innerHTML = `
+        <div class="border-b border-[#1b1d24]/60 pb-2 mb-2">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-bold text-white text-sm">${issue.type}</span>
+            <span class="text-[8px] border px-1.5 py-0.5 rounded uppercase font-bold ${badgeColor}">
+              ${issue.severity}
+            </span>
+          </div>
+          <span class="text-[#7d8590] text-[9px] block">REF: #CF-${issue.id.toString().substring(0, 4)}</span>
+        </div>
+        <p class="mb-2 text-[#8f97a3] leading-relaxed">${issue.location}</p>
+        <div class="text-[10px] text-[#7d8590] mb-3">Community Verifications: <span class="text-white font-bold">${issue.verifications}</span></div>
+        <div class="flex items-center gap-2 border-t border-[#1b1d24]/60 pt-2">
+          <button id="map-vote-btn-${issue.id}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+            ▲ UPVOTE (${issue.votes})
+          </button>
+          <button id="map-verify-btn-${issue.id}" class="flex-1 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+            VERIFY
+          </button>
+        </div>
+      `;
+
+      marker.bindPopup(popupDiv);
+
+      marker.on('popupopen', () => {
+        const voteBtn = document.getElementById(`map-vote-btn-${issue.id}`);
+        const verifyBtn = document.getElementById(`map-verify-btn-${issue.id}`);
+
+        if (voteBtn) {
+          voteBtn.onclick = () => {
+            handleVote(issue.id, issue.docId);
+            marker.closePopup();
+          };
+        }
+        if (verifyBtn) {
+          verifyBtn.onclick = () => {
+            handleVerify(issue.id, issue.docId);
+            marker.closePopup();
+          };
+        }
+      });
+
+      reportMarkersGroup.current.addLayer(marker);
+    });
+  }, [reports, mapInstance, handleVote, handleVerify]);
+
+  // Sync hazard heatmap layer on Leaflet map
+  useEffect(() => {
+    if (!mapInstance) return;
+    
+    if (!hazardCirclesGroup.current) {
+      hazardCirclesGroup.current = L.layerGroup().addTo(mapInstance);
+    } else {
+      hazardCirclesGroup.current.clearLayers();
+    }
+    
+    if (showHazardHeatmap) {
+      // Add red/orange circles for hazard zones (e.g. Railway Underpass, Sea Bridge)
+      const hazards = [
+        { lat: 11.7455, lng: 75.4852, radius: 250, color: '#ef4444' }, // Railway Underpass
+        { lat: 11.7420, lng: 75.4810, radius: 150, color: '#f59e0b' }  // Sea Bridge Lane
+      ];
+      
+      hazards.forEach(h => {
+        const circle = L.circle([h.lat, h.lng], {
+          color: h.color,
+          fillColor: h.color,
+          fillOpacity: 0.25,
+          radius: h.radius,
+          stroke: false
+        });
+        hazardCirclesGroup.current.addLayer(circle);
+      });
+    }
+  }, [showHazardHeatmap, mapInstance]);
+
+  // Pan map to issue coordinates
+  const handleMapFocus = useCallback((lat, lng, zoom = 16) => {
+    if (mapInstance) {
+      mapInstance.setView([lat, lng], zoom, { animate: true });
+    }
+  }, [mapInstance]);
+
+  // Handle Refresh Action
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    // Simulate new data arrival
+    const generatedRef = Math.floor(1000 + Math.random() * 9000);
+    const mockIssue = {
+      id: Date.now(),
+      type: "Broken Streetlight",
+      location: "Centenary Park Path (Near Fort Entrance)",
+      zone: "Overbury's Folly Sector",
+      timeAgo: "Just now",
+      severity: "warning",
+      votes: 1,
+      verifications: 0,
+      user: "Gautham P.",
+      streetViewStatus: "verified",
+      details: "Three consecutive streetlights are out, causing absolute pitch darkness along the walking pathway.",
+      letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Request for replacement of streetlights near Centenary Park pathway.
+
+Respected Sir/Madam,
+I request the electrical department of Thalassery Municipality to replace broken streetlights near the Centenary Park walking pathway. The dark area is unsafe for evening walkers.
+
+Coordinates: Lat 11.7410, Lng 75.4830
+Report Reference: #CF-${generatedRef}`
+    };
+
+    if (isFirebaseConfigured) {
+      try {
+        await addDoc(collection(db, 'reports'), mockIssue);
+        setAiLogs(prev => [...prev, { id: `log-refresh-db-${Date.now()}`, type: "success", text: "Firestore: Refreshed and added new streetlight alert." }]);
+      } catch (error) {
+        console.error("Failed to add refresh doc to Firestore:", error);
+      }
+    } else {
+      setReports(prev => [mockIssue, ...prev]);
+      setAiLogs(prev => [...prev, { id: `log-refresh-local-${Date.now()}`, type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
+    }
+
+    // Add to dispatch queue
+    setDispatchQueue(prev => [
+      { id: `CF-${generatedRef}`, type: "Light", location: "Centenary Path", status: "Notice drafted", progress: 10, color: "text-amber-400" },
+      ...prev
+    ]);
+
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  };
+
+
 
   // Image Upload and Gemini AI Vision checking
   const handleImageUpload = (e) => {
@@ -464,7 +1127,7 @@ This is to notify the Thalassery Municipality regarding ${formType} observed at 
 
 Please initiate inspections.
 
-Coordinates: Lat 11.7450, Lng 75.4880
+Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`);
       setAiLogs(prev => [...prev, { 
         id: `log-upload-${Date.now()}-${Math.random()}`, 
@@ -491,7 +1154,7 @@ Subject: Grievance regarding ${formType} at ${formDetails}.
 Respected Sir/Madam,
 This is to notify the Thalassery Municipality regarding ${formType} at ${formDetails} (${formZone}). Community sensors have validated this concern.
 
-Coordinates: Lat 11.7450, Lng 75.4880
+Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`;
 
     const newReport = {
@@ -506,7 +1169,9 @@ Report Reference: #CF-${generatedRef}`;
       user: "You (Volunteer)",
       streetViewStatus: imageVerified ? "verified" : "unverified",
       details: verifiedDetails || "Citizen reported infrastructure issue verified by community tools.",
-      letterDrafted: draftLetter
+      letterDrafted: draftLetter,
+      lat: formLat,
+      lng: formLng
     };
 
     if (isFirebaseConfigured) {
@@ -699,7 +1364,11 @@ Report Reference: #CF-${generatedRef}`;
               {filteredReports.map(issue => (
                 <div key={issue.id} className="border border-[#1b1d24]/40 bg-[#16171d]/60 backdrop-blur-sm p-2.5 rounded text-xs flex flex-col gap-1.5">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                    <div 
+                      className="min-w-0 cursor-pointer hover:opacity-85 transition-opacity"
+                      onClick={() => handleMapFocus(issue.lat, issue.lng)}
+                      title="Click to locate on Map"
+                    >
                       <span className={`text-[11px] font-mono font-bold ${issue.verifications >= 3 ? "text-red-400" : "text-amber-400"}`}>
                         {issue.type}
                       </span>
@@ -772,111 +1441,30 @@ Report Reference: #CF-${generatedRef}`;
         {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/4 Width) */}
         <div className="xl:col-span-2 flex flex-col gap-4">
 
-          {/* 3D INTERACTIVE TACTICAL MAP (with Glassmorphism) */}
+          {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
           <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-4 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
             
             {/* Map Header details */}
             <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-3">
               <div className="flex items-center gap-2">
                 <Globe className="text-blue-400" size={15} />
-                <h3 className="text-sm font-bold text-white tracking-wide">3D Tactical Map (Thalassery Town)</h3>
+                <h3 className="text-sm font-bold text-white tracking-wide">Interactive Tactical Map (Thalassery Town)</h3>
               </div>
-              <span className="text-[10px] bg-blue-950/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold leading-none">3D PERSPECTIVE</span>
+              <span className="text-[10px] bg-blue-950/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold leading-none">LIVE OSM</span>
             </div>
 
-            {/* 3D Map viewport wrapping the tilted plane */}
-            <div className="map-perspective-container w-full h-[460px] bg-[#0a0b0e]/80 border border-[#1b1d24]/50 rounded relative overflow-hidden flex items-center justify-center">
-              
-              {/* Grid backdrop effect mimicking Singapore dashboard wireframe */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(59,130,246,0.02)_1px,transparent_1px),linear-gradient(to_right,rgba(59,130,246,0.02)_1px,transparent_1px)] bg-[length:16px_16px] pointer-events-none"></div>
-
-              {/* Tilted Plane */}
-              <div className="map-perspective-plane w-[400px] h-[400px] relative border border-[#1f2733]/40 rounded-full bg-black/20 flex items-center justify-center">
-                
-                {/* Concentric helper radar rings */}
-                <div className="absolute w-[360px] h-[360px] rounded-full border border-blue-500/5 pointer-events-none"></div>
-                <div className="absolute w-[240px] h-[240px] rounded-full border border-blue-500/5 pointer-events-none"></div>
-                
-                {/* SVG vector shapes of coastal land */}
-                <svg viewBox="0 0 100 100" className="w-full h-full p-4 text-slate-800 opacity-40">
-                  <path 
-                    d="M 5 60 C 20 62, 35 68, 48 72 C 60 76, 75 80, 95 85" 
-                    fill="none" 
-                    stroke="rgba(59, 130, 246, 0.15)" 
-                    strokeWidth="1" 
-                  />
-                  <path 
-                    d="M 10 90 Q 25 80, 30 60 T 50 40 T 70 30 T 90 10" 
-                    fill="none" 
-                    stroke="#161e2b" 
-                    strokeWidth="2.5" 
-                  />
-                </svg>
-
-                {/* Heatmap blur layers if toggled */}
-                <AnimatePresence>
-                  {showHazardHeatmap && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.6 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 pointer-events-none z-10"
-                    >
-                      <div className="absolute w-20 h-20 rounded-full bg-red-500/30 blur-xl top-[50%] left-[20%]"></div>
-                      <div className="absolute w-28 h-28 rounded-full bg-amber-500/25 blur-2xl top-[40%] left-[38%]"></div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* 3D Vertical standing pins */}
-                {districts.map(d => {
-                  let color = "bg-emerald-500 pulse-available shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-                  if (d.severity === "critical") {
-                    color = "bg-red-500 pulse-critical shadow-[0_0_10px_rgba(239,68,68,0.7)]";
-                  } else if (d.severity === "warning") {
-                    color = "bg-amber-500 pulse-warning shadow-[0_0_10px_rgba(245,158,11,0.6)]";
-                  }
-
-                  return (
-                    <div
-                      key={d.name}
-                      className="absolute z-20"
-                      style={{ left: `${d.coordinates.x}%`, top: `${d.coordinates.y}%` }}
-                    >
-                      {/* Vertical Guideline wire connector stand (gives depth) */}
-                      <div className="w-[1px] h-10 bg-gradient-to-t from-transparent via-[#2563eb] to-[#38bdf8] opacity-80 absolute bottom-[2px] left-1/2 -translate-x-1/2"></div>
-                      
-                      {/* Floating Counter-rotated Pin node */}
-                      <button
-                        onClick={() => {
-                          setSelectedZone(d.name);
-                          setAiLogs(prev => [...prev, { id: Date.now(), type: "info", text: `Viewport focus aligned with regional coordinates for: ${d.name}` }]);
-                        }}
-                        className={`map-3d-pin w-3 h-3 rounded-full border border-black/40 absolute -top-10 -left-1.5 transition-transform hover:scale-150 ${color}`}
-                        title={`${d.name}: ${d.active} active issues`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Map Footer Metadata overlay */}
-              <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none bg-[#0c0d12]/90 backdrop-blur-md border border-[#1b1d24]/50 px-2.5 py-1.5 rounded">
-                <span className="text-xs text-[#7d8590] uppercase">
-                  {showHazardHeatmap ? "Heatmap Layer: Active Hazard" : "Overlay Mode: Town Grid Radar"}
-                </span>
-                <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  SCANNING CHANNELS
-                </span>
-              </div>
-            </div>
+            {/* Interactive Leaflet Map Container */}
+            <div ref={mapRef} className="w-full h-[460px] rounded border border-[#1b1d24]/50 z-20 relative"></div>
 
             {/* Map Mode selector buttons */}
             <div className="grid grid-cols-2 gap-2">
               <button 
-                onClick={() => { setSelectedZone("All"); setShowHazardHeatmap(false); }}
-                className="bg-[#16171d]/60 backdrop-blur-sm border border-[#1b1d24]/40 hover:border-blue-500/50 text-[#7d8590] hover:text-white px-3 py-2 text-left rounded flex items-center gap-2 transition-colors"
+                onClick={() => { setSelectedZone("All"); setShowHazardHeatmap(false); handleMapFocus(11.7490, 75.4891, 14); }}
+                className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
+                  selectedZone === "All" && !showHazardHeatmap
+                    ? "border-blue-500/40 bg-blue-950/20 text-white shadow-[0_0_10px_rgba(59,130,246,0.15)]" 
+                    : "border-[#1b1d24]/40 bg-[#16171d]/60 text-[#7d8590] hover:text-white hover:border-blue-500/50"
+                }`}
               >
                 <div className="w-6 h-6 rounded-full bg-[#1e2029]/80 flex items-center justify-center">
                   <Globe size={13} className="text-blue-400" />
@@ -889,7 +1477,11 @@ Report Reference: #CF-${generatedRef}`;
 
               <button 
                 onClick={() => setShowHazardHeatmap(!showHazardHeatmap)}
-                className="bg-[#16171d]/60 backdrop-blur-sm border border-[#1b1d24]/40 hover:border-blue-500/50 text-[#7d8590] hover:text-white px-3 py-2 text-left rounded flex items-center gap-2 transition-colors"
+                className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
+                  showHazardHeatmap 
+                    ? "border-amber-500/40 bg-amber-950/20 text-white shadow-[0_0_10px_rgba(245,158,11,0.15)]" 
+                    : "border-[#1b1d24]/40 bg-[#16171d]/60 text-[#7d8590] hover:text-white hover:border-blue-500/50"
+                }`}
               >
                 <div className="w-6 h-6 rounded-full bg-[#1e2029]/80 flex items-center justify-center">
                   <AlertCircle size={13} className="text-amber-400" />
@@ -1146,6 +1738,19 @@ Report Reference: #CF-${generatedRef}`;
                       <option key={d.name} value={d.name}>{d.name}</option>
                     ))}
                   </select>
+                </div>
+
+                {/* Selected Map Coordinates */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                    Incident Coordinates (Selected from Map)
+                  </label>
+                  <div className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white rounded flex items-center justify-between">
+                    <span className="font-mono text-blue-400">
+                      Lat: {formLat.toFixed(5)} / Lng: {formLng.toFixed(5)}
+                    </span>
+                    <span className="text-[9px] text-[#555] uppercase font-bold">Captured</span>
+                  </div>
                 </div>
 
                 {/* Description Input */}
