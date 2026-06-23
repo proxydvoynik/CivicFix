@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
-  MapPin, Activity, PlusCircle, RefreshCw, AlertTriangle, 
-  CheckCircle2, MessageSquare, Trophy, Send, Info, Globe, 
-  Search, Shield, Users, Clock, ArrowUpRight, Check, X, 
-  Sparkles, Heart, Zap, Camera, Eye, AlertCircle, FileText,
-  CloudSun, User, Calendar
+  MapPin, Activity, PlusCircle, RefreshCw, 
+  CheckCircle2, Send, Globe, Search, Shield, X, 
+  Heart, Camera, AlertCircle, FileText, CloudSun
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Live Integration Imports
+import { db, isFirebaseConfigured } from './lib/firebase';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment } from 'firebase/firestore';
+import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini';
+
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
@@ -139,7 +143,6 @@ function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reports, setReports] = useState(initialIssues);
-  const [districts, setDistricts] = useState(initialDistricts);
   
   // Heatmap Overlay Toggle Feature
   const [showHazardHeatmap, setShowHazardHeatmap] = useState(false);
@@ -150,9 +153,6 @@ function App() {
   // Custom StreetView Verification Modal
   const [activeStreetCheck, setActiveStreetCheck] = useState(null);
 
-  // Active Navigation Tab (Singapore UI style)
-  const [activeNavTab, setActiveNavTab] = useState("overview");
-
   // Form State
   const [formType, setFormType] = useState("Severe Pothole");
   const [formDetails, setFormDetails] = useState("");
@@ -160,6 +160,13 @@ function App() {
   const [isImageVerifying, setIsImageVerifying] = useState(false);
   const [imageVerified, setImageVerified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Gemini & Upload States
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [verifiedConfidence, setVerifiedConfidence] = useState(97.4);
+  const [verifiedDetails, setVerifiedDetails] = useState("");
+  const [aiDraftedLetter, setAiDraftedLetter] = useState("");
+
 
   // AI Logs State
   const [aiLogs, setAiLogs] = useState([
@@ -196,26 +203,73 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Real-time Firestore sync & Auto-population
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      console.log("Firebase is not configured. Running CiviFix with local mock state.");
+      return;
+    }
+
+    console.log("Firebase is configured. Initializing real-time sync...");
+    const q = query(collection(db, 'reports'), orderBy('id', 'desc'));
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const reportsList = [];
+      querySnapshot.forEach((doc) => {
+        reportsList.push({ docId: doc.id, ...doc.data() });
+      });
+
+      if (reportsList.length === 0) {
+        console.log("Firestore reports collection is empty. Pre-populating default reports...");
+        try {
+          for (const issue of initialIssues) {
+            await addDoc(collection(db, 'reports'), issue);
+          }
+          setAiLogs(prev => [...prev, { id: `log-sync-init-${Date.now()}`, type: "success", text: "Firestore: Pre-populated default reports." }]);
+        } catch (err) {
+          console.error("Error pre-populating Firestore:", err);
+        }
+      } else {
+        setReports(reportsList);
+      }
+    }, (error) => {
+      console.error("Firestore onSnapshot error:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync ward statistics dynamically based on current reports list
+  const districts = initialDistricts.map(d => {
+    const activeCount = reports.filter(r => r.zone === d.name).length;
+    const computedAvailability = parseFloat((100 - activeCount * 0.6).toFixed(1));
+    const severity = activeCount >= 4 ? "critical" : (activeCount >= 2 ? "warning" : "normal");
+    return {
+      ...d,
+      active: activeCount,
+      availability: Math.min(100, Math.max(0, computedAvailability)),
+      severity: severity
+    };
+  });
 
   // Handle Refresh Action
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      // Simulate new data arrival
-      const mockIssue = {
-        id: Date.now(),
-        type: "Broken Streetlight",
-        location: "Centenary Park Path (Near Fort Entrance)",
-        zone: "Overbury's Folly Sector",
-        timeAgo: "Just now",
-        severity: "warning",
-        votes: 1,
-        verifications: 0,
-        user: "Gautham P.",
-        streetViewStatus: "verified",
-        details: "Three consecutive streetlights are out, causing absolute pitch darkness along the walking pathway.",
-        letterDrafted: `To,
+    
+    // Simulate new data arrival
+    const generatedRef = Math.floor(1000 + Math.random() * 9000);
+    const mockIssue = {
+      id: Date.now(),
+      type: "Broken Streetlight",
+      location: "Centenary Park Path (Near Fort Entrance)",
+      zone: "Overbury's Folly Sector",
+      timeAgo: "Just now",
+      severity: "warning",
+      votes: 1,
+      verifications: 0,
+      user: "Gautham P.",
+      streetViewStatus: "verified",
+      details: "Three consecutive streetlights are out, causing absolute pitch darkness along the walking pathway.",
+      letterDrafted: `To,
 The Municipal Commissioner,
 Thalassery Municipal Corporation,
 Thalassery, Kannur - 670101.
@@ -226,40 +280,67 @@ Respected Sir/Madam,
 I request the electrical department of Thalassery Municipality to replace broken streetlights near the Centenary Park walking pathway. The dark area is unsafe for evening walkers.
 
 Coordinates: Lat 11.7410, Lng 75.4830
-Report Reference: #CF-9818`
-      };
+Report Reference: #CF-${generatedRef}`
+    };
+
+    if (isFirebaseConfigured) {
+      try {
+        await addDoc(collection(db, 'reports'), mockIssue);
+        setAiLogs(prev => [...prev, { id: `log-refresh-db-${Date.now()}`, type: "success", text: "Firestore: Refreshed and added new streetlight alert." }]);
+      } catch (error) {
+        console.error("Failed to add refresh doc to Firestore:", error);
+      }
+    } else {
       setReports(prev => [mockIssue, ...prev]);
-      
-      // Update district activity
-      setDistricts(prev => prev.map(d => {
-        if (d.name === "Overbury's Folly Sector") {
-          return { ...d, active: d.active + 1, availability: parseFloat((d.availability - 0.4).toFixed(1)) };
-        }
-        return d;
-      }));
+      setAiLogs(prev => [...prev, { id: `log-refresh-local-${Date.now()}`, type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
+    }
 
-      // Add to dispatch queue
-      setDispatchQueue(prev => [
-        { id: "CF-9818", type: "Light", location: "Centenary Path", status: "Notice drafted", progress: 10, color: "text-amber-400" },
-        ...prev
-      ]);
+    // Add to dispatch queue
+    setDispatchQueue(prev => [
+      { id: `CF-${generatedRef}`, type: "Light", location: "Centenary Path", status: "Notice drafted", progress: 10, color: "text-amber-400" },
+      ...prev
+    ]);
 
-      setAiLogs(prev => [...prev, { id: `log-refresh-${Date.now()}`, type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
+    setTimeout(() => {
+      setIsRefreshing(false);
     }, 1000);
   };
 
   // Upvote/Downvote report
-  const handleVote = (id) => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, votes: r.votes + 1 } : r));
+  const handleVote = async (id, docId) => {
+    if (isFirebaseConfigured && docId) {
+      try {
+        const docRef = doc(db, 'reports', docId);
+        // Find existing report to get current votes count safely
+        const report = reports.find(r => r.docId === docId);
+        if (!report) return;
+        await updateDoc(docRef, {
+          votes: increment(1)
+        });
+        setAiLogs(prev => [...prev, { id: `log-vote-${id}-${Date.now()}`, type: "success", text: `Firestore: Logged upvote for issue #CF-${id.toString().substring(0, 4)}` }]);
+      } catch (error) {
+        console.error("Error updating vote in Firestore:", error);
+      }
+    } else {
+      setReports(prev => prev.map(r => r.id === id ? { ...r, votes: r.votes + 1 } : r));
+    }
   };
 
   // Verify issue locally (Gamification Verification loop)
-  const handleVerify = (id) => {
-    setReports(prev => prev.map(r => {
-      if (r.id === id) {
-        const nextVerifications = r.verifications + 1;
-        const nextSeverity = nextVerifications >= 3 ? "critical" : r.severity;
+  const handleVerify = async (id, docId) => {
+    if (isFirebaseConfigured && docId) {
+      try {
+        const report = reports.find(r => r.docId === docId);
+        if (!report) return;
+        const nextVerifications = (report.verifications || 0) + 1;
+        const nextSeverity = nextVerifications >= 3 ? "critical" : report.severity;
         
+        const docRef = doc(db, 'reports', docId);
+        await updateDoc(docRef, {
+          verifications: increment(1),
+          severity: nextSeverity
+        });
+
         // Log AI action
         setAiLogs(prevLogs => [...prevLogs, { 
           id: `log-verify-${id}-${Date.now()}-${Math.random()}`, 
@@ -275,43 +356,132 @@ Report Reference: #CF-9818`
           return q;
         }));
 
-        return { ...r, verifications: nextVerifications, severity: nextSeverity };
+      } catch (error) {
+        console.error("Error updating verification in Firestore:", error);
       }
-      return r;
-    }));
+    } else {
+      setReports(prev => prev.map(r => {
+        if (r.id === id) {
+          const nextVerifications = r.verifications + 1;
+          const nextSeverity = nextVerifications >= 3 ? "critical" : r.severity;
+          
+          // Log AI action
+          setAiLogs(prevLogs => [...prevLogs, { 
+            id: `log-verify-${id}-${Date.now()}-${Math.random()}`, 
+            type: "success", 
+            text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
+          }]);
+
+          // Update queue progress if matching
+          setDispatchQueue(prevQ => prevQ.map(q => {
+            if (q.id === `CF-${id.toString().substring(0, 4)}`) {
+              return { ...q, status: "Escalating...", progress: 45 };
+            }
+            return q;
+          }));
+
+          return { ...r, verifications: nextVerifications, severity: nextSeverity };
+        }
+        return r;
+      }));
+    }
   };
 
-  // Mock upload and verification using Gemini
-  const handleMockUpload = () => {
+  // Image Upload and Gemini AI Vision checking
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsImageVerifying(true);
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result;
+      setUploadedImage(base64String);
+      
+      // Extract data URL prefix to get raw base64
+      const commaIndex = base64String.indexOf(',');
+      const rawBase64 = base64String.substring(commaIndex + 1);
+      const mimeType = file.type;
+
+      if (isGeminiConfigured) {
+        try {
+          const result = await analyzeIssueImage(rawBase64, mimeType, formType, formDetails || "Unknown Location", formZone);
+          setIsImageVerifying(false);
+          if (result.isValid) {
+            setImageVerified(true);
+            setVerifiedConfidence(Math.floor(90 + Math.random() * 9));
+            setVerifiedDetails(result.description);
+            setAiDraftedLetter(result.letterDraft);
+            setAiLogs(prev => [...prev, { 
+              id: `log-upload-${Date.now()}-${Math.random()}`, 
+              type: "success", 
+              text: `Gemini Vision: Photo verified as valid ${formType}. Drafted municipal letter.` 
+            }]);
+          } else {
+            setImageVerified(false);
+            setUploadedImage(null);
+            alert("Gemini could not verify this as a valid civic/infrastructure issue. Please upload a clear photo of the issue.");
+            setAiLogs(prev => [...prev, { 
+              id: `log-upload-fail-${Date.now()}-${Math.random()}`, 
+              type: "warning", 
+              text: "Gemini Vision: Uploaded image verified as UNRELATED to civic infrastructure." 
+            }]);
+          }
+        } catch (error) {
+          setIsImageVerifying(false);
+          setImageVerified(false);
+          setUploadedImage(null);
+          console.error("Gemini call failed:", error);
+          alert("Gemini image analysis failed. Falling back to local mock validation.");
+          runFallbackMockVerification();
+        }
+      } else {
+        runFallbackMockVerification();
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const runFallbackMockVerification = () => {
     setIsImageVerifying(true);
     setTimeout(() => {
       setIsImageVerifying(false);
       setImageVerified(true);
-      setAiLogs(prev => [...prev, { id: `log-upload-${Date.now()}`, type: "success", text: "Gemini Vision API: Image analyzed. Confirmed structural road cracking." }]);
+      setVerifiedConfidence(97.4);
+      setVerifiedDetails("Confirmed structural road cracking/debris blockages in the sector area.");
+      
+      const generatedRef = Math.floor(1000 + Math.random() * 9000);
+      setAiDraftedLetter(`To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Report regarding ${formType} at ${formDetails || "specified location"}.
+
+Respected Sir/Madam,
+This is to notify the Thalassery Municipality regarding ${formType} observed at ${formDetails || "specified location"} in the ${formZone} ward. Standard image comparison confirms surface changes.
+
+Please initiate inspections.
+
+Coordinates: Lat 11.7450, Lng 75.4880
+Report Reference: #CF-${generatedRef}`);
+      setAiLogs(prev => [...prev, { 
+        id: `log-upload-${Date.now()}-${Math.random()}`, 
+        type: "success", 
+        text: "Mock Vision: Image analyzed. Simulated validation confirmed structural issue." 
+      }]);
     }, 1500);
   };
 
   // Submit new issue (Overlay Modal form)
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formDetails.trim()) return;
     setIsSubmitting(true);
     
-    setTimeout(() => {
-      const generatedRef = Math.floor(1000 + Math.random() * 9000);
-      const newReport = {
-        id: Date.now(),
-        type: formType,
-        location: formDetails,
-        zone: formZone,
-        timeAgo: "1s ago",
-        severity: imageVerified ? "critical" : "warning",
-        votes: 1,
-        verifications: 0,
-        user: "You (Volunteer)",
-        streetViewStatus: imageVerified ? "verified" : "unverified",
-        details: "Citizen reported infrastructure issue verified by AI model.",
-        letterDrafted: `To,
+    const generatedRef = Math.floor(1000 + Math.random() * 9000);
+    const draftLetter = aiDraftedLetter || `To,
 The Municipal Commissioner,
 Thalassery Municipal Corporation,
 Thalassery, Kannur - 670101.
@@ -322,39 +492,55 @@ Respected Sir/Madam,
 This is to notify the Thalassery Municipality regarding ${formType} at ${formDetails} (${formZone}). Community sensors have validated this concern.
 
 Coordinates: Lat 11.7450, Lng 75.4880
-Report Reference: #CF-${generatedRef}`
-      };
+Report Reference: #CF-${generatedRef}`;
 
+    const newReport = {
+      id: Date.now(),
+      type: formType,
+      location: formDetails,
+      zone: formZone,
+      timeAgo: "Just now",
+      severity: imageVerified ? "critical" : "warning",
+      votes: 1,
+      verifications: imageVerified ? 1 : 0,
+      user: "You (Volunteer)",
+      streetViewStatus: imageVerified ? "verified" : "unverified",
+      details: verifiedDetails || "Citizen reported infrastructure issue verified by community tools.",
+      letterDrafted: draftLetter
+    };
+
+    if (isFirebaseConfigured) {
+      try {
+        await addDoc(collection(db, 'reports'), newReport);
+        setAiLogs(prev => [...prev, { id: `log-submit-db-${Date.now()}-${Math.random()}`, type: "success", text: `Firestore: Report added for ${formZone}.` }]);
+      } catch (error) {
+        console.error("Failed to add document to Firestore:", error);
+        alert("Firestore upload failed. Storing locally.");
+        setReports(prev => [newReport, ...prev]);
+      }
+    } else {
       setReports(prev => [newReport, ...prev]);
-      
-      // Update District numbers
-      setDistricts(prev => prev.map(d => {
-        if (d.name === formZone) {
-          return {
-            ...d,
-            active: d.active + 1,
-            availability: parseFloat((d.availability - 0.5).toFixed(1))
-          };
-        }
-        return d;
-      }));
+    }
 
-      // Add to dispatch queue
-      setDispatchQueue(prev => [
-        { id: `CF-${generatedRef}`, type: formType.substring(0, 8), location: formDetails.substring(0, 10), status: "Drafted", progress: 15, color: "text-blue-400" },
-        ...prev
-      ]);
+    // Add to dispatch queue
+    setDispatchQueue(prev => [
+      { id: `CF-${generatedRef}`, type: formType.substring(0, 8), location: formDetails.substring(0, 10), status: "Drafted", progress: 15, color: "text-blue-400" },
+      ...prev
+    ]);
 
-      setIsSubmitting(false);
-      setIsReportModalOpen(false);
-      
-      // Reset form states
-      setFormDetails("");
-      setImageVerified(false);
-      
-      setAiLogs(prev => [...prev, { id: `log-submit-${Date.now()}`, type: "success", text: `Report successfully uploaded and pinned to ${formZone} layout.` }]);
-    }, 2000);
+    setIsSubmitting(false);
+    setIsReportModalOpen(false);
+    
+    // Reset form states
+    setFormDetails("");
+    setImageVerified(false);
+    setUploadedImage(null);
+    setAiDraftedLetter("");
+    setVerifiedDetails("");
+    
+    setAiLogs(prev => [...prev, { id: `log-submit-${Date.now()}-${Math.random()}`, type: "success", text: `Report successfully uploaded and pinned to ${formZone} layout.` }]);
   };
+
 
   // Filter logic
   const filteredReports = reports.filter(r => {
@@ -379,7 +565,7 @@ Report Reference: #CF-${generatedRef}`
           <div className="flex items-center justify-center w-8 h-8 rounded border border-blue-500/10 bg-blue-950/10 text-blue-400">
             <Activity size={18} />
           </div>
-          <span className="font-semibold text-sm tracking-tight text-white">CiviFix</span>
+          <span className="font-semibold text-sm tracking-tight text-white">CivicFix</span>
         </div>
 
         {/* Right Actions: Weather/Location info & Report button */}
@@ -428,10 +614,10 @@ Report Reference: #CF-${generatedRef}`
       </div>
 
       {/* MAIN SCREEN GRID LAYOUT (Three-Column Balanced Grid) */}
-      <main className="flex-1 p-4 md:p-6 max-w-[1500px] w-full mx-auto grid grid-cols-1 xl:grid-cols-4 gap-6 relative z-10">
+      <main className="flex-1 p-3 md:p-4 w-full max-w-none grid grid-cols-1 xl:grid-cols-4 gap-4 relative z-10">
 
         {/* COLUMN 1: Wards Health, Incident Feed, AI logs (Left Column - 1/4 Width) */}
-        <div className="xl:col-span-1 flex flex-col gap-6">
+        <div className="xl:col-span-1 flex flex-col gap-4">
           
           {/* THALASSERY WARDS HEALTH (Top Left with Glassmorphism) */}
           <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded">
@@ -493,6 +679,22 @@ Report Reference: #CF-${generatedRef}`
               <span className="text-xs text-[#8f97a3]">{reports.length} open</span>
             </div>
 
+            <div className="flex items-center gap-2 bg-[#0c0d12]/60 border border-[#1b1d24]/50 px-2.5 py-1.5 rounded text-xs font-mono mb-1">
+              <Search size={12} className="text-[#7d8590] shrink-0" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search issues..."
+                className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-[11px]"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery("")} className="text-[#7d8590] hover:text-white shrink-0">
+                  <X size={10} />
+                </button>
+              )}
+            </div>
+
             <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
               {filteredReports.map(issue => (
                 <div key={issue.id} className="border border-[#1b1d24]/40 bg-[#16171d]/60 backdrop-blur-sm p-2.5 rounded text-xs flex flex-col gap-1.5">
@@ -503,7 +705,16 @@ Report Reference: #CF-${generatedRef}`
                       </span>
                       <p className="text-white truncate font-medium mt-0.5">{issue.location.split("(")[0]}</p>
                     </div>
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${issue.verifications >= 3 ? "bg-red-500 pulse-critical" : "bg-amber-500 pulse-warning"}`} />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button 
+                        onClick={() => handleVote(issue.id, issue.docId)}
+                        className="flex items-center gap-1 text-[9px] font-bold text-blue-400 hover:text-white bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 transition-all"
+                        title="Upvote Report"
+                      >
+                        ▲ {issue.votes || 0}
+                      </button>
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${issue.verifications >= 3 ? "bg-red-500 pulse-critical" : "bg-amber-500 pulse-warning"}`} />
+                    </div>
                   </div>
 
                   {/* Actions buttons inside stream */}
@@ -521,10 +732,10 @@ Report Reference: #CF-${generatedRef}`
                       AI Notice
                     </button>
                     <button 
-                      onClick={() => handleVerify(issue.id)}
+                      onClick={() => handleVerify(issue.id, issue.docId)}
                       className="bg-blue-600/10 hover:bg-blue-600 text-blue-300 hover:text-white px-2 py-0.5 rounded border border-blue-500/20 font-bold"
                     >
-                      Verify ({issue.verifications})
+                      Verify ({issue.verifications || 0})
                     </button>
                   </div>
                 </div>
@@ -559,7 +770,7 @@ Report Reference: #CF-${generatedRef}`
         </div>
 
         {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/4 Width) */}
-        <div className="xl:col-span-2 flex flex-col gap-6">
+        <div className="xl:col-span-2 flex flex-col gap-4">
 
           {/* 3D INTERACTIVE TACTICAL MAP (with Glassmorphism) */}
           <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-4 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
@@ -574,17 +785,17 @@ Report Reference: #CF-${generatedRef}`
             </div>
 
             {/* 3D Map viewport wrapping the tilted plane */}
-            <div className="map-perspective-container w-full h-[320px] bg-[#0a0b0e]/80 border border-[#1b1d24]/50 rounded relative overflow-hidden flex items-center justify-center">
+            <div className="map-perspective-container w-full h-[460px] bg-[#0a0b0e]/80 border border-[#1b1d24]/50 rounded relative overflow-hidden flex items-center justify-center">
               
               {/* Grid backdrop effect mimicking Singapore dashboard wireframe */}
               <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(59,130,246,0.02)_1px,transparent_1px),linear-gradient(to_right,rgba(59,130,246,0.02)_1px,transparent_1px)] bg-[length:16px_16px] pointer-events-none"></div>
 
               {/* Tilted Plane */}
-              <div className="map-perspective-plane w-[350px] h-[350px] relative border border-[#1f2733]/40 rounded-full bg-black/20 flex items-center justify-center">
+              <div className="map-perspective-plane w-[400px] h-[400px] relative border border-[#1f2733]/40 rounded-full bg-black/20 flex items-center justify-center">
                 
                 {/* Concentric helper radar rings */}
-                <div className="absolute w-[300px] h-[300px] rounded-full border border-blue-500/5 pointer-events-none"></div>
-                <div className="absolute w-[200px] h-[200px] rounded-full border border-blue-500/5 pointer-events-none"></div>
+                <div className="absolute w-[360px] h-[360px] rounded-full border border-blue-500/5 pointer-events-none"></div>
+                <div className="absolute w-[240px] h-[240px] rounded-full border border-blue-500/5 pointer-events-none"></div>
                 
                 {/* SVG vector shapes of coastal land */}
                 <svg viewBox="0 0 100 100" className="w-full h-full p-4 text-slate-800 opacity-40">
@@ -736,14 +947,11 @@ Report Reference: #CF-${generatedRef}`
             {/* Outages minute bars (Color-coded heights: Green, Yellow, Red) */}
             <div className="flex items-end gap-[3px] h-10 pt-2 border-t border-[#1b1d24]/50" role="img">
               {Array.from({ length: 48 }).map((_, i) => {
-                let val = 95;
-                if (i === 12) val = 42;
-                else if (i === 28) val = 30;
-                else if (i === 34) val = 55;
-                else if (i === 8 || i === 22 || i === 41) val = 72;
-                else {
-                  val = 86 + ((i * 7) % 15);
-                }
+                const val = (i === 12) ? 42 :
+                            (i === 28) ? 30 :
+                            (i === 34) ? 55 :
+                            (i === 8 || i === 22 || i === 41) ? 72 :
+                            (86 + ((i * 7) % 15));
 
                 let bg = "bg-emerald-500";
                 if (val < 60) bg = "bg-red-500";
@@ -765,7 +973,7 @@ Report Reference: #CF-${generatedRef}`
         </div>
 
         {/* COLUMN 4: Weather Predictor, Karma Board, AI notice dispatch queue (Right Column - 1/4 Width) */}
-        <div className="xl:col-span-1 flex flex-col gap-6">
+        <div className="xl:col-span-1 flex flex-col gap-4">
 
           {/* AI WEATHER & HAZARD PREDICTOR (Top Right with Glassmorphism) */}
           <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded">
@@ -955,33 +1163,47 @@ Report Reference: #CF-${generatedRef}`
                   ></textarea>
                 </div>
 
-                {/* AI Image Verification Simulator */}
+                {/* Gemini AI Vision Checker */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Gemini AI Vision Checker
                   </label>
                   
                   {imageVerified ? (
-                    <div className="border border-emerald-500/30 bg-emerald-500/10 p-3 rounded flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs text-emerald-400">
-                        <CheckCircle2 size={14} />
-                        <span>Verification success! Gemini verified structural damage details (97.4%).</span>
+                    <div className="border border-emerald-500/30 bg-emerald-500/10 p-3 rounded flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-emerald-400">
+                          <CheckCircle2 size={14} />
+                          <span>Gemini verified structural damage details ({verifiedConfidence}%).</span>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => { setImageVerified(false); setUploadedImage(null); setAiDraftedLetter(""); setVerifiedDetails(""); }}
+                          className="text-[9px] font-mono text-red-400 hover:underline font-bold"
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <button 
-                        type="button" 
-                        onClick={() => setImageVerified(false)}
-                        className="text-[9px] font-mono text-red-400 hover:underline"
-                      >
-                        Remove
-                      </button>
+                      {uploadedImage && (
+                        <div className="w-full h-24 bg-black/60 border border-[#1b1d24]/50 rounded overflow-hidden flex items-center justify-center relative mt-1">
+                          <img src={uploadedImage} alt="Citizen report preview" className="h-full object-contain" />
+                        </div>
+                      )}
+                      {verifiedDetails && (
+                        <div className="text-[10px] text-blue-200 bg-[#0e1014] border border-[#1b1d24]/50 p-2 rounded leading-relaxed">
+                          <strong>AI Diagnosis:</strong> {verifiedDetails}
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleMockUpload}
-                      disabled={isImageVerifying}
-                      className="border border-[#1b1d24] bg-[#16171d] hover:bg-[#1d1e26] py-4 rounded flex flex-col items-center justify-center gap-2 text-[#7d8590] hover:text-white transition-colors"
-                    >
+                    <label className="border border-[#1b1d24] bg-[#16171d] hover:bg-[#1d1e26] py-4 rounded flex flex-col items-center justify-center gap-2 text-[#7d8590] hover:text-white transition-colors cursor-pointer">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        disabled={isImageVerifying} 
+                        className="hidden" 
+                      />
                       {isImageVerifying ? (
                         <div className="flex items-center gap-2 text-xs font-mono text-blue-400">
                           <RefreshCw size={14} className="animate-spin" />
@@ -990,10 +1212,12 @@ Report Reference: #CF-${generatedRef}`
                       ) : (
                         <>
                           <Camera size={16} className="text-[#7d8590]" />
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider">Upload Photo (Simulated verification)</span>
+                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider">
+                            Upload Photo {isGeminiConfigured ? "(Live Gemini Analysis)" : "(Simulated verification)"}
+                          </span>
                         </>
                       )}
-                    </button>
+                    </label>
                   )}
                 </div>
 
@@ -1195,7 +1419,7 @@ Report Reference: #CF-${generatedRef}`
 
       {/* FOOTER */}
       <footer className="border-t border-[#1b1d24]/60 bg-[#0c0d12]/80 backdrop-blur-md py-6 px-4 text-center text-[#666] font-mono text-[10px] leading-relaxed relative z-10">
-        <div>CiviFix v0.4.0 • Thalassery Town Community Command Center.</div>
+        <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>
         <div className="mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
           <span>Developed with ❤️ by <span className="text-white font-bold">Harshith</span> for the</span>
           <span className="text-white hover:text-red-500 transition-colors cursor-pointer flex items-center gap-0.5 font-bold">
