@@ -36,7 +36,7 @@ export default function ConsoleDrawer({ logs = [] }) {
 
         {/* Center Section: Last log entry preview */}
         <div className="flex-1 mx-4 text-center hidden md:block">
-          <p className="text-[10px] sm:text-xs text-gray-500 truncate max-w-xl mx-auto font-mono">
+          <p className="text-[10px] sm:text-xs text-gray-400 truncate max-w-xl mx-auto font-mono">
             {lastLog}
           </p>
         </div>

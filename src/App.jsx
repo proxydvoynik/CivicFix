@@ -315,6 +315,46 @@ function App() {
   const [peakRainfall, setPeakRainfall] = useState(0);
   const [hasWeatherData, setHasWeatherData] = useState(false);
 
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentTemp, setCurrentTemp] = useState("28°C");
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      setCurrentTime(`${hours}:${minutes} ${ampm}`);
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchTemp = async () => {
+      try {
+        const res = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=11.7490&longitude=75.4891&current_weather=true"
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const temp = data.current_weather?.temperature;
+          if (temp !== undefined) {
+            setCurrentTemp(`${Math.round(temp)}°C`);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch temp for navbar:", err);
+      }
+    };
+    fetchTemp();
+    const interval = setInterval(fetchTemp, 900000); // 15 mins
+    return () => clearInterval(interval);
+  }, []);
+
   const floodRisk = useMemo(() => {
     return hasWeatherData && (
       (mappedIncidents.some(i =>
@@ -1417,7 +1457,7 @@ Report Reference: #CF-${generatedRef}`;
             <span className="text-[#3b4453] font-bold">|</span>
             <span className="flex items-center gap-1 text-amber-400">
               <CloudSun size={11} />
-              28°C, 11:00 PM
+              {currentTemp}, {currentTime || "11:00 PM"}
             </span>
           </div>
 
@@ -1448,7 +1488,7 @@ Report Reference: #CF-${generatedRef}`;
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
       <div 
         style={{ height: 'calc(100vh - 56px - 34px - 48px - 32px)' }} 
-        className="flex-shrink-0 flex flex-col lg:flex-row overflow-hidden relative z-10"
+        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[360px_1fr_360px] gap-3 p-3 md:p-4"
       >
         <LeftPanel
           incidents={mappedIncidents}
@@ -1469,11 +1509,8 @@ Report Reference: #CF-${generatedRef}`;
           onAgentLog={onAgentLog}
         />
 
-        {/* Map & Right column container */}
-        <div className="flex-1 h-full overflow-hidden p-3 md:p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-          
-          {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/3 Width of main content) */}
-          <div className="xl:col-span-2 flex flex-col gap-3 h-full overflow-hidden">
+        {/* Center column: Map & Stability */}
+        <div className="flex flex-col gap-3 h-full overflow-hidden">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
           <section className="flex-1 min-h-0 border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-2 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
@@ -1482,7 +1519,7 @@ Report Reference: #CF-${generatedRef}`;
             <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
               <div className="flex items-center gap-2">
                 <Globe className="text-blue-400" size={15} />
-                <h3 className="text-sm font-bold text-white tracking-wide">Interactive Tactical Map (Thalassery Town)</h3>
+                <h3 className="text-base font-bold text-white tracking-wide">Interactive Tactical Map (Thalassery Town)</h3>
               </div>
               <span className="text-[10px] bg-blue-950/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold leading-none">LIVE OSM</span>
             </div>
@@ -1529,17 +1566,17 @@ Report Reference: #CF-${generatedRef}`;
           </section>
 
           {/* CIVIC STABILITY HEALTH & SPARKLINE GRAPH (Bottom Center with Glassmorphism) */}
-          <section className="h-[185px] flex-shrink-0 overflow-hidden border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-2 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-1.5">
+          <section className="h-[160px] flex-shrink-0 overflow-hidden border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-1.5 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-1">
               <div className="flex items-center gap-2">
                 <Activity className="text-blue-400" size={15} />
-                <h3 className="text-sm font-bold text-white tracking-wide">Civic Stability Health</h3>
+                <h3 className="text-base font-bold text-white tracking-wide">Civic Stability Health</h3>
               </div>
-              <span className="text-xs text-[#7d8590] uppercase">90-Day Trend</span>
+              <span className="text-xs text-[#9ca3af] uppercase">90-Day Trend</span>
             </div>
 
             {/* Sparkline chart (Color-coded from Good to Critical) */}
-            <div className="h-9 w-full pt-0.5">
+            <div className="h-8 w-full pt-0.5">
               <svg viewBox="0 0 400 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                 <line x1="0" y1="10" x2="400" y2="10" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
                 <line x1="0" y1="30" x2="400" y2="30" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
@@ -1571,7 +1608,7 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* Outages minute bars (Color-coded heights: Green, Yellow, Red) */}
-            <div className="flex items-end gap-[3px] h-9 pt-1.5 border-t border-[#1b1d24]/50" role="img">
+            <div className="flex items-end gap-[3px] h-8 pt-1 border-t border-[#1b1d24]/50" role="img">
               {Array.from({ length: 48 }).map((_, i) => {
                 const val = (i === 12) ? 42 :
                             (i === 28) ? 30 :
@@ -1590,7 +1627,7 @@ Report Reference: #CF-${generatedRef}`;
                 );
               })}
             </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-[#555]">
+            <div className="flex items-center justify-between text-[10px] font-mono text-[#7d8590]">
               <span>30 MIN AGO</span>
               <span>NOW</span>
             </div>
@@ -1600,7 +1637,6 @@ Report Reference: #CF-${generatedRef}`;
 
         <RightPanel incidents={mappedIncidents} wardens={mappedWardens} onAgentLog={onAgentLog} />
 
-      </div>
     </div>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}

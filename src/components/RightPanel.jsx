@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import CardShell from './CardShell';
 
 // Dispatch Queue stage mapper configuration
 const DISPATCH_STAGES = {
@@ -113,14 +114,15 @@ export default function RightPanel({
   }, [incidents]);
 
   return (
-    <aside className="w-full xl:col-span-1 h-full overflow-y-auto no-scrollbar flex flex-col gap-6 font-mono text-[#e2e8f0]">
+    <aside className="w-full h-full overflow-y-auto no-scrollbar flex flex-col pt-3 md:pt-4 font-mono text-[#e2e8f0]">
       
-      {/* SECTION 1: Precipitation & Hazards */}
-      <section className="border border-[#1b1d24] bg-[#121318]/70 backdrop-blur-md p-5 rounded-lg flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs uppercase tracking-widest text-gray-400">Precipitation & Hazards</h3>
+      <div className="flex flex-col gap-4 px-3 md:px-4 pb-3">
+          {/* SECTION 1: Precipitation & Hazards */}
+          <CardShell className="flex-1 flex flex-col gap-4 min-h-0">
+        <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Precipitation & Hazards</h3>
           {!loading && !error && (
-            <span className="flex items-center gap-1.5 text-[9px] text-emerald-400 font-bold bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/20">
+            <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
               LIVE RADAR
             </span>
@@ -144,27 +146,27 @@ export default function RightPanel({
           </div>
         ) : (
           /* Loaded Weather UI */
-          <>
+          <div className="flex-1 flex flex-col justify-between min-h-0">
             {/* Stat chips row */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="border border-[#1b1d24] p-2.5 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                <span className="text-[9px] text-[#6b7280] block font-bold">WIND</span>
-                <span className="text-xs font-bold text-white mt-0.5 block">{weatherStats.wind} km/h</span>
+            <div className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
+                <span className="text-[10px] text-[#9ca3af] block font-bold">WIND</span>
+                <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.wind} km/h</span>
               </div>
-              <div className="border border-[#1b1d24] p-2.5 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                <span className="text-[9px] text-[#6b7280] block font-bold">HUMIDITY</span>
-                <span className="text-xs font-bold text-white mt-0.5 block">{weatherStats.humidity}%</span>
+              <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
+                <span className="text-[10px] text-[#9ca3af] block font-bold">HUMIDITY</span>
+                <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.humidity}%</span>
               </div>
-              <div className="border border-[#1b1d24] p-2.5 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                <span className="text-[9px] text-[#6b7280] block font-bold">PRESSURE</span>
-                <span className="text-xs font-bold text-white mt-0.5 block truncate">{weatherStats.pressure} hPa</span>
+              <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
+                <span className="text-[10px] text-[#9ca3af] block font-bold">PRESSURE</span>
+                <span className="text-sm font-bold text-white mt-0.5 block truncate">{weatherStats.pressure} hPa</span>
               </div>
             </div>
 
             {/* Precipitation Bar chart */}
-            <div className="flex flex-col gap-2">
-              <span className="text-[9px] text-[#6b7280] uppercase font-bold">Forecast Rain Level</span>
-              <div className="h-20 w-full relative">
+            <div className="flex flex-col gap-2 min-h-0 justify-center">
+              <span className="text-[10px] text-[#9ca3af] uppercase font-bold">Forecast Rain Level</span>
+              <div className="flex-1 min-h-[100px] w-full relative">
                 <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
                   {/* Baseline grid marker */}
                   <line x1="0" y1="60" x2="240" y2="60" stroke="#1b1d24" strokeWidth="0.8" />
@@ -237,20 +239,20 @@ export default function RightPanel({
                 </svg>
               </div>
             </div>
-          </>
+          </div>
         )}
-      </section>
+      </CardShell>
 
       {/* SECTION 2: Volunteer Karma Board */}
-      <section className="bg-[#121318]/70 backdrop-blur-md p-5 rounded-lg flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <CardShell className="flex-1 flex flex-col gap-3 min-h-0">
         <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
-          <h3 className="text-xs uppercase tracking-widest text-gray-400">Volunteer Karma Board</h3>
-          <span className="text-[9px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Volunteer Karma Board</h3>
+          <span className="text-[10px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
             TOP WARDENS
           </span>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-between">
           {topWardens.map((item, idx) => (
             <div 
               key={idx} 
@@ -261,37 +263,42 @@ export default function RightPanel({
               <div className="flex items-center gap-3.5 min-w-0">
                 <span className="text-base shrink-0">{rankIcons[idx]}</span>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-white truncate">{item.name}</span>
-                  <span className="text-[9.5px] font-mono text-[#7d8590] mt-0.5 truncate">{item.role}</span>
+                  <span className="text-sm font-bold text-white truncate">{item.name}</span>
+                  <span className="text-xs font-mono text-[#9ca3af] mt-0.5 truncate">{item.role}</span>
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <span className="text-xs font-mono font-bold text-cyan-400">{item.karma}</span>
-                <span className="text-[9.5px] font-mono text-[#555] block mt-0.5">karma</span>
+                <span className="text-sm font-mono font-bold text-cyan-400">{item.karma}</span>
+                <span className="text-[10px] font-mono text-[#7d8590] block mt-0.5">karma</span>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </CardShell>
 
-      {/* SECTION 3: AI Dispatch Queue */}
-      <section className="bg-[#121318]/70 backdrop-blur-md p-5 rounded-lg flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      {/* Spacer & Indicator */}
+      <div className="text-center pt-2 pb-1 text-[10px] text-[#555] uppercase tracking-wider select-none font-bold">
+        Dispatch queue below ↓
+      </div>
+
+    {/* SECTION 3: AI Dispatch Queue */}
+    <CardShell className="flex flex-col gap-4">
         <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
-          <h3 className="text-xs uppercase tracking-widest text-gray-400">AI Dispatch Queue</h3>
-          <span className="text-[9px] text-[#8f97a3] font-bold uppercase tracking-wider">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">AI Dispatch Queue</h3>
+          <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
             Municipality Status
           </span>
         </div>
 
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-6">
           {dispatchQueue.length === 0 ? (
             /* Empty State */
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider">No active dispatches</span>
+                <span className="text-xs font-bold text-white uppercase tracking-wider">No active dispatches</span>
               </div>
-              <span className="text-[9px] text-[#6b7280] uppercase">all clear in Thalassery</span>
+              <span className="text-[10px] text-[#9ca3af] uppercase">all clear in Thalassery</span>
             </div>
           ) : (
             /* Dispatch items list */
@@ -302,23 +309,30 @@ export default function RightPanel({
                 : `CF-${incident.id.toString().substring(0, 4)}`;
 
               return (
-                <div key={incident.id} className="flex flex-col gap-1.5">
+                <div key={incident.id} className="flex flex-col gap-2.5">
                   {/* Row 1: ID & Stage Label */}
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-white font-bold font-mono">{cfId}</span>
-                    <span className="font-bold text-[9px] uppercase tracking-wider" style={{ color: stageInfo.color }}>
+                    <span 
+                      className="font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border" 
+                      style={{ 
+                        color: stageInfo.color,
+                        borderColor: `${stageInfo.color}30`,
+                        backgroundColor: `${stageInfo.color}15`
+                      }}
+                    >
                       {stageInfo.label}
                     </span>
                   </div>
 
                   {/* Row 2: Type @ Ward & progress percentage */}
-                  <div className="flex justify-between items-center text-[#7d8590] text-[9.5px]">
+                  <div className="flex justify-between items-center text-[#9ca3af] text-xs">
                     <span className="truncate max-w-[170px]">{incident.type} @ Ward {incident.ward}</span>
                     <span className="font-semibold font-mono">{stageInfo.progress}% dispatched</span>
                   </div>
 
                   {/* Row 3: Progress track & bar */}
-                  <div className="w-full bg-[#1b1d24] h-[3px] rounded-full overflow-hidden mt-0.5">
+                  <div className="w-full bg-[#1b1d24] h-[4px] rounded-full overflow-hidden mt-0.5">
                     <div 
                       className="h-full rounded-full" 
                       style={{ 
@@ -333,8 +347,8 @@ export default function RightPanel({
             })
           )}
         </div>
-      </section>
-
+      </CardShell>
+    </div>
     </aside>
   );
 }
