@@ -16,13 +16,13 @@ export default function ConsoleDrawer({ logs = [] }) {
   return (
     <div
       style={{
-        height: isExpanded ? '200px' : '36px',
+        height: isExpanded ? '200px' : '32px',
         transition: 'height 300ms ease'
       }}
       className="fixed bottom-0 left-0 right-0 z-50 bg-[#0c0e13]/95 backdrop-blur border-t border-[#1b1d24] flex flex-col overflow-hidden font-mono"
     >
       {/* Header bar (always visible) */}
-      <div className="h-9 min-h-[36px] px-4 flex items-center justify-between border-b border-[#1b1d24]/50 select-none">
+      <div className="h-8 min-h-[32px] px-4 flex items-center justify-between border-b border-[#1b1d24]/50 select-none">
         {/* Left Section: Title and Green pulsing status dot */}
         <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-white tracking-wide">
           <span>⚡ AI AGENT CONSOLE</span>

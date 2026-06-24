@@ -113,7 +113,7 @@ export default function RightPanel({
   }, [incidents]);
 
   return (
-    <aside className="w-full xl:col-span-1 flex flex-col gap-6 font-mono text-[#e2e8f0]">
+    <aside className="w-full xl:col-span-1 h-full overflow-y-auto no-scrollbar flex flex-col gap-6 font-mono text-[#e2e8f0]">
       
       {/* SECTION 1: Precipitation & Hazards */}
       <section className="border border-[#1b1d24] bg-[#121318]/70 backdrop-blur-md p-5 rounded-lg flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">

@@ -222,7 +222,6 @@ function App() {
 
   // Map & Leaflet References
   const mapRef = useRef(null);
-  const logEndRef = useRef(null);
   const [mapInstance, setMapInstance] = useState(null);
   const reportMarkersGroup = useRef(null);
   const wardMarkersGroup = useRef(null);
@@ -1447,7 +1446,10 @@ Report Reference: #CF-${generatedRef}`;
       <LiveTicker incidents={mappedIncidents} floodRisk={floodRisk} />
 
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">
+      <div 
+        style={{ height: 'calc(100vh - 56px - 34px - 48px - 32px)' }} 
+        className="flex-shrink-0 flex flex-col lg:flex-row overflow-hidden relative z-10"
+      >
         <LeftPanel
           incidents={mappedIncidents}
           previousScores={previousScores}
@@ -1468,16 +1470,16 @@ Report Reference: #CF-${generatedRef}`;
         />
 
         {/* Map & Right column container */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="flex-1 h-full overflow-hidden p-3 md:p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
           
           {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/3 Width of main content) */}
-          <div className="xl:col-span-2 flex flex-col gap-4">
+          <div className="xl:col-span-2 flex flex-col gap-3 h-full overflow-hidden">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-4 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
+          <section className="flex-1 min-h-0 border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-2 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
             
             {/* Map Header details */}
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-3">
+            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
               <div className="flex items-center gap-2">
                 <Globe className="text-blue-400" size={15} />
                 <h3 className="text-sm font-bold text-white tracking-wide">Interactive Tactical Map (Thalassery Town)</h3>
@@ -1486,7 +1488,7 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* Interactive Leaflet Map Container */}
-            <div ref={mapRef} className="w-full h-[460px] rounded border border-[#1b1d24]/50 z-20 relative"></div>
+            <div ref={mapRef} className="flex-1 w-full rounded border border-[#1b1d24]/50 z-20 relative min-h-0"></div>
 
             {/* Map Mode selector buttons */}
             <div className="grid grid-cols-2 gap-2">
@@ -1527,8 +1529,8 @@ Report Reference: #CF-${generatedRef}`;
           </section>
 
           {/* CIVIC STABILITY HEALTH & SPARKLINE GRAPH (Bottom Center with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-4 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
+          <section className="h-[185px] flex-shrink-0 overflow-hidden border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-2 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-1.5">
               <div className="flex items-center gap-2">
                 <Activity className="text-blue-400" size={15} />
                 <h3 className="text-sm font-bold text-white tracking-wide">Civic Stability Health</h3>
@@ -1537,7 +1539,7 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* Sparkline chart (Color-coded from Good to Critical) */}
-            <div className="h-10 w-full pt-1">
+            <div className="h-9 w-full pt-0.5">
               <svg viewBox="0 0 400 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                 <line x1="0" y1="10" x2="400" y2="10" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
                 <line x1="0" y1="30" x2="400" y2="30" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
@@ -1569,7 +1571,7 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* Outages minute bars (Color-coded heights: Green, Yellow, Red) */}
-            <div className="flex items-end gap-[3px] h-10 pt-2 border-t border-[#1b1d24]/50" role="img">
+            <div className="flex items-end gap-[3px] h-9 pt-1.5 border-t border-[#1b1d24]/50" role="img">
               {Array.from({ length: 48 }).map((_, i) => {
                 const val = (i === 12) ? 42 :
                             (i === 28) ? 30 :
@@ -1594,35 +1596,12 @@ Report Reference: #CF-${generatedRef}`;
             </div>
           </section>
 
-
-          {/* AI AGENT CONSOLE (Right Column Bottom with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded min-h-[180px]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">AI Agent Console</h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            </div>
-
-            <div className="bg-[#0a0b0e]/80 border border-[#1b1d24]/50 p-3 rounded font-mono text-xs flex-1 flex flex-col justify-between overflow-hidden">
-              <div className="space-y-1.5 overflow-y-auto max-h-[140px] pr-1 scrollbar-thin">
-                {aiLogs.map((log) => (
-                  <div key={log.id} className="leading-relaxed">
-                    <span className="text-[#3b4453] mr-1 font-bold">&gt;&gt;</span>
-                    <span className={`
-                      ${log.type === "success" ? "text-emerald-400" : ""}
-                      ${log.type === "warning" ? "text-amber-400" : ""}
-                      ${log.type === "info" ? "text-blue-400" : ""}
-                    `}>{log.text}</span>
-                  </div>
-                ))}
-                <div ref={logEndRef}></div>
-              </div>
-            </div>
-          </section>
-
         </div>
-        </div>
+
         <RightPanel incidents={mappedIncidents} wardens={mappedWardens} onAgentLog={onAgentLog} />
+
       </div>
+    </div>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
       <AnimatePresence>
@@ -1976,15 +1955,21 @@ Report Reference: #CF-${generatedRef}`;
       </AnimatePresence>
 
       {/* FOOTER */}
-      <footer className="border-t border-[#1b1d24]/60 bg-[#0c0d12]/80 backdrop-blur-md py-6 px-4 text-center text-[#666] font-mono text-[10px] leading-relaxed relative z-10">
+      <footer 
+        style={{ height: '48px' }} 
+        className="flex-shrink-0 flex flex-col items-center justify-center border-t border-[#1b1d24]/60 bg-[#0c0d12]/80 backdrop-blur-md py-2 px-4 text-center text-[#666] font-mono text-[10px] leading-relaxed relative z-10"
+      >
         <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 flex-wrap">
+        <div className="mt-1 flex items-center justify-center gap-1.5 flex-wrap">
           <span>Developed with ❤️ by <span className="text-white font-bold">Harshith</span> for the</span>
           <span className="text-white hover:text-red-500 transition-colors cursor-pointer flex items-center gap-0.5 font-bold">
             Vibe2Ship Hackathon <Heart className="fill-red-500 stroke-red-500 inline-block shrink-0" size={11} />
           </span>
         </div>
       </footer>
+
+      {/* Spacer to reserve room for the ConsoleDrawer */}
+      <div className="h-8 flex-shrink-0" />
 
       {/* Floating collapsible AI Agent Console Drawer */}
       <ConsoleDrawer logs={agentLogs} />
