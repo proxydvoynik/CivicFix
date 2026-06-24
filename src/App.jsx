@@ -1488,7 +1488,7 @@ Report Reference: #CF-${generatedRef}`;
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
       <div 
         style={{ height: 'calc(100vh - 56px - 34px - 48px - 32px)' }} 
-        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[360px_1fr_360px] gap-3 p-3 md:p-4"
+        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr_380px] gap-3 p-3 md:p-4"
       >
         <LeftPanel
           incidents={mappedIncidents}
