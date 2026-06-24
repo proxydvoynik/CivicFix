@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   MapPin, Activity, PlusCircle, RefreshCw, 
   CheckCircle2, Send, Globe, Search, Shield, X, 
@@ -13,7 +13,10 @@ import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini';
 
 // Leaflet Maps Imports
 import L from 'leaflet';
+import RightPanel from './components/RightPanel';
 import 'leaflet/dist/leaflet.css';
+import LiveTicker from './components/LiveTicker';
+import ConsoleDrawer from './components/ConsoleDrawer';
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
@@ -40,6 +43,7 @@ const initialIssues = [
     streetViewStatus: "verified",
     lat: 11.7490,
     lng: 75.4891,
+    status: "dispatched",
     details: "Deep crater in the middle of the road, causing severe traffic block and safety risks for two-wheelers.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -69,6 +73,7 @@ Report Reference: #CF-9811`
     streetViewStatus: "verified",
     lat: 11.7455,
     lng: 75.4852,
+    status: "escalated",
     details: "Water logged up to 60 cm under the railway bridge. Cars and autos are turning back.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -98,6 +103,7 @@ Report Reference: #CF-9812`
     streetViewStatus: "unverified",
     lat: 11.7511,
     lng: 75.4921,
+    status: "open",
     details: "Commercial waste and plastic bags piled near the parking lot, attracting stray dogs.",
     letterDrafted: `To,
 The Health Inspector,
@@ -125,6 +131,7 @@ Report Reference: #CF-9813`
     streetViewStatus: "verified",
     lat: 11.7420,
     lng: 75.4810,
+    status: "inspected",
     details: "Cover slab of storm drain is broken, leaving a 1-meter deep open hole on the pedestrian walkway.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -196,14 +203,89 @@ function App() {
     { id: 3, type: "warning", text: "High probability waterlogging warning active for low-lying Railway Underpass." }
   ]);
 
-  // Dispatch queue progress monitor (Right bottom panel)
-  const [dispatchQueue, setDispatchQueue] = useState([
-    { id: "CF-9811", type: "Pothole", location: "Court Rd", status: "PWD dispatched", progress: 65, color: "text-blue-400" },
-    { id: "CF-9812", type: "Waterlog", location: "Railway Underpass", status: "Escalated", progress: 30, color: "text-red-400" },
-    { id: "CF-9814", type: "Drainage", location: "Sea Bridge", status: "Inspected", progress: 90, color: "text-emerald-400" }
-  ]);
+  // Helper to map zones to ward numbers
+  const zoneToWard = (zoneName) => {
+    const mapping = {
+      "Thalassery Bus Stand Area": "12",
+      "Court Road Junction": "33",
+      "Overbury's Folly Sector": "14",
+      "Sea Bridge Lane": "25",
+      "Gundopp Street Block": "08",
+      "Chirakkara Ward": "19",
+      "Kannoth–Court Corridor": "03",
+      "Punnol–Thiruvangad Seafront": "07",
+      "Illikkunnu–Nittoor Uplands": "15",
+      "Chirakkara–Morakunnu Hills": "22",
+      "Kodiyeri–Madapeedika South": "31",
+      "Thiruvangad–Overbury's Heritage Quarter": "45"
+    };
+    return mapping[zoneName] || "01";
+  };
 
-  const logEndRef = useRef(null);
+  const mappedIncidents = useMemo(() => {
+    return reports.map((r, idx) => ({
+      id: r.id ? r.id.toString() : `fallback-${idx}`,
+      ward: r.ward || zoneToWard(r.zone),
+      zone: r.zone || '',
+      type: r.type || 'Civic Issue',
+      description: r.details || r.location || '',
+      status: r.status || (r.verifications >= 3 ? "escalated" : "open"),
+      verifications: r.verifications || 0,
+      upvotes: r.votes || 0,
+      reportedAt: r.timeAgo || 'Just now'
+    }));
+  }, [reports]);
+
+  const [peakRainfall, setPeakRainfall] = useState(0);
+  const [hasWeatherData, setHasWeatherData] = useState(false);
+
+  const floodRisk = useMemo(() => {
+    return hasWeatherData && (
+      (mappedIncidents.some(i => 
+        (i.zone === "Punnol–Thiruvangad Seafront" || i.zone === "Kannoth–Court Corridor") &&
+        i.type?.toLowerCase().includes("drain") &&
+        i.status !== "resolved"
+      ) && peakRainfall > 12) ||
+      peakRainfall > 25
+    );
+  }, [hasWeatherData, mappedIncidents, peakRainfall]);
+
+  const mappedWardens = useMemo(() => {
+    return mockLeaderboard.map(w => ({
+      name: w.name,
+      role: w.badge,
+      karma: w.score
+    }));
+  }, []);
+
+  const onAgentLog = useCallback((message) => {
+    const cleanedMessage = message.startsWith(">> ") ? message.substring(3) : message;
+    
+    // Parse peak rain from weather sync log
+    const rainMatch = cleanedMessage.match(/(\d+(?:\.\d+)?)mm peak rain/);
+    if (rainMatch) {
+      setPeakRainfall(parseFloat(rainMatch[1]));
+      setHasWeatherData(true);
+    }
+
+    setAiLogs(prev => {
+      if (prev.length > 0 && prev[prev.length - 1].text === cleanedMessage) {
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: `log-agent-${Date.now()}-${Math.random()}`,
+          type: "info",
+          text: cleanedMessage
+        }
+      ];
+    });
+  }, []);
+
+  const agentLogs = useMemo(() => {
+    return [...aiLogs].reverse().map(log => log.text);
+  }, [aiLogs]);
 
   // Upvote/Downvote report
   const handleVote = useCallback(async (id, docId) => {
@@ -233,11 +315,13 @@ function App() {
         if (!report) return;
         const nextVerifications = (report.verifications || 0) + 1;
         const nextSeverity = nextVerifications >= 3 ? "critical" : report.severity;
+        const nextStatus = nextVerifications >= 3 ? "escalated" : (report.status || "open");
         
         const docRef = doc(db, 'reports', docId);
         await updateDoc(docRef, {
           verifications: increment(1),
-          severity: nextSeverity
+          severity: nextSeverity,
+          status: nextStatus
         });
 
         // Log AI action
@@ -247,14 +331,6 @@ function App() {
           text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
         }]);
 
-        // Update queue progress if matching
-        setDispatchQueue(prevQ => prevQ.map(q => {
-          if (q.id === `CF-${id.toString().substring(0, 4)}`) {
-            return { ...q, status: "Escalating...", progress: 45 };
-          }
-          return q;
-        }));
-
       } catch (error) {
         console.error("Error updating verification in Firestore:", error);
       }
@@ -263,6 +339,7 @@ function App() {
         if (r.id === id) {
           const nextVerifications = r.verifications + 1;
           const nextSeverity = nextVerifications >= 3 ? "critical" : r.severity;
+          const nextStatus = nextVerifications >= 3 ? "escalated" : (r.status || "open");
           
           // Log AI action
           setAiLogs(prevLogs => [...prevLogs, { 
@@ -271,15 +348,7 @@ function App() {
             text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
           }]);
 
-          // Update queue progress if matching
-          setDispatchQueue(prevQ => prevQ.map(q => {
-            if (q.id === `CF-${id.toString().substring(0, 4)}`) {
-              return { ...q, status: "Escalating...", progress: 45 };
-            }
-            return q;
-          }));
-
-          return { ...r, verifications: nextVerifications, severity: nextSeverity };
+          return { ...r, verifications: nextVerifications, severity: nextSeverity, status: nextStatus };
         }
         return r;
       }));
@@ -1010,6 +1079,7 @@ function App() {
       verifications: 0,
       user: "Gautham P.",
       streetViewStatus: "verified",
+      status: "open",
       details: "Three consecutive streetlights are out, causing absolute pitch darkness along the walking pathway.",
       letterDrafted: `To,
 The Municipal Commissioner,
@@ -1036,12 +1106,6 @@ Report Reference: #CF-${generatedRef}`
       setReports(prev => [mockIssue, ...prev]);
       setAiLogs(prev => [...prev, { id: `log-refresh-local-${Date.now()}`, type: "success", text: "Refreshed Thalassery grid dashboard. 1 new streetlight alert added." }]);
     }
-
-    // Add to dispatch queue
-    setDispatchQueue(prev => [
-      { id: `CF-${generatedRef}`, type: "Light", location: "Centenary Path", status: "Notice drafted", progress: 10, color: "text-amber-400" },
-      ...prev
-    ]);
 
     setTimeout(() => {
       setIsRefreshing(false);
@@ -1187,12 +1251,6 @@ Report Reference: #CF-${generatedRef}`;
       setReports(prev => [newReport, ...prev]);
     }
 
-    // Add to dispatch queue
-    setDispatchQueue(prev => [
-      { id: `CF-${generatedRef}`, type: formType.substring(0, 8), location: formDetails.substring(0, 10), status: "Drafted", progress: 15, color: "text-blue-400" },
-      ...prev
-    ]);
-
     setIsSubmitting(false);
     setIsReportModalOpen(false);
     
@@ -1270,16 +1328,11 @@ Report Reference: #CF-${generatedRef}`;
         </div>
       </header>
 
-      {/* STATIC INCIDENT WARNING BAR (Replaces scrolling marquee) */}
-      <div className="w-full bg-[#15130e] border-b border-[#251f12] py-2 px-4 relative z-10 flex items-center gap-3">
-        <span className="shrink-0 text-[9px] bg-amber-500 text-black px-1.5 py-0.5 rounded font-mono font-bold leading-none">THALASSERY INCIDENT ACTIVE</span>
-        <span className="text-[11px] font-medium text-amber-400/90 font-mono truncate">
-          ⚠️ Drainage blocks near Overbury's Folly road underpass posing waterlogging risks under heavy showers. Volunteers check coordinates.
-        </span>
-      </div>
+      {/* DYNAMIC LIVE SCROLLING TICKER */}
+      <LiveTicker incidents={mappedIncidents} floodRisk={floodRisk} />
 
       {/* MAIN SCREEN GRID LAYOUT (Three-Column Balanced Grid) */}
-      <main className="flex-1 p-3 md:p-4 w-full max-w-none grid grid-cols-1 xl:grid-cols-4 gap-4 relative z-10">
+      <main className="flex-1 p-3 md:p-4 pb-[36px] w-full max-w-none grid grid-cols-1 xl:grid-cols-4 gap-4 relative z-10">
 
         {/* COLUMN 1: Wards Health, Incident Feed, AI logs (Left Column - 1/4 Width) */}
         <div className="xl:col-span-1 flex flex-col gap-4">
@@ -1412,29 +1465,6 @@ Report Reference: #CF-${generatedRef}`;
             </div>
           </section>
 
-          {/* AI AGENT CONSOLE (Left Bottom with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded flex-1 min-h-[180px]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">AI Agent Console</h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            </div>
-
-            <div className="bg-[#0a0b0e]/80 border border-[#1b1d24]/50 p-3 rounded font-mono text-xs flex-1 flex flex-col justify-between overflow-hidden">
-              <div className="space-y-1.5 overflow-y-auto max-h-[140px] pr-1 scrollbar-thin">
-                {aiLogs.map((log) => (
-                  <div key={log.id} className="leading-relaxed">
-                    <span className="text-[#3b4453] mr-1 font-bold">&gt;&gt;</span>
-                    <span className={`
-                      ${log.type === "success" ? "text-emerald-400" : ""}
-                      ${log.type === "warning" ? "text-amber-400" : ""}
-                      ${log.type === "info" ? "text-blue-400" : ""}
-                    `}>{log.text}</span>
-                  </div>
-                ))}
-                <div ref={logEndRef}></div>
-              </div>
-            </div>
-          </section>
 
         </div>
 
@@ -1562,113 +1592,10 @@ Report Reference: #CF-${generatedRef}`;
             </div>
           </section>
 
-        </div>
-
-        {/* COLUMN 4: Weather Predictor, Karma Board, AI notice dispatch queue (Right Column - 1/4 Width) */}
-        <div className="xl:col-span-1 flex flex-col gap-4">
-
-          {/* AI WEATHER & HAZARD PREDICTOR (Top Right with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">Precipitation & Hazards</h3>
-              <span className="text-xs text-[#7d8590]">24h Radar</span>
-            </div>
-
-            {/* Meteorological parameters grid similar to Singapore UI */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="border border-[#1b1d24]/45 p-2 bg-[#16171d]/60 backdrop-blur-sm rounded">
-                <span className="text-[10px] text-[#7d8590] block">WIND</span>
-                <span className="text-xs font-bold text-white">8 km/h</span>
-              </div>
-              <div className="border border-[#1b1d24]/45 p-2 bg-[#16171d]/60 backdrop-blur-sm rounded">
-                <span className="text-[10px] text-[#7d8590] block">HUMIDITY</span>
-                <span className="text-xs font-bold text-white">85%</span>
-              </div>
-              <div className="border border-[#1b1d24]/45 p-2 bg-[#16171d]/60 backdrop-blur-sm rounded">
-                <span className="text-[10px] text-[#7d8590] block">PRESSURE</span>
-                <span className="text-xs font-bold text-white">1,012 hPa</span>
-              </div>
-            </div>
-
-            {/* Precipitation Bar chart (Color-coded) */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] text-[#7d8590] uppercase">Forecast Rain Level</span>
-              <div className="flex items-end gap-1.5 h-12 pt-2">
-                {[15, 30, 45, 60, 85, 95, 80, 50, 25, 10].map((val, idx) => {
-                  let barColor = "bg-emerald-500";
-                  if (val > 70) barColor = "bg-red-500";
-                  else if (val > 30) barColor = "bg-amber-500";
-
-                  return (
-                    <div key={idx} className="flex-1 bg-blue-950/25 border border-blue-900/10 h-full rounded-t-[1px]" style={{ height: `${val}%` }}>
-                      <div className={`w-full h-full ${barColor}`}></div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-between text-[9px] font-mono text-[#555] mt-0.5">
-                <span>08:00</span>
-                <span>16:00</span>
-                <span>00:00</span>
-              </div>
-            </div>
-          </section>
-
-          {/* KARMA BOARD (Middle Right with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">Volunteer Karma Board</h3>
-              <span className="text-[10px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded font-bold leading-none">TOP WARDENS</span>
-            </div>
-
-            <div className="space-y-2">
-              {mockLeaderboard.slice(0, 3).map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-[#16171d]/60 backdrop-blur-sm border border-[#1b1d24]/40 p-2 rounded">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm shrink-0">{item.avatar}</span>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-white truncate">{item.name}</span>
-                      <span className="text-[8px] font-mono text-[#7d8590] truncate">{item.badge}</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-xs font-mono font-bold text-amber-300">{item.score}</span>
-                    <span className="text-[8px] font-mono text-[#555] block">karma</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* AI GRIEVANCE DISPATCH QUEUE (Bottom Right with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded flex-1 min-h-[200px]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">AI Dispatch Queue</h3>
-              <span className="text-xs text-[#8f97a3]">Municipality Status</span>
-            </div>
-
-            {/* Visualizer list for dispatch statuses */}
-            <div className="space-y-3">
-              {dispatchQueue.map(item => (
-                <div key={item.id} className="border border-[#1b1d24]/45 bg-[#16171d]/60 backdrop-blur-sm p-2.5 rounded text-xs flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">{item.id}</span>
-                    <span className={`font-semibold ${item.color}`}>{item.status}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[#7d8590] text-[9px]">
-                    <span>{item.type} @ {item.location}</span>
-                    <span>{item.progress}% dispatched</span>
-                  </div>
-                  {/* Progress tracker bar */}
-                  <div className="w-full bg-[#161e2b] h-1 rounded overflow-hidden">
-                    <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${item.progress}%` }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
 
         </div>
+
+        <RightPanel incidents={mappedIncidents} wardens={mappedWardens} onAgentLog={onAgentLog} />
       </main>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
@@ -1912,13 +1839,13 @@ Report Reference: #CF-${generatedRef}`;
                         text: `Dispatched formal PWD notice for report #CF-${activeLetter.id.toString().substring(0, 4)} to Municipal Board.` 
                       }]);
                       
-                      // Increment dispatch progress in queue
-                      setDispatchQueue(prevQ => prevQ.map(q => {
-                        if (q.id === `CF-${activeLetter.id.toString().substring(0, 4)}`) {
-                          return { ...q, status: "Sent to PWD", progress: 80 };
-                        }
-                        return q;
-                      }));
+                      const reportId = activeLetter.id;
+                      const docId = activeLetter.docId;
+                      if (isFirebaseConfigured && docId) {
+                        updateDoc(doc(db, 'reports', docId), { status: 'dispatched' });
+                      } else {
+                        setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'dispatched' } : r));
+                      }
 
                       setActiveLetter(null);
                     }}
@@ -2032,6 +1959,9 @@ Report Reference: #CF-${generatedRef}`;
           </span>
         </div>
       </footer>
+
+      {/* Floating collapsible AI Agent Console Drawer */}
+      <ConsoleDrawer logs={agentLogs} />
 
     </div>
   );
