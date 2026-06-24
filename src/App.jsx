@@ -315,6 +315,46 @@ function App() {
   const [peakRainfall, setPeakRainfall] = useState(0);
   const [hasWeatherData, setHasWeatherData] = useState(false);
 
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentTemp, setCurrentTemp] = useState("28°C");
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      setCurrentTime(`${hours}:${minutes} ${ampm}`);
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchTemp = async () => {
+      try {
+        const res = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=11.7490&longitude=75.4891&current_weather=true"
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const temp = data.current_weather?.temperature;
+          if (temp !== undefined) {
+            setCurrentTemp(`${Math.round(temp)}°C`);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch temp for navbar:", err);
+      }
+    };
+    fetchTemp();
+    const interval = setInterval(fetchTemp, 900000); // 15 mins
+    return () => clearInterval(interval);
+  }, []);
+
   const floodRisk = useMemo(() => {
     return hasWeatherData && (
       (mappedIncidents.some(i =>
@@ -1417,7 +1457,7 @@ Report Reference: #CF-${generatedRef}`;
             <span className="text-[#3b4453] font-bold">|</span>
             <span className="flex items-center gap-1 text-amber-400">
               <CloudSun size={11} />
-              28°C, 11:00 PM
+              {currentTemp}, {currentTime || "11:00 PM"}
             </span>
           </div>
 

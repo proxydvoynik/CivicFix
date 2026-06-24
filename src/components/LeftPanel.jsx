@@ -232,10 +232,11 @@ export default function LeftPanel({
   };
 
   return (
-    <aside className="w-full lg:w-[380px] shrink-0 border-r border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md h-full flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+    <aside className="w-full lg:w-[380px] shrink-0 border-r border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md h-full flex flex-col pt-3 md:pt-4 overflow-y-auto no-scrollbar font-mono text-[#e2e8f0]">
       
-      {/* SECTION 1: Environmental Health Radar Chart */}
-      <div className="p-4 border-b border-[#1b1d24]/60 flex-none bg-[#0c0e13]/40">
+      <div className="min-h-full flex flex-col flex-none gap-4 px-3 md:px-4 pb-3">
+        {/* SECTION 1: Environmental Health Radar Chart */}
+        <div className="flex-1 flex flex-col border border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg min-h-0">
         
         {/* Header Block & Overall Score Badge */}
         <div className="flex justify-between items-start mb-3">
@@ -253,8 +254,8 @@ export default function LeftPanel({
         </div>
 
         {/* SVG Radar Spiderweb Canvas */}
-        <div className="h-44 w-full flex items-center justify-center relative">
-          <svg viewBox="0 0 200 200" className="w-full h-full max-w-[170px] overflow-visible">
+        <div className="flex-1 flex items-center justify-center relative min-h-0">
+          <svg viewBox="0 0 200 200" className="w-full h-full max-w-[220px] overflow-visible">
             {/* Concentric grid lines */}
             {[0.25, 0.50, 0.75, 1.0].map(scale => renderGridHexagon(scale))}
 
@@ -346,11 +347,11 @@ export default function LeftPanel({
       </div>
 
       {/* SECTION 2: Zone Health Cards */}
-      <div className="p-3 border-b border-[#1b1d24]/60 flex-none bg-[#0c0e13]/25">
+      <div className="flex-1 flex flex-col border border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md p-5 rounded-lg min-h-0">
         <span className="text-[10.5px] text-[#9ca3af] uppercase tracking-wider font-bold mb-2 block">Municipal Zones Overview</span>
         
         {/* Scrollable grid container with hidden scrollbar */}
-        <div className="space-y-2 max-h-[170px] overflow-y-auto no-scrollbar pr-0.5">
+        <div className="space-y-2 flex-1 overflow-y-auto no-scrollbar pr-0.5 min-h-0">
           {ZONE_MAPPING.map(zone => {
             const score = zoneScores[zone.fullName] || 0;
             
@@ -396,7 +397,7 @@ export default function LeftPanel({
               <div
                 key={zone.fullName}
                 onClick={() => onZoneSelect(isSelected ? null : zone.fullName)}
-                className={`cursor-pointer bg-[#0f1117]/60 backdrop-blur-sm border rounded-lg p-2.5 flex flex-col justify-between hover:border-cyan-500/30 transition-all ${
+                className={`cursor-pointer bg-[#0f1117]/60 backdrop-blur-sm border rounded-lg py-3.5 px-3 flex flex-col justify-between hover:border-cyan-500/30 transition-all ${
                   isSelected 
                     ? 'border-l-2 border-l-[#00f5d4] border-[#1b1d24] bg-[#0c0e13]' 
                     : 'border-[#1b1d24] border-l-transparent'
@@ -429,9 +430,15 @@ export default function LeftPanel({
           })}
         </div>
       </div>
+        
+        {/* Spacer & Indicator */}
+        <div className="text-center pt-2 pb-1 text-[10px] text-[#555] uppercase tracking-wider select-none font-bold">
+          Live incidents below ↓
+        </div>
+      </div>
 
       {/* SECTION 3: Incident Streams Feed */}
-      <div className="flex-1 p-3 flex flex-col min-h-0 bg-[#0f1117]/30">
+      <div className="flex-none p-3.5 mt-3 border-t border-[#1b1d24]/60 flex flex-col bg-[#0f1117]/30">
         
         {/* Section Header */}
         <div className="flex items-center justify-between mb-2">
@@ -496,7 +503,7 @@ export default function LeftPanel({
         </div>
 
         {/* Scrollable feed of incident cards */}
-        <div className="flex-1 overflow-y-auto space-y-3 pr-0.5 no-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-0.5 no-scrollbar">
           {filteredIncidents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="flex items-center gap-2 mb-1.5">

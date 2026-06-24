@@ -113,10 +113,12 @@ export default function RightPanel({
   }, [incidents]);
 
   return (
-    <aside className="w-full xl:col-span-1 h-full overflow-y-auto no-scrollbar flex flex-col gap-7 font-mono text-[#e2e8f0]">
+    <aside className="w-full xl:col-span-1 h-full overflow-y-auto no-scrollbar flex flex-col font-mono text-[#e2e8f0]">
       
-      {/* SECTION 1: Precipitation & Hazards */}
-      <section className="border border-[#1b1d24] bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <div className="min-h-full flex flex-col flex-none gap-4 px-3 md:px-4 pb-3">
+        <div className="flex-1 flex flex-col gap-4 min-h-0">
+          {/* SECTION 1: Precipitation & Hazards */}
+          <section className="flex-1 flex flex-col border border-[#1b1d24] bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] min-h-0">
         <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Precipitation & Hazards</h3>
           {!loading && !error && (
@@ -144,7 +146,7 @@ export default function RightPanel({
           </div>
         ) : (
           /* Loaded Weather UI */
-          <>
+          <div className="flex-1 flex flex-col justify-between min-h-0">
             {/* Stat chips row */}
             <div className="grid grid-cols-3 gap-2.5 text-center">
               <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
@@ -162,9 +164,9 @@ export default function RightPanel({
             </div>
 
             {/* Precipitation Bar chart */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 min-h-0 justify-center">
               <span className="text-[10px] text-[#9ca3af] uppercase font-bold">Forecast Rain Level</span>
-              <div className="h-20 w-full relative">
+              <div className="flex-1 min-h-[100px] w-full relative">
                 <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
                   {/* Baseline grid marker */}
                   <line x1="0" y1="60" x2="240" y2="60" stroke="#1b1d24" strokeWidth="0.8" />
@@ -237,12 +239,12 @@ export default function RightPanel({
                 </svg>
               </div>
             </div>
-          </>
+          </div>
         )}
       </section>
 
       {/* SECTION 2: Volunteer Karma Board */}
-      <section className="bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <section className="flex-1 flex flex-col bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] min-h-0">
         <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Volunteer Karma Board</h3>
           <span className="text-[10px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
@@ -250,7 +252,7 @@ export default function RightPanel({
           </span>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-between">
           {topWardens.map((item, idx) => (
             <div 
               key={idx} 
@@ -273,9 +275,16 @@ export default function RightPanel({
           ))}
         </div>
       </section>
+      </div>
 
-      {/* SECTION 3: AI Dispatch Queue */}
-      <section className="bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      {/* Spacer & Indicator */}
+      <div className="text-center pt-2 pb-1 text-[10px] text-[#555] uppercase tracking-wider select-none font-bold">
+        Dispatch queue below ↓
+      </div>
+    </div>
+
+    {/* SECTION 3: AI Dispatch Queue */}
+    <section className="bg-[#121318]/70 backdrop-blur-md p-6 mt-3 border-t border-[#1b1d24] flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
         <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">AI Dispatch Queue</h3>
           <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
