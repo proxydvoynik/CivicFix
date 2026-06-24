@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   MapPin, Activity, PlusCircle, RefreshCw, 
-  CheckCircle2, Send, Globe, Search, Shield, X, 
+  CheckCircle2, Send, Globe, Shield, X, 
   Heart, Camera, AlertCircle, FileText, CloudSun
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import LeftPanel from './components/LeftPanel';
 
 // Live Integration Imports
 import { db, isFirebaseConfigured } from './lib/firebase';
@@ -14,6 +15,45 @@ import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini';
 // Leaflet Maps Imports
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+const DISTRICT_TO_ZONE = {
+  "Court Road Junction": "Kannoth–Court Corridor",
+  "Sea Bridge Lane": "Punnol–Thiruvangad Seafront",
+  "Gundopp Street Block": "Illikkunnu–Nittoor Uplands",
+  "Chirakkara Ward": "Chirakkara–Morakunnu Hills",
+  "Thalassery Bus Stand Area": "Kodiyeri–Madapeedika South",
+  "Overbury's Folly Sector": "Thiruvangad–Overbury's Heritage Quarter"
+};
+
+const ZONE_TO_DISTRICT = {
+  "Kannoth–Court Corridor": "Court Road Junction",
+  "Punnol–Thiruvangad Seafront": "Sea Bridge Lane",
+  "Illikkunnu–Nittoor Uplands": "Gundopp Street Block",
+  "Chirakkara–Morakunnu Hills": "Chirakkara Ward",
+  "Kodiyeri–Madapeedika South": "Thalassery Bus Stand Area",
+  "Thiruvangad–Overbury's Heritage Quarter": "Overbury's Folly Sector"
+};
+
+const WARD_ZONES = {
+  "Kannoth–Court Corridor": ["11", "12", "47", "48", "51", "52"],
+  "Punnol–Thiruvangad Seafront": ["33", "34", "37", "41", "42", "43"],
+  "Illikkunnu–Nittoor Uplands": ["1", "2", "3", "4", "5", "7", "8", "9", "10"],
+  "Chirakkara–Morakunnu Hills": ["13", "14", "15", "16", "17", "18", "19", "20", "21"],
+  "Kodiyeri–Madapeedika South": ["22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"],
+  "Thiruvangad–Overbury's Heritage Quarter": ["6", "35", "36", "38", "39", "40", "44", "45", "46", "50"]
+};
+
+function usePrevious(value) {
+  const [current, setCurrent] = useState(value);
+  const [previous, setPrevious] = useState(null);
+
+  if (value !== current) {
+    setPrevious(current);
+    setCurrent(value);
+  }
+
+  return previous;
+}
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
@@ -149,7 +189,6 @@ const mockLeaderboard = [
 ];
 
 function App() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -176,6 +215,7 @@ function App() {
 
   // Map & Leaflet References
   const mapRef = useRef(null);
+  const logEndRef = useRef(null);
   const [mapInstance, setMapInstance] = useState(null);
   const reportMarkersGroup = useRef(null);
   const wardMarkersGroup = useRef(null);
@@ -203,7 +243,75 @@ function App() {
     { id: "CF-9814", type: "Drainage", location: "Sea Bridge", status: "Inspected", progress: 90, color: "text-emerald-400" }
   ]);
 
-  const logEndRef = useRef(null);
+  // Map raw reports to Incident interface
+  const mappedIncidents = useMemo(() => {
+    return reports.map(r => {
+      let zone = r.zone;
+      // map old names if they came from old seeds
+      if (DISTRICT_TO_ZONE[zone]) {
+        zone = DISTRICT_TO_ZONE[zone];
+      }
+      
+      let ward = r.ward;
+      if (!ward) {
+        // assign default ward based on zone
+        if (zone === "Kannoth–Court Corridor") ward = "11";
+        else if (zone === "Punnol–Thiruvangad Seafront") ward = "33";
+        else if (zone === "Illikkunnu–Nittoor Uplands") ward = "1";
+        else if (zone === "Chirakkara–Morakunnu Hills") ward = "13";
+        else if (zone === "Kodiyeri–Madapeedika South") ward = "22";
+        else if (zone === "Thiruvangad–Overbury's Heritage Quarter") ward = "6";
+        else ward = "11";
+      }
+
+      let status = r.status;
+      if (!status) {
+        if (r.severity === "resolved") status = "resolved";
+        else if (r.verifications >= 3 || r.severity === "critical") status = "escalated";
+        else status = "open";
+      }
+
+      return {
+        id: r.id?.toString() || r.docId || 'fallback-id',
+        ward: ward?.toString() || "11",
+        zone: zone || "Kannoth–Court Corridor",
+        type: r.type || "Other",
+        description: r.details || r.location || "",
+        status: status,
+        verifications: r.verifications || 0,
+        upvotes: r.votes || r.upvotes || 0,
+        reportedAt: r.reportedAt || new Date().toISOString(),
+        // Pass original fields for compatibility
+        lat: r.lat,
+        lng: r.lng,
+        location: r.location,
+        severity: r.severity,
+        docId: r.docId,
+        details: r.details,
+        letterDrafted: r.letterDrafted,
+        timeAgo: r.timeAgo
+      };
+    });
+  }, [reports]);
+
+  // Compute scores for previousScores comparison
+  const currentScores = useMemo(() => {
+    const scores = {};
+    Object.keys(WARD_ZONES).forEach(zoneName => {
+      const wardList = WARD_ZONES[zoneName];
+      const zoneIncidents = mappedIncidents.filter(inc => {
+        const wardStr = inc.ward?.toString();
+        return wardStr && wardList.includes(wardStr);
+      });
+      const resolvedCount = zoneIncidents.filter(inc => inc.status === 'resolved').length;
+      scores[zoneName] = zoneIncidents.length === 0 
+        ? 100 
+        : Math.round((resolvedCount / zoneIncidents.length) * 100);
+    });
+    return scores;
+  }, [mappedIncidents]);
+
+  const previousScores = usePrevious(currentScores) || {};
 
   // Upvote/Downvote report
   const handleVote = useCallback(async (id, docId) => {
@@ -286,6 +394,50 @@ function App() {
     }
   }, [reports]);
 
+  const onUpvote = useCallback((id) => {
+    const report = reports.find(r => r.id?.toString() === id.toString() || r.docId === id);
+    if (report) {
+      handleVote(report.id, report.docId);
+    }
+  }, [reports, handleVote]);
+
+  const onVerify = useCallback((id) => {
+    const report = reports.find(r => r.id?.toString() === id.toString() || r.docId === id);
+    if (report) {
+      handleVerify(report.id, report.docId);
+    }
+  }, [reports, handleVerify]);
+
+  const onAutoEscalate = useCallback(async (id) => {
+    const report = reports.find(r => r.id?.toString() === id.toString() || r.docId === id);
+    if (!report) return;
+
+    if (isFirebaseConfigured && report.docId) {
+      try {
+        const docRef = doc(db, 'reports', report.docId);
+        await updateDoc(docRef, {
+          status: 'escalated',
+          severity: 'critical'
+        });
+      } catch (err) {
+        console.error("Error auto-escalating Firestore report:", err);
+      }
+    } else {
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'escalated', severity: 'critical' } : r));
+    }
+  }, [reports]);
+
+  const onAgentLog = useCallback((message) => {
+    setAiLogs(prev => [
+      ...prev,
+      {
+        id: `log-agent-${Date.now()}-${Math.random()}`,
+        type: 'warning',
+        text: message
+      }
+    ]);
+  }, []);
+
 
 
   // Real-time Firestore sync & Auto-population
@@ -325,7 +477,7 @@ function App() {
 
   // Sync ward statistics dynamically based on current reports list
   const districts = initialDistricts.map(d => {
-    const activeCount = reports.filter(r => r.zone === d.name).length;
+    const activeCount = reports.filter(r => (DISTRICT_TO_ZONE[r.zone] || r.zone) === (DISTRICT_TO_ZONE[d.name] || d.name)).length;
     const computedAvailability = parseFloat((100 - activeCount * 0.6).toFixed(1));
     const severity = activeCount >= 4 ? "critical" : (activeCount >= 2 ? "warning" : "normal");
     return {
@@ -1157,11 +1309,25 @@ This is to notify the Thalassery Municipality regarding ${formType} at ${formDet
 Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`;
 
+    const zoneName = DISTRICT_TO_ZONE[formZone] || "Kannoth–Court Corridor";
+    const defaultWardsForZone = {
+      "Kannoth–Court Corridor": "11",
+      "Punnol–Thiruvangad Seafront": "33",
+      "Illikkunnu–Nittoor Uplands": "1",
+      "Chirakkara–Morakunnu Hills": "13",
+      "Kodiyeri–Madapeedika South": "22",
+      "Thiruvangad–Overbury's Heritage Quarter": "6"
+    };
+    const wardCode = defaultWardsForZone[zoneName] || "11";
+    const derivedZone = Object.keys(WARD_ZONES).find(z => WARD_ZONES[z].includes(wardCode)) || zoneName;
+
     const newReport = {
       id: Date.now(),
       type: formType,
       location: formDetails,
-      zone: formZone,
+      zone: derivedZone, // Write new derived zone name (e.g. Kannoth–Court Corridor)
+      ward: wardCode,
+      status: "open",
       timeAgo: "Just now",
       severity: imageVerified ? "critical" : "warning",
       votes: 1,
@@ -1207,23 +1373,16 @@ Report Reference: #CF-${generatedRef}`;
   };
 
 
-  // Filter logic
-  const filteredReports = reports.filter(r => {
-    const matchesZone = selectedZone === "All" || r.zone === selectedZone;
-    const matchesSearch = r.location.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          r.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          r.zone.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesZone && matchesSearch;
-  });
+
 
   return (
-    <div className="min-h-screen bg-[#08090c] text-[#e2e8f0] flex flex-col font-mono selection:bg-blue-600 selection:text-white relative overflow-x-hidden">
+    <div className="h-screen bg-[#08090c] text-[#e2e8f0] flex flex-col font-mono selection:bg-blue-600 selection:text-white relative overflow-hidden">
       
       {/* Background radial gradient matches Singapore dashboard style */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,17,21,0.4)_0%,rgba(7,8,10,0.8)_100%)] pointer-events-none z-0"></div>
 
       {/* HEADER NAVBAR (Matches Smart City Platform aesthetic with Glassmorphism) */}
-      <header className="sticky top-0 z-40 w-full bg-[#0c0d12]/75 backdrop-blur-lg border-b border-[#1b1d24]/60 h-14 flex items-center justify-between px-4 sm:px-6">
+      <header className="sticky top-0 z-40 w-full bg-[#0c0d12]/75 backdrop-blur-lg border-b border-[#1b1d24]/60 h-14 flex items-center justify-between px-4 sm:px-6 flex-none">
         
         {/* Left Side: Brand Logo */}
         <div className="flex items-center gap-3">
@@ -1271,175 +1430,39 @@ Report Reference: #CF-${generatedRef}`;
       </header>
 
       {/* STATIC INCIDENT WARNING BAR (Replaces scrolling marquee) */}
-      <div className="w-full bg-[#15130e] border-b border-[#251f12] py-2 px-4 relative z-10 flex items-center gap-3">
+      <div className="w-full bg-[#15130e] border-b border-[#251f12] py-2 px-4 relative z-10 flex items-center gap-3 flex-none">
         <span className="shrink-0 text-[9px] bg-amber-500 text-black px-1.5 py-0.5 rounded font-mono font-bold leading-none">THALASSERY INCIDENT ACTIVE</span>
         <span className="text-[11px] font-medium text-amber-400/90 font-mono truncate">
           ⚠️ Drainage blocks near Overbury's Folly road underpass posing waterlogging risks under heavy showers. Volunteers check coordinates.
         </span>
       </div>
 
-      {/* MAIN SCREEN GRID LAYOUT (Three-Column Balanced Grid) */}
-      <main className="flex-1 p-3 md:p-4 w-full max-w-none grid grid-cols-1 xl:grid-cols-4 gap-4 relative z-10">
+      {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">
+        <LeftPanel
+          incidents={mappedIncidents}
+          previousScores={previousScores}
+          activeZone={Object.keys(DISTRICT_TO_ZONE).includes(selectedZone) ? DISTRICT_TO_ZONE[selectedZone] : null}
+          onZoneSelect={(zoneName) => {
+            if (zoneName) {
+              const distName = ZONE_TO_DISTRICT[zoneName];
+              setSelectedZone(distName || "All");
+            } else {
+              setSelectedZone("All");
+            }
+          }}
+          onIncidentFocus={(incident) => handleMapFocus(incident.lat, incident.lng)}
+          onUpvote={onUpvote}
+          onVerify={onVerify}
+          onAutoEscalate={onAutoEscalate}
+          onAgentLog={onAgentLog}
+        />
 
-        {/* COLUMN 1: Wards Health, Incident Feed, AI logs (Left Column - 1/4 Width) */}
-        <div className="xl:col-span-1 flex flex-col gap-4">
+        {/* Map & Right column container */}
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
           
-          {/* THALASSERY WARDS HEALTH (Top Left with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">Environmental Health</h3>
-              <span className="text-xs font-mono font-bold text-emerald-400">97.4% stable</span>
-            </div>
-
-            {/* Mock Vector Radar Spiderweb Chart for Singapore UI aesthetic */}
-            <div className="h-28 w-full flex items-center justify-center relative">
-              <svg viewBox="0 0 100 100" className="w-full h-full max-w-[120px] text-slate-800">
-                {/* Radar outer web grid */}
-                <polygon points="50,10 88,38 73,82 27,82 12,38" fill="none" stroke="#222530" strokeWidth="0.8" />
-                <polygon points="50,25 78,45 67,73 33,73 22,45" fill="none" stroke="#222530" strokeWidth="0.5" />
-                <polygon points="50,40 68,52 61,65 39,65 32,52" fill="none" stroke="#222530" strokeWidth="0.5" />
-                {/* Axis lines */}
-                <line x1="50" y1="50" x2="50" y2="10" stroke="#222530" strokeWidth="0.6" />
-                <line x1="50" y1="50" x2="88" y2="38" stroke="#222530" strokeWidth="0.6" />
-                <line x1="50" y1="50" x2="73" y2="82" stroke="#222530" strokeWidth="0.6" />
-                <line x1="50" y1="50" x2="27" y2="82" stroke="#222530" strokeWidth="0.6" />
-                <line x1="50" y1="50" x2="12" y2="38" stroke="#222530" strokeWidth="0.6" />
-
-                {/* Radar Plot data representing CiviFix parameters */}
-                <polygon points="50,18 78,40 63,75 42,72 20,41" fill="rgba(59, 130, 246, 0.25)" stroke="#3b82f6" strokeWidth="1.2" />
-                
-                {/* Vertex labels nodes */}
-                <circle cx="50" cy="18" r="1.5" fill="#3b82f6" />
-                <circle cx="78" cy="40" r="1.5" fill="#3b82f6" />
-                <circle cx="63" cy="75" r="1.5" fill="#3b82f6" />
-                <circle cx="42" cy="72" r="1.5" fill="#3b82f6" />
-                <circle cx="20" cy="41" r="1.5" fill="#3b82f6" />
-              </svg>
-
-              {/* Spiderweb Legend overlay labels */}
-              <div className="absolute top-0 text-[9px] font-mono text-[#7d8590]">LIGHTS</div>
-              <div className="absolute right-0 top-1/3 text-[9px] font-mono text-[#7d8590]">SAFETY</div>
-              <div className="absolute right-4 bottom-0 text-[9px] font-mono text-[#7d8590]">WASTE</div>
-              <div className="absolute left-4 bottom-0 text-[9px] font-mono text-[#7d8590]">DRAINAGE</div>
-              <div className="absolute left-0 top-1/3 text-[9px] font-mono text-[#7d8590]">ROADS</div>
-            </div>
-
-            {/* Mini List of Wards */}
-            <div className="space-y-1.5 text-xs font-mono mt-1">
-              {districts.slice(0, 3).map(d => (
-                <div key={d.name} className="flex justify-between items-center py-1 border-t border-[#1b1d24]/40">
-                  <span className="truncate text-[#7d8590]">{d.name.split(" ")[0]} Sector</span>
-                  <span className={`font-bold ${d.severity === "critical" ? "text-red-400" : "text-emerald-400"}`}>
-                    {d.availability}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* INCIDENT FEED (Left Middle with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">Incident Streams</h3>
-              <span className="text-xs text-[#8f97a3]">{reports.length} open</span>
-            </div>
-
-            <div className="flex items-center gap-2 bg-[#0c0d12]/60 border border-[#1b1d24]/50 px-2.5 py-1.5 rounded text-xs font-mono mb-1">
-              <Search size={12} className="text-[#7d8590] shrink-0" />
-              <input 
-                type="text" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search issues..."
-                className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-[11px]"
-              />
-              {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} className="text-[#7d8590] hover:text-white shrink-0">
-                  <X size={10} />
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-              {filteredReports.map(issue => (
-                <div key={issue.id} className="border border-[#1b1d24]/40 bg-[#16171d]/60 backdrop-blur-sm p-2.5 rounded text-xs flex flex-col gap-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div 
-                      className="min-w-0 cursor-pointer hover:opacity-85 transition-opacity"
-                      onClick={() => handleMapFocus(issue.lat, issue.lng)}
-                      title="Click to locate on Map"
-                    >
-                      <span className={`text-[11px] font-mono font-bold ${issue.verifications >= 3 ? "text-red-400" : "text-amber-400"}`}>
-                        {issue.type}
-                      </span>
-                      <p className="text-white truncate font-medium mt-0.5">{issue.location.split("(")[0]}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button 
-                        onClick={() => handleVote(issue.id, issue.docId)}
-                        className="flex items-center gap-1 text-[9px] font-bold text-blue-400 hover:text-white bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 transition-all"
-                        title="Upvote Report"
-                      >
-                        ▲ {issue.votes || 0}
-                      </button>
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${issue.verifications >= 3 ? "bg-red-500 pulse-critical" : "bg-amber-500 pulse-warning"}`} />
-                    </div>
-                  </div>
-
-                  {/* Actions buttons inside stream */}
-                  <div className="flex items-center justify-between border-t border-[#1b1d24]/45 pt-2 text-xs font-mono mt-0.5">
-                    <button 
-                      onClick={() => setActiveStreetCheck(issue)}
-                      className="text-blue-400 hover:text-white font-bold"
-                    >
-                      StreetView
-                    </button>
-                    <button 
-                      onClick={() => setActiveLetter(issue)}
-                      className="text-[#7d8590] hover:text-white font-bold"
-                    >
-                      AI Notice
-                    </button>
-                    <button 
-                      onClick={() => handleVerify(issue.id, issue.docId)}
-                      className="bg-blue-600/10 hover:bg-blue-600 text-blue-300 hover:text-white px-2 py-0.5 rounded border border-blue-500/20 font-bold"
-                    >
-                      Verify ({issue.verifications || 0})
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* AI AGENT CONSOLE (Left Bottom with Glassmorphism) */}
-          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded flex-1 min-h-[180px]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-              <h3 className="text-sm font-bold text-white tracking-wide">AI Agent Console</h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            </div>
-
-            <div className="bg-[#0a0b0e]/80 border border-[#1b1d24]/50 p-3 rounded font-mono text-xs flex-1 flex flex-col justify-between overflow-hidden">
-              <div className="space-y-1.5 overflow-y-auto max-h-[140px] pr-1 scrollbar-thin">
-                {aiLogs.map((log) => (
-                  <div key={log.id} className="leading-relaxed">
-                    <span className="text-[#3b4453] mr-1 font-bold">&gt;&gt;</span>
-                    <span className={`
-                      ${log.type === "success" ? "text-emerald-400" : ""}
-                      ${log.type === "warning" ? "text-amber-400" : ""}
-                      ${log.type === "info" ? "text-blue-400" : ""}
-                    `}>{log.text}</span>
-                  </div>
-                ))}
-                <div ref={logEndRef}></div>
-              </div>
-            </div>
-          </section>
-
-        </div>
-
-        {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/4 Width) */}
-        <div className="xl:col-span-2 flex flex-col gap-4">
+          {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/3 Width of main content) */}
+          <div className="xl:col-span-2 flex flex-col gap-4">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
           <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-4 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
@@ -1668,8 +1691,33 @@ Report Reference: #CF-${generatedRef}`;
             </div>
           </section>
 
+          {/* AI AGENT CONSOLE (Right Column Bottom with Glassmorphism) */}
+          <section className="border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-4 flex flex-col gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded min-h-[180px]">
+            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
+              <h3 className="text-sm font-bold text-white tracking-wide">AI Agent Console</h3>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            </div>
+
+            <div className="bg-[#0a0b0e]/80 border border-[#1b1d24]/50 p-3 rounded font-mono text-xs flex-1 flex flex-col justify-between overflow-hidden">
+              <div className="space-y-1.5 overflow-y-auto max-h-[140px] pr-1 scrollbar-thin">
+                {aiLogs.map((log) => (
+                  <div key={log.id} className="leading-relaxed">
+                    <span className="text-[#3b4453] mr-1 font-bold">&gt;&gt;</span>
+                    <span className={`
+                      ${log.type === "success" ? "text-emerald-400" : ""}
+                      ${log.type === "warning" ? "text-amber-400" : ""}
+                      ${log.type === "info" ? "text-blue-400" : ""}
+                    `}>{log.text}</span>
+                  </div>
+                ))}
+                <div ref={logEndRef}></div>
+              </div>
+            </div>
+          </section>
+
         </div>
-      </main>
+      </div>
+    </div>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
       <AnimatePresence>
