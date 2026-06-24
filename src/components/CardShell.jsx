@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * CardShell – shared card surface for all side-panel sections.
  * Dark, subtle, consistent. Spacing is handled by the parent container.

@@ -1488,7 +1488,7 @@ Report Reference: #CF-${generatedRef}`;
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
       <div 
         style={{ height: 'calc(100vh - 56px - 34px - 48px - 32px)' }} 
-        className="flex-shrink-0 flex flex-col lg:flex-row overflow-hidden relative z-10"
+        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[360px_1fr_360px] gap-3 p-3 md:p-4"
       >
         <LeftPanel
           incidents={mappedIncidents}
@@ -1509,11 +1509,8 @@ Report Reference: #CF-${generatedRef}`;
           onAgentLog={onAgentLog}
         />
 
-        {/* Map & Right column container */}
-        <div className="flex-1 h-full overflow-hidden p-3 md:p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-          
-          {/* COLUMN 2 & 3: 3D map, stability, statistics (Center Column - 2/3 Width of main content) */}
-          <div className="xl:col-span-2 flex flex-col gap-3 h-full overflow-hidden">
+        {/* Center column: Map & Stability */}
+        <div className="flex flex-col gap-3 h-full overflow-hidden">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
           <section className="flex-1 min-h-0 border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-2 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
@@ -1640,7 +1637,6 @@ Report Reference: #CF-${generatedRef}`;
 
         <RightPanel incidents={mappedIncidents} wardens={mappedWardens} onAgentLog={onAgentLog} />
 
-      </div>
     </div>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}

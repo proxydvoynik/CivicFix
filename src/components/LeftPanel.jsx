@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import CardShell from './CardShell';
 
 // WARD_ZONES mapping as defined in the spec
 const WARD_ZONES = {
@@ -160,7 +161,7 @@ export default function LeftPanel({
     ];
     return Array.from({ length: 6 }).map((_, i) => {
       const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 6;
-      const radius = 83; // Comfortable distance outside 100% outer ring
+      const radius = 80; // Comfortable distance outside 100% outer ring
       const x = cx + radius * Math.cos(angle);
       const y = cy + radius * Math.sin(angle);
       return { x, y, ...positions[i] };
@@ -232,17 +233,17 @@ export default function LeftPanel({
   };
 
   return (
-    <aside className="w-full lg:w-[380px] shrink-0 border-r border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md h-full flex flex-col pt-3 md:pt-4 overflow-y-auto no-scrollbar font-mono text-[#e2e8f0]">
+    <aside className="w-full h-full flex flex-col pt-3 md:pt-4 overflow-y-auto no-scrollbar font-mono text-[#e2e8f0]">
       
-      <div className="min-h-full flex flex-col flex-none gap-4 px-3 md:px-4 pb-3">
+      <div className="flex flex-col gap-4 px-3 md:px-4 pb-3">
         {/* SECTION 1: Environmental Health Radar Chart */}
-        <div className="flex-1 flex flex-col border border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg min-h-0">
+        <CardShell className="flex-1 flex flex-col min-h-0">
         
         {/* Header Block & Overall Score Badge */}
         <div className="flex justify-between items-start mb-3">
           <div className="flex flex-col">
             <span className="text-[10px] text-[#6b7280] uppercase tracking-wider font-bold">Thalassery Civic Grid</span>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Environmental Health</h3>
+            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Environmental Health</h3>
           </div>
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
             averageScore >= 85 
@@ -286,7 +287,7 @@ export default function LeftPanel({
                 textAnchor={lp.textAnchor}
                 dy={lp.dy}
                 dx={lp.dx}
-                className="fill-[#6b7280] text-[9px] font-bold font-mono tracking-tight"
+                className="fill-[#6b7280] text-[8px] font-bold font-mono tracking-tight"
               >
                 {ZONE_MAPPING[idx].shortName}
               </text>
@@ -344,10 +345,10 @@ export default function LeftPanel({
             })}
           </svg>
         </div>
-      </div>
+      </CardShell>
 
       {/* SECTION 2: Zone Health Cards */}
-      <div className="flex-1 flex flex-col border border-[#1b1d24]/60 bg-[#121318]/70 backdrop-blur-md p-5 rounded-lg min-h-0">
+      <CardShell className="flex-1 flex flex-col min-h-0">
         <span className="text-[10.5px] text-[#9ca3af] uppercase tracking-wider font-bold mb-2 block">Municipal Zones Overview</span>
         
         {/* Scrollable grid container with hidden scrollbar */}
@@ -429,16 +430,15 @@ export default function LeftPanel({
             );
           })}
         </div>
-      </div>
+      </CardShell>
         
         {/* Spacer & Indicator */}
         <div className="text-center pt-2 pb-1 text-[10px] text-[#555] uppercase tracking-wider select-none font-bold">
           Live incidents below ↓
         </div>
-      </div>
 
       {/* SECTION 3: Incident Streams Feed */}
-      <div className="flex-none p-3.5 mt-3 border-t border-[#1b1d24]/60 flex flex-col bg-[#0f1117]/30">
+      <CardShell className="flex flex-col">
         
         {/* Section Header */}
         <div className="flex items-center justify-between mb-2">
@@ -592,6 +592,7 @@ export default function LeftPanel({
             })
           )}
         </div>
+      </CardShell>
       </div>
     </aside>
   );

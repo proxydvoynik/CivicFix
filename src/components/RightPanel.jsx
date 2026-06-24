@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import CardShell from './CardShell';
 
 // Dispatch Queue stage mapper configuration
 const DISPATCH_STAGES = {
@@ -113,12 +114,11 @@ export default function RightPanel({
   }, [incidents]);
 
   return (
-    <aside className="w-full xl:col-span-1 h-full overflow-y-auto no-scrollbar flex flex-col font-mono text-[#e2e8f0]">
+    <aside className="w-full h-full overflow-y-auto no-scrollbar flex flex-col pt-3 md:pt-4 font-mono text-[#e2e8f0]">
       
-      <div className="min-h-full flex flex-col flex-none gap-4 px-3 md:px-4 pb-3">
-        <div className="flex-1 flex flex-col gap-4 min-h-0">
+      <div className="flex flex-col gap-4 px-3 md:px-4 pb-3">
           {/* SECTION 1: Precipitation & Hazards */}
-          <section className="flex-1 flex flex-col border border-[#1b1d24] bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] min-h-0">
+          <CardShell className="flex-1 flex flex-col gap-4 min-h-0">
         <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Precipitation & Hazards</h3>
           {!loading && !error && (
@@ -241,10 +241,10 @@ export default function RightPanel({
             </div>
           </div>
         )}
-      </section>
+      </CardShell>
 
       {/* SECTION 2: Volunteer Karma Board */}
-      <section className="flex-1 flex flex-col bg-[#121318]/70 backdrop-blur-md p-6 rounded-lg gap-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] min-h-0">
+      <CardShell className="flex-1 flex flex-col gap-3 min-h-0">
         <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Volunteer Karma Board</h3>
           <span className="text-[10px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
@@ -274,17 +274,15 @@ export default function RightPanel({
             </div>
           ))}
         </div>
-      </section>
-      </div>
+      </CardShell>
 
       {/* Spacer & Indicator */}
       <div className="text-center pt-2 pb-1 text-[10px] text-[#555] uppercase tracking-wider select-none font-bold">
         Dispatch queue below ↓
       </div>
-    </div>
 
     {/* SECTION 3: AI Dispatch Queue */}
-    <section className="bg-[#121318]/70 backdrop-blur-md p-6 mt-3 border-t border-[#1b1d24] flex flex-col gap-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+    <CardShell className="flex flex-col gap-4">
         <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">AI Dispatch Queue</h3>
           <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
@@ -349,8 +347,8 @@ export default function RightPanel({
             })
           )}
         </div>
-      </section>
-
+      </CardShell>
+    </div>
     </aside>
   );
 }
