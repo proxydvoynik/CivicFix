@@ -241,7 +241,7 @@ export default function LeftPanel({
         <div className="flex justify-between items-start mb-3">
           <div className="flex flex-col">
             <span className="text-[10px] text-[#6b7280] uppercase tracking-wider font-bold">Thalassery Civic Grid</span>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Environmental Health</h3>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Environmental Health</h3>
           </div>
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
             averageScore >= 85 
@@ -347,10 +347,10 @@ export default function LeftPanel({
 
       {/* SECTION 2: Zone Health Cards */}
       <div className="p-3 border-b border-[#1b1d24]/60 flex-none bg-[#0c0e13]/25">
-        <span className="text-[9px] text-[#6b7280] uppercase tracking-wider font-bold mb-2 block">Municipal Zones Overview</span>
+        <span className="text-[10.5px] text-[#9ca3af] uppercase tracking-wider font-bold mb-2 block">Municipal Zones Overview</span>
         
         {/* Scrollable grid container with hidden scrollbar */}
-        <div className="space-y-1.5 max-h-[170px] overflow-y-auto no-scrollbar pr-0.5">
+        <div className="space-y-2 max-h-[170px] overflow-y-auto no-scrollbar pr-0.5">
           {ZONE_MAPPING.map(zone => {
             const score = zoneScores[zone.fullName] || 0;
             
@@ -396,28 +396,28 @@ export default function LeftPanel({
               <div
                 key={zone.fullName}
                 onClick={() => onZoneSelect(isSelected ? null : zone.fullName)}
-                className={`cursor-pointer bg-[#0f1117]/60 backdrop-blur-sm border rounded-lg p-2 flex flex-col justify-between hover:border-cyan-500/30 transition-all ${
+                className={`cursor-pointer bg-[#0f1117]/60 backdrop-blur-sm border rounded-lg p-2.5 flex flex-col justify-between hover:border-cyan-500/30 transition-all ${
                   isSelected 
                     ? 'border-l-2 border-l-[#00f5d4] border-[#1b1d24] bg-[#0c0e13]' 
                     : 'border-[#1b1d24] border-l-transparent'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-white truncate max-w-[170px]">
+                  <span className="text-xs font-bold text-white truncate max-w-[170px]">
                     {zone.shortName}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[11px] font-bold font-mono text-white">
+                    <span className="text-xs font-bold font-mono text-white">
                       {score}%
                     </span>
-                    <span className={`text-[8px] font-semibold border px-1 py-0.2 rounded uppercase ${badgeStyle}`}>
+                    <span className={`text-[9px] font-semibold border px-1 py-0.2 rounded uppercase ${badgeStyle}`}>
                       {statusBadge}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-1 text-[9px]">
-                  <span className="text-[#6b7280] font-mono">
+                <div className="flex items-center justify-between mt-1 text-[10px]">
+                  <span className="text-[#9ca3af] font-mono">
                     [{dominantIssue}]
                   </span>
                   <span className={`text-xs ${trendStyle}`}>
@@ -435,13 +435,13 @@ export default function LeftPanel({
         
         {/* Section Header */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] text-[#6b7280] uppercase tracking-wider font-bold">Active Grid Alerts</span>
-          <span className="text-[10px] text-cyan-400 font-bold">{filteredIncidents.length} active</span>
+          <span className="text-[11px] text-[#9ca3af] uppercase tracking-wider font-bold">Active Grid Alerts</span>
+          <span className="text-[11px] text-cyan-400 font-bold">{filteredIncidents.length} active</span>
         </div>
 
         {/* Dismissible active zone filter chip */}
         {activeZone && (
-          <div className="flex items-center gap-1 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded text-[10px] text-[#00f5d4] w-max mb-2 font-mono">
+          <div className="flex items-center gap-1 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded text-xs text-[#00f5d4] w-max mb-2 font-mono">
             <span>{ZONE_MAPPING.find(z => z.fullName === activeZone)?.shortName || activeZone}</span>
             <button
               onClick={handleClearZoneFilter}
@@ -463,7 +463,7 @@ export default function LeftPanel({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search details, wards..."
-            className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-[11px]"
+            className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-xs"
           />
           {searchQuery && (
             <button
@@ -476,7 +476,7 @@ export default function LeftPanel({
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-1.5 mb-3 flex-none text-[9px]">
+        <div className="flex items-center gap-1.5 mb-3 flex-none text-[10px]">
           {["All", "Open", "Escalated", "Resolved"].map(pill => {
             const isSelected = statusFilter === pill;
             return (
@@ -486,7 +486,7 @@ export default function LeftPanel({
                 className={`px-2.5 py-1 rounded transition-colors font-bold uppercase ${
                   isSelected 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-[#16171d]/60 border border-[#1b1d24]/50 text-[#6b7280] hover:text-white'
+                    : 'bg-[#16171d]/60 border border-[#1b1d24]/50 text-[#9ca3af] hover:text-white'
                 }`}
               >
                 {pill}
@@ -496,14 +496,14 @@ export default function LeftPanel({
         </div>
 
         {/* Scrollable feed of incident cards */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-0.5 no-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-0.5 no-scrollbar">
           {filteredIncidents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider">No active incidents</span>
+                <span className="text-xs font-bold text-white uppercase tracking-wider">No active incidents</span>
               </div>
-              <span className="text-[9px] text-[#6b7280] uppercase">All clear in this zone</span>
+              <span className="text-[10px] text-[#9ca3af] uppercase">All clear in this zone</span>
             </div>
           ) : (
             filteredIncidents.map(incident => {
@@ -530,35 +530,35 @@ export default function LeftPanel({
                 <div
                   key={incident.id}
                   onClick={() => onIncidentFocus(incident)}
-                  className="cursor-pointer border border-[#1b1d24]/40 bg-[#16171d]/50 hover:bg-[#1d1e26]/60 backdrop-blur-sm p-3 rounded-lg flex flex-col gap-2 transition-colors hover:border-[#1b1d24]"
+                  className="cursor-pointer border border-[#1b1d24]/40 bg-[#16171d]/50 hover:bg-[#1d1e26]/60 backdrop-blur-sm p-3.5 rounded-lg flex flex-col gap-2 transition-colors hover:border-[#1b1d24]"
                 >
                   {/* Top Row: Category Badge + ID + Time */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`text-[8px] font-bold border px-1.5 py-0.2 rounded uppercase ${catInfo.bg}`}>
+                      <span className={`text-[9px] font-bold border px-1.5 py-0.2 rounded uppercase ${catInfo.bg}`}>
                         {catInfo.label}
                       </span>
-                      <span className="text-[9px] font-mono text-[#6b7280] font-semibold">
+                      <span className="text-[10px] font-mono text-[#9ca3af] font-semibold">
                         CF-{incident.id.toString().substring(0, 4)}
                       </span>
                     </div>
-                    <span className="text-[9px] text-[#6b7280] font-mono font-medium">
+                    <span className="text-[10px] text-[#9ca3af] font-mono font-medium">
                       {formatTimeAgo(incident)}
                     </span>
                   </div>
 
                   {/* Middle: Truncated Description */}
-                  <p className="text-[11px] text-[#8f97a3] leading-relaxed line-clamp-2">
+                  <p className="text-xs text-[#d1d5db] leading-relaxed line-clamp-1">
                     {incident.description}
                   </p>
 
                   {/* Bottom Row: Ward tag + Verify Count + Buttons */}
                   <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-[#1b1d24]/30">
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] bg-[#101115] border border-[#1b1d24]/70 px-1.5 py-0.2 text-[#7d8590] rounded font-bold">
+                      <span className="text-[10px] bg-[#101115] border border-[#1b1d24]/70 px-1.5 py-0.2 text-[#7d8590] rounded font-bold">
                         Ward {incident.ward}
                       </span>
-                      <span className="text-[9px] text-[#6b7280] flex items-center gap-0.5">
+                      <span className="text-[10px] text-[#9ca3af] flex items-center gap-0.5">
                         🛡 {incident.verifications || 0} verified
                       </span>
                     </div>
@@ -566,14 +566,14 @@ export default function LeftPanel({
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={handleUpvoteClick}
-                        className="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white px-2 py-0.5 rounded border border-blue-500/20 text-[9px] font-bold font-mono transition-colors cursor-pointer"
+                        className="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white px-2 py-0.5 rounded border border-blue-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
                         title="Upvote grievance"
                       >
                         ↑ Upvote ({incident.upvotes || 0})
                       </button>
                       <button
                         onClick={handleVerifyClick}
-                        className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-0.5 rounded border border-emerald-500/20 text-[9px] font-bold font-mono transition-colors cursor-pointer"
+                        className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-0.5 rounded border border-emerald-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
                         title="Confirm issue validity"
                       >
                         ✓ Verify
