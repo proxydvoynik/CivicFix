@@ -196,6 +196,173 @@ const mockLeaderboard = [
   { id: "seed_ananya_k", name: "Ananya K.", score: 340, badge: "Street Watcher", rank: 4, avatar: "✨" }
 ];
 
+// Helper to compute automatic severity score from category and context
+const getSeverityScore = (incident, floodRisk) => {
+  let score = 30; // fallback
+  const type = (incident.type || "").toLowerCase();
+  
+  if (type.includes("pothole")) score = 40;
+  else if (type.includes("drain")) score = 60;
+  else if (type.includes("water") || type.includes("logging")) score = 65;
+  else if (type.includes("streetlight")) score = 35;
+  else if (type.includes("waste") || type.includes("garbage") || type.includes("pileup")) score = 20;
+  else if (type.includes("leak")) score = 35;
+  else if (type.includes("obstruct")) score = 70;
+
+  // Boosts for severity (contextual)
+  if (incident.streetViewStatus === "verified" || incident.hasImage) {
+    score += 10;
+  }
+
+  const loc = (incident.location || "").toLowerCase();
+  const zone = (incident.zone || "").toLowerCase();
+  const isRisky = loc.includes("stand") || loc.includes("underpass") || loc.includes("bridge") ||
+                  loc.includes("junction") || loc.includes("school") || loc.includes("hospital") ||
+                  loc.includes("market") || loc.includes("highway") || loc.includes("bypass") ||
+                  zone.includes("seafront") || zone.includes("heritage");
+  if (isRisky) {
+    score += 10;
+  }
+
+  const isRainSensitive = type.includes("water") || type.includes("logging") || type.includes("drain");
+  if (isRainSensitive && floodRisk) {
+    score += 15;
+  }
+
+  return score;
+};
+
+// Convert score to semantic level (low/medium/high)
+const getSeverityLevel = (score) => {
+  if (score >= 75) return "high";
+  if (score >= 40) return "medium";
+  return "low";
+};
+
+// Compute a priorityScore from severity, verifications, upvotes, weather, and unresolved age
+const getPriorityScore = (incident, severityScore, floodRisk) => {
+  let score = severityScore;
+
+  const verifications = incident.verifications || 0;
+  score += Math.min(verifications * 5, 20);
+
+  const upvotes = incident.votes || incident.upvotes || 0;
+  score += Math.min(upvotes * 1.5, 15);
+
+  const timeAgo = (incident.timeAgo || "").toLowerCase();
+  const isOld = timeAgo.includes("h ago") || timeAgo.includes("d ago") || 
+                timeAgo.includes("hour") || timeAgo.includes("day") ||
+                (typeof incident.id === "number" && Date.now() - incident.id > 1800000);
+  if (isOld && incident.status !== "resolved") {
+    score += 10;
+  }
+
+  const type = (incident.type || "").toLowerCase();
+  const isRainSensitive = type.includes("water") || type.includes("logging") || type.includes("drain");
+  if (isRainSensitive && floodRisk) {
+    score += 10;
+  }
+
+  return Math.min(score, 100);
+};
+
+// Determine dispatch necessity, status stage, and progress percentage
+const getDispatchState = (incident, priorityScore) => {
+  const dispatchRequired = priorityScore >= 60;
+  const status = incident.status || "open";
+
+  let dispatchStatus = "REPORTED";
+  if (status === "resolved") {
+    dispatchStatus = "RESOLVED";
+  } else if (status === "inspected") {
+    dispatchStatus = "IN_PROGRESS";
+  } else if (status === "dispatched") {
+    dispatchStatus = "DISPATCHED";
+  } else if (status === "escalated") {
+    dispatchStatus = "ESCALATED";
+  } else if (status === "under_review") {
+    dispatchStatus = "UNDER_REVIEW";
+  } else if (status === "open") {
+    if (dispatchRequired) {
+      if (priorityScore >= 75) {
+        dispatchStatus = "ESCALATED";
+      } else {
+        dispatchStatus = "UNDER_REVIEW";
+      }
+    } else {
+      dispatchStatus = "REPORTED";
+    }
+  }
+
+  const dispatchProgress = {
+    "REPORTED": 15,
+    "UNDER_REVIEW": 25,
+    "ESCALATED": 40,
+    "DISPATCHED": 65,
+    "IN_PROGRESS": 85,
+    "RESOLVED": 100
+  }[dispatchStatus] || 15;
+
+  return {
+    dispatchRequired,
+    dispatchStatus,
+    dispatchProgress
+  };
+};
+
+// Map issue categories to municipal departments
+const getDepartmentFromType = (type = "") => {
+  const t = type.toLowerCase();
+  if (t.includes("pothole") || t.includes("drain") || t.includes("water") || t.includes("logging")) {
+    return "PWD";
+  }
+  if (t.includes("waste") || t.includes("garbage") || t.includes("pileup")) {
+    return "Sanitation";
+  }
+  if (t.includes("streetlight") || t.includes("light")) {
+    return "Electricity Board";
+  }
+  if (t.includes("leak")) {
+    return "Water Authority";
+  }
+  if (t.includes("obstruct")) {
+    return "Municipality";
+  }
+  return "Municipality";
+};
+
+// Context-aware escalation/priority reasoning
+const getEscalationReason = (incident, floodRisk) => {
+  const type = (incident.type || "").toLowerCase();
+  const verifications = incident.verifications || 0;
+  const upvotes = incident.votes || incident.upvotes || 0;
+  const hasImage = incident.streetViewStatus === "verified" || incident.hasImage;
+  const isRainSensitive = type.includes("water") || type.includes("logging") || type.includes("drain");
+
+  if (incident.status === "resolved") {
+    return "Issue successfully resolved by municipal action.";
+  }
+  if (verifications >= 3 && isRainSensitive && floodRisk) {
+    return "Escalated due to repeated verification and flood risk.";
+  }
+  if (verifications >= 3) {
+    return `Escalated due to repeated volunteer verifications (${verifications}).`;
+  }
+  if (isRainSensitive && floodRisk) {
+    return "Priority boost due to active monsoon precipitation risk.";
+  }
+  if (hasImage && upvotes >= 10) {
+    return "High priority based on photo evidence and community support.";
+  }
+  if (hasImage) {
+    return "Verification pending with confirmed photo evidence.";
+  }
+  if (upvotes >= 10) {
+    return "Under review due to significant community upvotes.";
+  }
+  return "Queued for routine inspection.";
+};
+
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [aliasModalOpen, setAliasModalOpen] = useState(false);
@@ -248,6 +415,28 @@ function App() {
     { id: 3, type: "warning", text: "High probability waterlogging warning active for low-lying Railway Underpass." }
   ]);
 
+  const [peakRainfall, setPeakRainfall] = useState(0);
+  const [hasWeatherData, setHasWeatherData] = useState(false);
+
+  const floodRisk = useMemo(() => {
+    return hasWeatherData && (
+      (reports.some(r => {
+        let zone = r.zone;
+        if (DISTRICT_TO_ZONE[zone]) zone = DISTRICT_TO_ZONE[zone];
+        let status = r.status;
+        if (!status) {
+          if (r.severity === "resolved") status = "resolved";
+          else if (r.verifications >= 3 || r.severity === "critical") status = "escalated";
+          else status = "open";
+        }
+        return (zone === "Punnol–Thiruvangad Seafront" || zone === "Kannoth–Court Corridor") &&
+               r.type?.toLowerCase().includes("drain") &&
+               status !== "resolved";
+      }) && peakRainfall > 12) ||
+      peakRainfall > 25
+    );
+  }, [hasWeatherData, reports, peakRainfall]);
+
   // Map raw reports to Incident interface
   const mappedIncidents = useMemo(() => {
     return reports.map(r => {
@@ -276,6 +465,18 @@ function App() {
         else status = "open";
       }
 
+      // Compute severity score and priority score using helpers
+      const severityScore = getSeverityScore(r, floodRisk);
+      const severityLevel = getSeverityLevel(severityScore);
+      const derivedSeverity = severityLevel === "high" ? "critical" : (severityLevel === "medium" ? "warning" : "info");
+      const priorityScore = getPriorityScore(r, severityScore, floodRisk);
+
+      // Determine dispatch necessity, status stage, and progress percentage
+      const { dispatchRequired, dispatchStatus, dispatchProgress } = getDispatchState(r, priorityScore);
+
+      const assignedDepartment = getDepartmentFromType(r.type);
+      const escalationReason = getEscalationReason(r, floodRisk);
+
       return {
         id: r.id?.toString() || r.docId || 'fallback-id',
         ward: ward?.toString() || "11",
@@ -290,14 +491,24 @@ function App() {
         lat: r.lat,
         lng: r.lng,
         location: r.location,
-        severity: r.severity,
         docId: r.docId,
         details: r.details,
         letterDrafted: r.letterDrafted,
-        timeAgo: r.timeAgo
+        timeAgo: r.timeAgo,
+        
+        // New functional fields
+        severity: derivedSeverity,
+        severityLevel,
+        severityScore,
+        priorityScore,
+        dispatchRequired,
+        dispatchStatus,
+        dispatchProgress,
+        assignedDepartment,
+        escalationReason
       };
     });
-  }, [reports]);
+  }, [reports, floodRisk]);
 
   // Compute scores for previousScores comparison
   const currentScores = useMemo(() => {
@@ -317,9 +528,6 @@ function App() {
   }, [mappedIncidents]);
 
   const previousScores = usePrevious(currentScores) || {};
-
-  const [peakRainfall, setPeakRainfall] = useState(0);
-  const [hasWeatherData, setHasWeatherData] = useState(false);
 
   const [currentTime, setCurrentTime] = useState("");
   const [currentTemp, setCurrentTemp] = useState("28°C");
@@ -360,17 +568,6 @@ function App() {
     const interval = setInterval(fetchTemp, 900000); // 15 mins
     return () => clearInterval(interval);
   }, []);
-
-  const floodRisk = useMemo(() => {
-    return hasWeatherData && (
-      (mappedIncidents.some(i =>
-        (i.zone === "Punnol–Thiruvangad Seafront" || i.zone === "Kannoth–Court Corridor") &&
-        i.type?.toLowerCase().includes("drain") &&
-        i.status !== "resolved"
-      ) && peakRainfall > 12) ||
-      peakRainfall > 25
-    );
-  }, [hasWeatherData, mappedIncidents, peakRainfall]);
 
   const getRoleFromKarma = (karma) => {
     if (karma >= 500) return "Thalassery Warden";

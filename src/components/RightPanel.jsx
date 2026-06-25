@@ -3,10 +3,12 @@ import CardShell from './CardShell';
 
 // Dispatch Queue stage mapper configuration
 const DISPATCH_STAGES = {
-  "open": { label: "Reported", progress: 15, color: "#6b7280" },
-  "escalated": { label: "Escalated", progress: 40, color: "#f59e0b" },
-  "dispatched": { label: "PWD Dispatched", progress: 65, color: "#00f5d4" },
-  "inspected": { label: "Inspected", progress: 90, color: "#22c55e" }
+  "REPORTED": { label: "Reported", progress: 15, color: "#6b7280" },
+  "UNDER_REVIEW": { label: "Under Review", progress: 25, color: "#3b82f6" },
+  "ESCALATED": { label: "Escalated", progress: 40, color: "#f59e0b" },
+  "DISPATCHED": { label: "Dispatched", progress: 65, color: "#00f5d4" },
+  "IN_PROGRESS": { label: "In Progress", progress: 85, color: "#a855f7" },
+  "RESOLVED": { label: "Resolved", progress: 100, color: "#10b981" }
 };
 
 // Seed Wardens for fallbacks
@@ -110,7 +112,7 @@ export default function RightPanel({
   const dispatchQueue = useMemo(() => {
     return incidents
       .filter(inc => inc.status !== "resolved")
-      .sort((a, b) => (b.verifications || 0) - (a.verifications || 0))
+      .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0))
       .slice(0, 5);
   }, [incidents]);
 
@@ -304,7 +306,8 @@ export default function RightPanel({
           ) : (
             /* Dispatch items list */
             dispatchQueue.map(incident => {
-              const stageInfo = DISPATCH_STAGES[incident.status] || DISPATCH_STAGES["open"];
+              const statusKey = incident.dispatchStatus || "REPORTED";
+              const stageInfo = DISPATCH_STAGES[statusKey] || DISPATCH_STAGES["REPORTED"];
               const cfId = incident.id.startsWith('CF-') 
                 ? incident.id 
                 : `CF-${incident.id.toString().substring(0, 4)}`;
@@ -313,7 +316,14 @@ export default function RightPanel({
                 <div key={incident.id} className="flex flex-col gap-2.5">
                   {/* Row 1: ID & Stage Label */}
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-white font-bold font-mono">{cfId}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold font-mono">{cfId}</span>
+                      {incident.assignedDepartment && (
+                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-cyan-500/20">
+                          {incident.assignedDepartment}
+                        </span>
+                      )}
+                    </div>
                     <span 
                       className="font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border" 
                       style={{ 
@@ -343,6 +353,13 @@ export default function RightPanel({
                       }}
                     ></div>
                   </div>
+
+                  {/* Row 4: Escalation Reason */}
+                  {incident.escalationReason && (
+                    <div className="text-[10px] text-[#7d8590] italic leading-normal font-sans mt-0.5">
+                      🤖 {incident.escalationReason}
+                    </div>
+                  )}
                 </div>
               );
             })
