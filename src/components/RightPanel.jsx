@@ -11,9 +11,10 @@ const DISPATCH_STAGES = {
 
 // Seed Wardens for fallbacks
 const SEED_WARDENS = [
-  { name: "Ashwin Raj", role: "Thalassery Warden", karma: 520 },
-  { name: "Divya Balan", role: "Pothole Ranger", karma: 450 },
-  { name: "Muhammed Shafi", role: "Waste Tracker", karma: 390 }
+  { id: "seed_ashwin_raj", name: "Ashwin Raj", role: "Thalassery Warden", karma: 520 },
+  { id: "seed_divya_balan", name: "Divya Balan", role: "Pothole Ranger", karma: 450 },
+  { id: "seed_muhammed_shafi", name: "Muhammed Shafi", role: "Waste Tracker", karma: 390 },
+  { id: "seed_ananya_k", name: "Ananya K.", role: "Street Watcher", karma: 340 }
 ];
 
 export default function RightPanel({

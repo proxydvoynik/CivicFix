@@ -8,8 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import LeftPanel from './components/LeftPanel';
 
 // Live Integration Imports
-import { db, isFirebaseConfigured } from './lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment } from 'firebase/firestore';
+import { db, auth, isFirebaseConfigured } from './lib/firebase';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment, getDoc, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini';
 
 // Leaflet Maps Imports
@@ -189,13 +190,18 @@ Report Reference: #CF-9814`
 ];
 
 const mockLeaderboard = [
-  { name: "Ashwin Raj", score: 520, badge: "Thalassery Warden", rank: 1, avatar: "🏆" },
-  { name: "Divya Balan", score: 450, badge: "Pothole Ranger", rank: 2, avatar: "🥈" },
-  { name: "Muhammed Shafi", score: 390, badge: "Waste Tracker", rank: 3, avatar: "🥉" },
-  { name: "Ananya K.", score: 340, badge: "Street Watcher", rank: 4, avatar: "✨" }
+  { id: "seed_ashwin_raj", name: "Ashwin Raj", score: 520, badge: "Thalassery Warden", rank: 1, avatar: "🏆" },
+  { id: "seed_divya_balan", name: "Divya Balan", score: 450, badge: "Pothole Ranger", rank: 2, avatar: "🥈" },
+  { id: "seed_muhammed_shafi", name: "Muhammed Shafi", score: 390, badge: "Waste Tracker", rank: 3, avatar: "🥉" },
+  { id: "seed_ananya_k", name: "Ananya K.", score: 340, badge: "Street Watcher", rank: 4, avatar: "✨" }
 ];
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [aliasModalOpen, setAliasModalOpen] = useState(false);
+  const [aliasInput, setAliasInput] = useState("");
+  const [wardensList, setWardensList] = useState([]);
+  
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -366,13 +372,26 @@ function App() {
     );
   }, [hasWeatherData, mappedIncidents, peakRainfall]);
 
+  const getRoleFromKarma = (karma) => {
+    if (karma >= 500) return "Thalassery Warden";
+    if (karma >= 400) return "Pothole Ranger";
+    if (karma >= 350) return "Waste Tracker";
+    if (karma >= 150) return "Street Watcher";
+    return "Cadet Warden";
+  };
+
   const mappedWardens = useMemo(() => {
-    return mockLeaderboard.map(w => ({
+    return wardensList.map(w => ({
       name: w.name,
-      role: w.badge,
-      karma: w.score
+      role: w.role || getRoleFromKarma(w.karma || 0),
+      karma: w.karma || 0
     }));
-  }, []);
+  }, [wardensList]);
+
+  const currentUserWarden = useMemo(() => {
+    if (!currentUser) return null;
+    return wardensList.find(w => w.id === currentUser.uid);
+  }, [currentUser, wardensList]);
 
   const onAgentLog = useCallback((message) => {
     const cleanedMessage = message.startsWith(">> ") ? message.substring(3) : message;
@@ -403,6 +422,37 @@ function App() {
     return [...aiLogs].reverse().map(log => log.text);
   }, [aiLogs]);
 
+  // Helper to increment user karma dynamically
+  const incrementUserKarma = useCallback(async (points) => {
+    if (isFirebaseConfigured && currentUser) {
+      try {
+        const userRef = doc(db, 'wardens', currentUser.uid);
+        await updateDoc(userRef, {
+          karma: increment(points)
+        });
+      } catch (err) {
+        console.error("Error incrementing user karma:", err);
+      }
+    } else if (currentUser) {
+      // Local fallback (only when Firebase is missing)
+      setWardensList(prev => prev.map(w => {
+        if (w.id === currentUser.uid) {
+          const nextKarma = (w.karma || 0) + points;
+          const nextRole = getRoleFromKarma(nextKarma);
+          return { ...w, karma: nextKarma, role: nextRole };
+        }
+        return w;
+      }));
+      // Update local storage
+      const localAlias = localStorage.getItem('civicfix_mock_alias');
+      if (localAlias) {
+        const cachedKarma = parseInt(localStorage.getItem('civicfix_mock_karma') || '0', 10);
+        const nextKarma = cachedKarma + points;
+        localStorage.setItem('civicfix_mock_karma', nextKarma.toString());
+      }
+    }
+  }, [currentUser, isFirebaseConfigured]);
+
   // Upvote/Downvote report
   const handleVote = useCallback(async (id, docId) => {
     if (isFirebaseConfigured && docId) {
@@ -415,13 +465,15 @@ function App() {
           votes: increment(1)
         });
         setAiLogs(prev => [...prev, { id: `log-vote-${id}-${Date.now()}`, type: "success", text: `Firestore: Logged upvote for issue #CF-${id.toString().substring(0, 4)}` }]);
+        await incrementUserKarma(2);
       } catch (error) {
         console.error("Error updating vote in Firestore:", error);
       }
     } else {
       setReports(prev => prev.map(r => r.id === id ? { ...r, votes: r.votes + 1 } : r));
+      await incrementUserKarma(2);
     }
-  }, [reports]);
+  }, [reports, isFirebaseConfigured, incrementUserKarma]);
 
   // Verify issue locally (Gamification Verification loop)
   const handleVerify = useCallback(async (id, docId) => {
@@ -446,7 +498,7 @@ function App() {
           type: "success", 
           text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
         }]);
-
+        await incrementUserKarma(5);
       } catch (error) {
         console.error("Error updating verification in Firestore:", error);
       }
@@ -468,8 +520,9 @@ function App() {
         }
         return r;
       }));
+      await incrementUserKarma(5);
     }
-  }, [reports]);
+  }, [reports, isFirebaseConfigured, incrementUserKarma]);
 
   const onUpvote = useCallback((id) => {
     const report = reports.find(r => r.id?.toString() === id.toString() || r.docId === id);
@@ -503,6 +556,189 @@ function App() {
       setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'escalated', severity: 'critical' } : r));
     }
   }, [reports]);
+
+
+
+  const handleSaveAlias = async (e) => {
+    e.preventDefault();
+    if (!aliasInput.trim()) return;
+
+    const trimmedAlias = aliasInput.trim();
+
+    if (isFirebaseConfigured && currentUser) {
+      try {
+        const userDocRef = doc(db, 'wardens', currentUser.uid);
+        await setDoc(userDocRef, {
+          name: trimmedAlias,
+          karma: 0,
+          role: "Cadet Warden"
+        }, { merge: true });
+        setAliasModalOpen(false);
+        setAiLogs(prev => [...prev, { id: `log-alias-${Date.now()}`, type: "success", text: `Profile: Civic alias registered as "${trimmedAlias}"` }]);
+      } catch (err) {
+        console.error("Error setting civic alias in Firestore:", err);
+        alert("Failed to save alias. Please try again.");
+      }
+    } else if (currentUser) {
+      // Local fallback (only when Firebase is missing)
+      localStorage.setItem('civicfix_mock_alias', trimmedAlias);
+      localStorage.setItem('civicfix_mock_karma', '0');
+      
+      // Update local wardens list
+      setWardensList(prev => {
+        const exists = prev.some(w => w.id === currentUser.uid);
+        if (exists) {
+          return prev.map(w => w.id === currentUser.uid ? { ...w, name: trimmedAlias } : w);
+        } else {
+          return [...prev, { id: currentUser.uid, name: trimmedAlias, karma: 0, role: "Cadet Warden" }];
+        }
+      });
+      setAliasModalOpen(false);
+      setAiLogs(prev => [...prev, { id: `log-alias-${Date.now()}`, type: "success", text: `Profile: Local civic alias set to "${trimmedAlias}"` }]);
+    }
+  };
+
+  // Auth Hookup: onAuthStateChanged & signInAnonymously
+  useEffect(() => {
+    let unsubscribeAuth = () => {};
+
+    if (isFirebaseConfigured) {
+      unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          console.log("Firebase Authenticated User ID:", user.uid);
+          setCurrentUser(user);
+          
+          // Check if warden doc exists with a name
+          const userDocRef = doc(db, 'wardens', user.uid);
+          try {
+            const docSnap = await getDoc(userDocRef);
+            if (!docSnap.exists() || !docSnap.data().name) {
+              setAliasModalOpen(true);
+            }
+          } catch (err) {
+            console.error("Error checking warden doc:", err);
+          }
+        } else {
+          console.log("No auth user. Signing in anonymously...");
+          try {
+            await signInAnonymously(auth);
+          } catch (err) {
+            console.error("Anonymous authentication failed:", err);
+          }
+        }
+      });
+    } else {
+      // Fallback only used when Firebase is missing
+      let localUid = localStorage.getItem('civicfix_mock_uid');
+      if (!localUid) {
+        localUid = 'mock_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('civicfix_mock_uid', localUid);
+      }
+      setTimeout(() => {
+        setCurrentUser({ uid: localUid });
+        const localAlias = localStorage.getItem('civicfix_mock_alias');
+        if (!localAlias) {
+          setAliasModalOpen(true);
+        }
+      }, 0);
+    }
+
+    return () => unsubscribeAuth();
+  }, [isFirebaseConfigured]);
+
+  // Real-time Wardens Subscription & Idempotent Seeding
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      // Mock local wardens setup
+      const localAlias = localStorage.getItem('civicfix_mock_alias');
+      const localKarma = parseInt(localStorage.getItem('civicfix_mock_karma') || '0', 10);
+      const localUid = localStorage.getItem('civicfix_mock_uid');
+
+      const initialMockList = mockLeaderboard.map((w) => ({
+        id: w.id,
+        name: w.name,
+        karma: w.score,
+        role: w.badge
+      }));
+
+      if (localAlias && localUid) {
+        initialMockList.push({
+          id: localUid,
+          name: localAlias,
+          karma: localKarma,
+          role: getRoleFromKarma(localKarma)
+        });
+      }
+      setTimeout(() => {
+        setWardensList(initialMockList);
+      }, 0);
+      return;
+    }
+
+    console.log("Subscribing to Firestore wardens collection...");
+    const q = query(collection(db, 'wardens'), orderBy('karma', 'desc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+
+      if (list.length === 0) {
+        console.log("Wardens collection is empty. Seeding deterministic wardens...");
+        try {
+          const SEEDS = [
+            { id: "seed_ashwin_raj", name: "Ashwin Raj", karma: 520, role: "Thalassery Warden" },
+            { id: "seed_divya_balan", name: "Divya Balan", karma: 450, role: "Pothole Ranger" },
+            { id: "seed_muhammed_shafi", name: "Muhammed Shafi", karma: 390, role: "Waste Tracker" },
+            { id: "seed_ananya_k", name: "Ananya K.", karma: 340, role: "Street Watcher" }
+          ];
+          for (const s of SEEDS) {
+            await setDoc(doc(db, 'wardens', s.id), {
+              name: s.name,
+              karma: s.karma,
+              role: s.role
+            });
+          }
+        } catch (err) {
+          console.error("Failed to seed wardens:", err);
+        }
+      } else {
+        setWardensList(list);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseConfigured, currentUser]);
+
+  // Detected resolution state change tracking effect
+  const prevReportsRef = useRef([]);
+  useEffect(() => {
+    if (currentUser && prevReportsRef.current.length > 0) {
+      reports.forEach(report => {
+        const prevReport = prevReportsRef.current.find(r => r.id?.toString() === report.id?.toString());
+        if (
+          prevReport && 
+          prevReport.status !== 'resolved' && 
+          report.status === 'resolved' &&
+          report.reporterUid === currentUser.uid &&
+          !report.resolutionKarmaAwarded
+        ) {
+          console.log(`Warden report ${report.id} resolved. Awarding +25 karma.`);
+          incrementUserKarma(25);
+
+          if (isFirebaseConfigured) {
+            const reportRef = doc(db, 'reports', report.docId);
+            updateDoc(reportRef, {
+              resolutionKarmaAwarded: true
+            }).catch(err => console.error("Error setting resolutionKarmaAwarded:", err));
+          } else {
+            setReports(prev => prev.map(r => r.id === report.id ? { ...r, resolutionKarmaAwarded: true } : r));
+          }
+        }
+      });
+    }
+    prevReportsRef.current = reports;
+  }, [reports, currentUser, isFirebaseConfigured, incrementUserKarma]);
 
   // Real-time Firestore sync & Auto-population
   useEffect(() => {
@@ -1396,13 +1632,15 @@ Report Reference: #CF-${generatedRef}`;
       details: verifiedDetails || "Citizen reported infrastructure issue verified by community tools.",
       letterDrafted: draftLetter,
       lat: formLat,
-      lng: formLng
+      lng: formLng,
+      reporterUid: currentUser ? currentUser.uid : null
     };
 
     if (isFirebaseConfigured) {
       try {
         await addDoc(collection(db, 'reports'), newReport);
         setAiLogs(prev => [...prev, { id: `log-submit-db-${Date.now()}-${Math.random()}`, type: "success", text: `Firestore: Report added for ${formZone}.` }]);
+        await incrementUserKarma(10);
       } catch (error) {
         console.error("Failed to add document to Firestore:", error);
         alert("Firestore upload failed. Storing locally.");
@@ -1410,6 +1648,7 @@ Report Reference: #CF-${generatedRef}`;
       }
     } else {
       setReports(prev => [newReport, ...prev]);
+      await incrementUserKarma(10);
     }
 
     setIsSubmitting(false);
@@ -1447,6 +1686,20 @@ Report Reference: #CF-${generatedRef}`;
 
         {/* Right Actions: Weather/Location info & Report button */}
         <div className="flex items-center gap-4">
+          
+          {/* Volunteer Status Badge */}
+          {currentUserWarden && (
+            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7d8590] bg-[#16171d] border border-[#1b1d24] px-3 py-1 rounded">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
+              <span className="text-white font-bold truncate max-w-[70px] sm:max-w-[120px]">
+                {currentUserWarden.name}
+              </span>
+              <span className="text-[#3b4453] font-bold">|</span>
+              <span className="text-cyan-400 font-bold">
+                {currentUserWarden.karma} KP
+              </span>
+            </div>
+          )}
           
           {/* Location & Weather details (Metric conversion to Celsius) */}
           <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-mono text-[#7d8590] bg-[#16171d] border border-[#1b1d24] px-3 py-1 rounded">
@@ -1638,6 +1891,49 @@ Report Reference: #CF-${generatedRef}`;
         <RightPanel incidents={mappedIncidents} wardens={mappedWardens} onAgentLog={onAgentLog} />
 
     </div>
+
+      {/* CIVIC ALIAS SELECTION MODAL (Center-aligned popup) */}
+      <AnimatePresence>
+        {aliasModalOpen && (
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-[#101115] border border-[#1b1d24] w-full max-w-sm rounded p-6 shadow-2xl flex flex-col gap-4 font-mono text-[#e2e8f0]"
+            >
+              <div className="border-b border-[#1b1d24] pb-3">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Choose civic alias
+                </h3>
+                <p className="text-[10px] text-[#7d8590] mt-1 font-sans">
+                  Set your volunteer name
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveAlias} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={aliasInput}
+                    onChange={(e) => setAliasInput(e.target.value)}
+                    placeholder="Pick your command center name"
+                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
+                    maxLength={20}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full h-9 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-bold uppercase tracking-wider text-white transition-all shadow-[0_0_12px_rgba(37,99,235,0.2)] hover:scale-[1.01] cursor-pointer"
+                >
+                  Authorize Identity
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
       <AnimatePresence>
