@@ -20,32 +20,15 @@ import 'leaflet/dist/leaflet.css';
 import LiveTicker from './components/LiveTicker';
 import ConsoleDrawer from './components/ConsoleDrawer';
 
-const DISTRICT_TO_ZONE = {
-  "Court Road Junction": "Kannoth–Court Corridor",
-  "Sea Bridge Lane": "Punnol–Thiruvangad Seafront",
-  "Gundopp Street Block": "Illikkunnu–Nittoor Uplands",
-  "Chirakkara Ward": "Chirakkara–Morakunnu Hills",
-  "Thalassery Bus Stand Area": "Kodiyeri–Madapeedika South",
-  "Overbury's Folly Sector": "Thiruvangad–Overbury's Heritage Quarter"
-};
-
-const ZONE_TO_DISTRICT = {
-  "Kannoth–Court Corridor": "Court Road Junction",
-  "Punnol–Thiruvangad Seafront": "Sea Bridge Lane",
-  "Illikkunnu–Nittoor Uplands": "Gundopp Street Block",
-  "Chirakkara–Morakunnu Hills": "Chirakkara Ward",
-  "Kodiyeri–Madapeedika South": "Thalassery Bus Stand Area",
-  "Thiruvangad–Overbury's Heritage Quarter": "Overbury's Folly Sector"
-};
-
-const WARD_ZONES = {
-  "Kannoth–Court Corridor": ["11", "12", "47", "48", "51", "52"],
-  "Punnol–Thiruvangad Seafront": ["33", "34", "37", "41", "42", "43"],
-  "Illikkunnu–Nittoor Uplands": ["1", "2", "3", "4", "5", "7", "8", "9", "10"],
-  "Chirakkara–Morakunnu Hills": ["13", "14", "15", "16", "17", "18", "19", "20", "21"],
-  "Kodiyeri–Madapeedika South": ["22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"],
-  "Thiruvangad–Overbury's Heritage Quarter": ["6", "35", "36", "38", "39", "40", "44", "45", "46", "50"]
-};
+import { 
+  DISTRICT_TO_ZONE, 
+  ZONE_TO_DISTRICT, 
+  WARD_ZONES, 
+  normalizeZoneName, 
+  getMapMarkers, 
+  getHeatmapData, 
+  getStabilityTrend 
+} from './lib/helpers';
 
 function usePrevious(value) {
   const [current, setCurrent] = useState(value);
@@ -61,21 +44,21 @@ function usePrevious(value) {
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
-  { name: "Thalassery Bus Stand Area", availability: 97.2, active: 2, resolved: 41, severity: "warning", lat: 11.7511, lng: 75.4921, sparkline: [98, 97.5, 97.2, 97.0, 97.3, 97.2] },
-  { name: "Court Road Junction", availability: 99.0, active: 1, resolved: 58, severity: "normal", lat: 11.7490, lng: 75.4891, sparkline: [99, 99.1, 98.9, 99.0, 99.0, 99.0] },
-  { name: "Overbury's Folly Sector", availability: 94.6, active: 4, resolved: 32, severity: "critical", lat: 11.7455, lng: 75.4852, sparkline: [96, 95.2, 94.8, 94.1, 94.5, 94.6] },
-  { name: "Sea Bridge Lane", availability: 98.1, active: 1, resolved: 29, severity: "normal", lat: 11.7420, lng: 75.4810, sparkline: [98.5, 98.2, 98.0, 98.1, 98.3, 98.1] },
-  { name: "Gundopp Street Block", availability: 99.5, active: 0, resolved: 24, severity: "normal", lat: 11.7535, lng: 75.4985, sparkline: [99.5, 99.5, 99.5, 99.5, 99.5, 99.5] },
-  { name: "Chirakkara Ward", availability: 96.8, active: 3, resolved: 37, severity: "warning", lat: 11.7570, lng: 75.4840, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
+  { name: "South Highway", availability: 97.2, active: 2, resolved: 41, severity: "warning", lat: 11.7511, lng: 75.4921, sparkline: [98, 97.5, 97.2, 97.0, 97.3, 97.2] },
+  { name: "Court Corridor", availability: 99.0, active: 1, resolved: 58, severity: "normal", lat: 11.7490, lng: 75.4891, sparkline: [99, 99.1, 98.9, 99.0, 99.0, 99.0] },
+  { name: "Heritage Quarter", availability: 94.6, active: 4, resolved: 32, severity: "critical", lat: 11.7455, lng: 75.4852, sparkline: [96, 95.2, 94.8, 94.1, 94.5, 94.6] },
+  { name: "Seafront", availability: 98.1, active: 1, resolved: 29, severity: "normal", lat: 11.7420, lng: 75.4810, sparkline: [98.5, 98.2, 98.0, 98.1, 98.3, 98.1] },
+  { name: "North Uplands", availability: 99.5, active: 0, resolved: 24, severity: "normal", lat: 11.7535, lng: 75.4985, sparkline: [99.5, 99.5, 99.5, 99.5, 99.5, 99.5] },
+  { name: "Chirakkara Hills", availability: 96.8, active: 3, resolved: 37, severity: "warning", lat: 11.7570, lng: 75.4840, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
 ];
 
 // Mock Recent Issues Feed for Thalassery
 const initialIssues = [
   { 
     id: 1, 
-    type: "Severe Pothole", 
+    type: "Pothole", 
     location: "Court Road Junction Bypass (Near Post Office)", 
-    zone: "Court Road Junction", 
+    zone: "Court Corridor", 
     timeAgo: "2m ago", 
     severity: "critical", 
     votes: 4, 
@@ -91,7 +74,7 @@ The Municipal Commissioner,
 Thalassery Municipal Corporation,
 Thalassery, Kannur - 670101.
 
-Subject: Urgent grievance notice regarding public road damage (Severe Pothole) at Court Road Junction.
+Subject: Urgent grievance notice regarding public road damage (Pothole) at Court Corridor.
 
 Respected Sir/Madam,
 I am writing to draw your immediate attention to a severe infrastructure hazard at Court Road Junction Bypass (Near Post Office). An automated civic monitoring tool has registered a deep road cavity (approx. depth 12cm, diameter 1.1m) posing threat to traffic safety. 
@@ -103,9 +86,9 @@ Report Reference: #CF-9811`
   },
   { 
     id: 2, 
-    type: "Water Logging", 
+    type: "Drainage", 
     location: "Railway Underpass (Overbury's Folly Road)", 
-    zone: "Overbury's Folly Sector", 
+    zone: "Heritage Quarter", 
     timeAgo: "14m ago", 
     severity: "critical", 
     votes: 18, 
@@ -133,9 +116,9 @@ Report Reference: #CF-9812`
   },
   { 
     id: 3, 
-    type: "Garbage Pileup", 
+    type: "Waste", 
     location: "Behind Thalassery Municipal Bus Stand", 
-    zone: "Thalassery Bus Stand Area", 
+    zone: "South Highway", 
     timeAgo: "32m ago", 
     severity: "warning", 
     votes: 6, 
@@ -161,9 +144,9 @@ Report Reference: #CF-9813`
   },
   { 
     id: 4, 
-    type: "Open Drainage", 
+    type: "Drainage", 
     location: "Sea Bridge pathway near children's park", 
-    zone: "Sea Bridge Lane", 
+    zone: "Seafront", 
     timeAgo: "1h ago", 
     severity: "warning", 
     votes: 9, 
@@ -384,9 +367,10 @@ function App() {
   const [activeStreetCheck, setActiveStreetCheck] = useState(null);
 
   // Form State
-  const [formType, setFormType] = useState("Severe Pothole");
+  const [formType, setFormType] = useState("Pothole");
   const [formDetails, setFormDetails] = useState("");
-  const [formZone, setFormZone] = useState("Court Road Junction");
+  const [formDescription, setFormDescription] = useState("");
+  const [formZone, setFormZone] = useState("Court Corridor");
   const [formLat, setFormLat] = useState(11.7490);
   const [formLng, setFormLng] = useState(75.4891);
   const [isImageVerifying, setIsImageVerifying] = useState(false);
@@ -421,15 +405,14 @@ function App() {
   const floodRisk = useMemo(() => {
     return hasWeatherData && (
       (reports.some(r => {
-        let zone = r.zone;
-        if (DISTRICT_TO_ZONE[zone]) zone = DISTRICT_TO_ZONE[zone];
+        const zone = normalizeZoneName(r.zone);
         let status = r.status;
         if (!status) {
           if (r.severity === "resolved") status = "resolved";
           else if (r.verifications >= 3 || r.severity === "critical") status = "escalated";
           else status = "open";
         }
-        return (zone === "Punnol–Thiruvangad Seafront" || zone === "Kannoth–Court Corridor") &&
+        return (zone === "Seafront" || zone === "Court Corridor") &&
                r.type?.toLowerCase().includes("drain") &&
                status !== "resolved";
       }) && peakRainfall > 12) ||
@@ -440,21 +423,17 @@ function App() {
   // Map raw reports to Incident interface
   const mappedIncidents = useMemo(() => {
     return reports.map(r => {
-      let zone = r.zone;
-      // map old names if they came from old seeds
-      if (DISTRICT_TO_ZONE[zone]) {
-        zone = DISTRICT_TO_ZONE[zone];
-      }
+      const zone = normalizeZoneName(r.zone);
       
       let ward = r.ward;
       if (!ward) {
         // assign default ward based on zone
-        if (zone === "Kannoth–Court Corridor") ward = "11";
-        else if (zone === "Punnol–Thiruvangad Seafront") ward = "33";
-        else if (zone === "Illikkunnu–Nittoor Uplands") ward = "1";
-        else if (zone === "Chirakkara–Morakunnu Hills") ward = "13";
-        else if (zone === "Kodiyeri–Madapeedika South") ward = "22";
-        else if (zone === "Thiruvangad–Overbury's Heritage Quarter") ward = "6";
+        if (zone === "Court Corridor") ward = "11";
+        else if (zone === "Seafront") ward = "33";
+        else if (zone === "North Uplands") ward = "1";
+        else if (zone === "Chirakkara Hills") ward = "13";
+        else if (zone === "South Highway") ward = "22";
+        else if (zone === "Heritage Quarter") ward = "6";
         else ward = "11";
       }
 
@@ -480,7 +459,7 @@ function App() {
       return {
         id: r.id?.toString() || r.docId || 'fallback-id',
         ward: ward?.toString() || "11",
-        zone: zone || "Kannoth–Court Corridor",
+        zone: zone || "Court Corridor",
         type: r.type || "Other",
         description: r.details || r.location || "",
         status: status,
@@ -974,7 +953,7 @@ function App() {
 
   // Sync ward statistics dynamically based on current reports list
   const districts = initialDistricts.map(d => {
-    const activeCount = reports.filter(r => (DISTRICT_TO_ZONE[r.zone] || r.zone) === (DISTRICT_TO_ZONE[d.name] || d.name)).length;
+    const activeCount = reports.filter(r => normalizeZoneName(r.zone) === normalizeZoneName(d.name)).length;
     const computedAvailability = parseFloat((100 - activeCount * 0.6).toFixed(1));
     const severity = activeCount >= 4 ? "critical" : (activeCount >= 2 ? "warning" : "normal");
     return {
@@ -984,6 +963,22 @@ function App() {
       severity: severity
     };
   });
+
+  const stabilityBuckets = useMemo(() => getStabilityTrend(mappedIncidents), [mappedIncidents]);
+
+  const sparklinePath = useMemo(() => {
+    if (stabilityBuckets.length === 0) return "";
+    return stabilityBuckets.map((b, i) => {
+      const x = i * (400 / 47);
+      const y = 45 - (b.stability - 25) * 0.467;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+  }, [stabilityBuckets]);
+
+  const sparklineFillPath = useMemo(() => {
+    if (!sparklinePath) return "";
+    return `${sparklinePath} L400,50 L0,50 Z`;
+  }, [sparklinePath]);
 
   // Calculate distance between two coordinates in km (Haversine Formula)
   const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -1531,19 +1526,20 @@ function App() {
       reportMarkersGroup.current.clearLayers();
     }
 
-    reports.forEach(issue => {
-      if (!issue.lat || !issue.lng) return;
+    const markers = getMapMarkers(mappedIncidents);
 
-      const pingBg = issue.severity === 'critical' ? 'bg-red-400' : 'bg-amber-400';
-      const bgClass = issue.severity === 'critical' ? 'bg-red-500' : 'bg-amber-500';
+    markers.forEach(issue => {
+      const pingHtml = issue.showPing 
+        ? `<span class="animate-ping absolute inline-flex h-full w-full rounded-full ${issue.pingBg} opacity-75"></span>` 
+        : '';
 
       const markerIcon = L.divIcon({
         className: 'custom-issue-marker',
         html: `
           <div class="relative flex items-center justify-center">
             <span class="absolute flex h-5 w-5">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full ${pingBg} opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 ${bgClass} border border-black/40 shadow-lg"></span>
+              ${pingHtml}
+              <span class="relative inline-flex rounded-full h-3 w-3 ${issue.bgClass} border border-black/40 shadow-lg"></span>
             </span>
           </div>
         `,
@@ -1559,6 +1555,17 @@ function App() {
       
       const badgeColor = issue.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/20' : 'bg-amber-950/40 text-amber-400 border-amber-500/20';
 
+      const actionButtonsHtml = issue.status === 'resolved' 
+        ? `<div class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider text-center py-1">✓ Issue Resolved</div>`
+        : `
+          <button id="map-vote-btn-${issue.id}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+            ▲ UPVOTE (${issue.upvotes})
+          </button>
+          <button id="map-verify-btn-${issue.id}" class="flex-1 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+            VERIFY
+          </button>
+        `;
+
       popupDiv.innerHTML = `
         <div class="border-b border-[#1b1d24]/60 pb-2 mb-2">
           <div class="flex justify-between items-center mb-1">
@@ -1572,12 +1579,7 @@ function App() {
         <p class="mb-2 text-[#8f97a3] leading-relaxed">${issue.location}</p>
         <div class="text-[10px] text-[#7d8590] mb-3">Community Verifications: <span class="text-white font-bold">${issue.verifications}</span></div>
         <div class="flex items-center gap-2 border-t border-[#1b1d24]/60 pt-2">
-          <button id="map-vote-btn-${issue.id}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
-            ▲ UPVOTE (${issue.votes})
-          </button>
-          <button id="map-verify-btn-${issue.id}" class="flex-1 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
-            VERIFY
-          </button>
+          ${actionButtonsHtml}
         </div>
       `;
 
@@ -1603,7 +1605,7 @@ function App() {
 
       reportMarkersGroup.current.addLayer(marker);
     });
-  }, [reports, mapInstance, handleVote, handleVerify]);
+  }, [mappedIncidents, mapInstance, handleVote, handleVerify]);
 
   // Sync hazard heatmap layer on Leaflet map
   useEffect(() => {
@@ -1616,11 +1618,7 @@ function App() {
     }
     
     if (showHazardHeatmap) {
-      // Add red/orange circles for hazard zones (e.g. Railway Underpass, Sea Bridge)
-      const hazards = [
-        { lat: 11.7455, lng: 75.4852, radius: 250, color: '#ef4444' }, // Railway Underpass
-        { lat: 11.7420, lng: 75.4810, radius: 150, color: '#f59e0b' }  // Sea Bridge Lane
-      ];
+      const hazards = getHeatmapData(mappedIncidents);
       
       hazards.forEach(h => {
         const circle = L.circle([h.lat, h.lng], {
@@ -1633,7 +1631,7 @@ function App() {
         hazardCirclesGroup.current.addLayer(circle);
       });
     }
-  }, [showHazardHeatmap, mapInstance]);
+  }, [showHazardHeatmap, mapInstance, mappedIncidents]);
 
   // Pan map to issue coordinates
   const handleMapFocus = useCallback((lat, lng, zoom = 16) => {
@@ -1650,9 +1648,9 @@ function App() {
     const generatedRef = Math.floor(1000 + Math.random() * 9000);
     const mockIssue = {
       id: Date.now(),
-      type: "Broken Streetlight",
+      type: "Streetlight",
       location: "Centenary Park Path (Near Fort Entrance)",
-      zone: "Overbury's Folly Sector",
+      zone: "Heritage Quarter",
       timeAgo: "Just now",
       severity: "warning",
       votes: 1,
@@ -1784,7 +1782,29 @@ Report Reference: #CF-${generatedRef}`);
   // Submit new issue (Overlay Modal form)
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!formDetails.trim()) return;
+    
+    // Required validations
+    if (!formType) {
+      alert("Please select an issue category.");
+      return;
+    }
+    if (!formZone) {
+      alert("Please select a ward/sector.");
+      return;
+    }
+    if (!formDetails || !formDetails.trim()) {
+      alert("Please provide a landmark or exact place.");
+      return;
+    }
+    if (!formDescription || !formDescription.trim()) {
+      alert("Please describe the issue.");
+      return;
+    }
+    if (formLat === undefined || formLng === undefined || formLat === null || formLng === null) {
+      alert("Please select coordinates on the map.");
+      return;
+    }
+
     setIsSubmitting(true);
     
     const generatedRef = Math.floor(1000 + Math.random() * 9000);
@@ -1801,14 +1821,14 @@ This is to notify the Thalassery Municipality regarding ${formType} at ${formDet
 Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`;
 
-    const zoneName = DISTRICT_TO_ZONE[formZone] || "Kannoth–Court Corridor";
+    const zoneName = DISTRICT_TO_ZONE[formZone] || "Court Corridor";
     const defaultWardsForZone = {
-      "Kannoth–Court Corridor": "11",
-      "Punnol–Thiruvangad Seafront": "33",
-      "Illikkunnu–Nittoor Uplands": "1",
-      "Chirakkara–Morakunnu Hills": "13",
-      "Kodiyeri–Madapeedika South": "22",
-      "Thiruvangad–Overbury's Heritage Quarter": "6"
+      "Court Corridor": "11",
+      "Seafront": "33",
+      "North Uplands": "1",
+      "Chirakkara Hills": "13",
+      "South Highway": "22",
+      "Heritage Quarter": "6"
     };
     const wardCode = defaultWardsForZone[zoneName] || "11";
     const derivedZone = Object.keys(WARD_ZONES).find(z => WARD_ZONES[z].includes(wardCode)) || zoneName;
@@ -1817,6 +1837,8 @@ Report Reference: #CF-${generatedRef}`;
       id: Date.now(),
       type: formType,
       location: formDetails,
+      description: formDescription,
+      details: formDescription || verifiedDetails || "Citizen reported infrastructure issue verified by community tools.",
       zone: derivedZone, // Write new derived zone name (e.g. Kannoth–Court Corridor)
       ward: wardCode,
       status: "open",
@@ -1826,11 +1848,11 @@ Report Reference: #CF-${generatedRef}`;
       verifications: imageVerified ? 1 : 0,
       user: "You (Volunteer)",
       streetViewStatus: imageVerified ? "verified" : "unverified",
-      details: verifiedDetails || "Citizen reported infrastructure issue verified by community tools.",
       letterDrafted: draftLetter,
       lat: formLat,
       lng: formLng,
-      reporterUid: currentUser ? currentUser.uid : null
+      reporterUid: currentUser ? currentUser.uid : null,
+      reportedAt: new Date().toISOString()
     };
 
     if (isFirebaseConfigured) {
@@ -1853,6 +1875,7 @@ Report Reference: #CF-${generatedRef}`;
     
     // Reset form states
     setFormDetails("");
+    setFormDescription("");
     setImageVerified(false);
     setUploadedImage(null);
     setAiDraftedLetter("");
@@ -1943,7 +1966,7 @@ Report Reference: #CF-${generatedRef}`;
         <LeftPanel
           incidents={mappedIncidents}
           previousScores={previousScores}
-          activeZone={Object.keys(DISTRICT_TO_ZONE).includes(selectedZone) ? DISTRICT_TO_ZONE[selectedZone] : null}
+          activeZone={selectedZone === "All" ? null : (DISTRICT_TO_ZONE[selectedZone] || selectedZone)}
           onZoneSelect={(zoneName) => {
             if (zoneName) {
               const distName = ZONE_TO_DISTRICT[zoneName];
@@ -2031,7 +2054,7 @@ Report Reference: #CF-${generatedRef}`;
                 <line x1="0" y1="10" x2="400" y2="10" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
                 <line x1="0" y1="30" x2="400" y2="30" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
                 <path 
-                  d="M0,12 L20,15 L40,12 L60,24 L80,11 L100,10 L120,32 L140,16 L160,11 L180,10 L200,9 L220,12 L240,38 L260,22 L280,10 L300,11 L320,15 L340,10 L360,12 L380,8 L400,9" 
+                  d={sparklinePath} 
                   fill="none" 
                   stroke="url(#sparkline-grad)" 
                   strokeWidth="1.8" 
@@ -2039,7 +2062,7 @@ Report Reference: #CF-${generatedRef}`;
                   strokeLinejoin="round" 
                 />
                 <path 
-                  d="M0,12 L20,15 L40,12 L60,24 L80,11 L100,10 L120,32 L140,16 L160,11 L180,10 L200,9 L220,12 L240,38 L260,22 L280,10 L300,11 L320,15 L340,10 L360,12 L380,8 L400,9 L400,50 L0,50 Z" 
+                  d={sparklineFillPath} 
                   fill="url(#gradient-uptime-ctr)" 
                   className="opacity-10" 
                 />
@@ -2059,20 +2082,17 @@ Report Reference: #CF-${generatedRef}`;
 
             {/* Outages minute bars (Color-coded heights: Green, Yellow, Red) */}
             <div className="flex items-end gap-[3px] h-8 pt-1 border-t border-[#1b1d24]/50" role="img">
-              {Array.from({ length: 48 }).map((_, i) => {
-                const val = (i === 12) ? 42 :
-                            (i === 28) ? 30 :
-                            (i === 34) ? 55 :
-                            (i === 8 || i === 22 || i === 41) ? 72 :
-                            (86 + ((i * 7) % 15));
+              {stabilityBuckets.map((b, i) => {
+                const maxActive = Math.max(...stabilityBuckets.map(bucket => bucket.activeCount), 5);
+                const heightPercentage = Math.max(8, (b.activeCount / maxActive) * 100);
 
                 let bg = "bg-emerald-500";
-                if (val < 60) bg = "bg-red-500";
-                else if (val < 85) bg = "bg-amber-500";
+                if (b.stability < 60) bg = "bg-red-500";
+                else if (b.stability < 85) bg = "bg-amber-500";
 
                 return (
-                  <div key={i} className="flex-1 h-full min-w-[2px] rounded-t-[1px]" style={{ height: `${val}%` }}>
-                    <div className={`w-full h-full ${bg} opacity-80 hover:opacity-100`}></div>
+                  <div key={i} className="flex-1 h-full min-w-[2px] rounded-t-[1px]" style={{ height: `${heightPercentage}%` }}>
+                    <div className={`w-full h-full ${bg} opacity-80 hover:opacity-100`} title={`Active count: ${b.activeCount}, Stability: ${b.stability}%`}></div>
                   </div>
                 );
               })}
@@ -2163,7 +2183,7 @@ Report Reference: #CF-${generatedRef}`;
                 </button>
               </div>
 
-              {/* Form */}
+               {/* Form */}
               <form onSubmit={handleFormSubmit} className="p-5 space-y-4">
                 
                 {/* Issue Selection */}
@@ -2176,19 +2196,20 @@ Report Reference: #CF-${generatedRef}`;
                     onChange={(e) => setFormType(e.target.value)}
                     className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
                   >
-                    <option value="Severe Pothole">Severe Pothole</option>
-                    <option value="Water Logging">Water Logging</option>
-                    <option value="Open Drainage">Open Drainage / Broken Cover</option>
-                    <option value="Garbage Pileup">Garbage Pileup</option>
-                    <option value="Broken Streetlight">Broken Streetlights</option>
-                    <option value="Other Infrastructure">Other Infrastructure Issue</option>
+                    <option value="Pothole">Pothole</option>
+                    <option value="Drainage">Drainage</option>
+                    <option value="Water Leakage">Water Leakage</option>
+                    <option value="Streetlight">Streetlight</option>
+                    <option value="Waste">Waste</option>
+                    <option value="Obstruction">Obstruction</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
-                {/* District/Ward Selector */}
+                {/* Ward / Sector Selector */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
-                    Select Community Ward / Sector
+                    Ward / Sector
                   </label>
                   <select
                     value={formZone}
@@ -2201,38 +2222,40 @@ Report Reference: #CF-${generatedRef}`;
                   </select>
                 </div>
 
-                {/* Selected Map Coordinates */}
+                {/* Landmark / exact place */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
-                    Incident Coordinates (Selected from Map)
+                    Landmark / exact place
                   </label>
-                  <div className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white rounded flex items-center justify-between">
-                    <span className="font-mono text-blue-400">
-                      Lat: {formLat.toFixed(5)} / Lng: {formLng.toFixed(5)}
-                    </span>
-                    <span className="text-[9px] text-[#555] uppercase font-bold">Captured</span>
-                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={formDetails}
+                    onChange={(e) => setFormDetails(e.target.value)}
+                    placeholder="e.g. opposite court entrance gate, underpass lane..."
+                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
+                  />
                 </div>
 
-                {/* Description Input */}
+                {/* Describe the issue */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
-                    Location details (Landmarks)
+                    Describe the issue
                   </label>
                   <textarea
                     required
                     rows="3"
-                    value={formDetails}
-                    onChange={(e) => setFormDetails(e.target.value)}
-                    placeholder="Enter landmark e.g., opposite court entrance gate, underpass lane..."
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Please include safety details (e.g. depth of pothole, blocked traffic, visibility at night)..."
                     className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded resize-none"
                   ></textarea>
                 </div>
 
-                {/* Gemini AI Vision Checker */}
+                {/* Photo Evidence */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
-                    Gemini AI Vision Checker
+                    Photo Evidence
                   </label>
                   
                   {imageVerified ? (
@@ -2273,18 +2296,34 @@ Report Reference: #CF-${generatedRef}`;
                       {isImageVerifying ? (
                         <div className="flex items-center gap-2 text-xs font-mono text-blue-400">
                           <RefreshCw size={14} className="animate-spin" />
-                          <span>Gemini analyzing photo pixels...</span>
+                          <span>Analyzing photo pixels...</span>
                         </div>
                       ) : (
                         <>
                           <Camera size={16} className="text-[#7d8590]" />
                           <span className="text-[9px] font-mono font-bold uppercase tracking-wider">
-                            Upload Photo {isGeminiConfigured ? "(Live Gemini Analysis)" : "(Simulated verification)"}
+                            Upload photo for AI analysis
                           </span>
                         </>
                       )}
                     </label>
                   )}
+                  <span className="text-[9px] text-[#7d8590] mt-0.5 font-sans leading-none">
+                    Optional, but improves AI categorization and verification
+                  </span>
+                </div>
+
+                {/* Selected Map Coordinates */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                    Incident Coordinates (Selected from Map)
+                  </label>
+                  <div className="bg-[#16171d]/60 border border-[#1b1d24] text-xs px-3 py-2 text-white rounded flex items-center justify-between">
+                    <span className="font-mono text-blue-400">
+                      Lat: {formLat.toFixed(5)} / Lng: {formLng.toFixed(5)}
+                    </span>
+                    <span className="text-[9px] text-[#555] uppercase font-bold select-none">Read-Only</span>
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
@@ -2304,12 +2343,12 @@ Report Reference: #CF-${generatedRef}`;
                     {isSubmitting ? (
                       <>
                         <RefreshCw size={12} className="animate-spin" />
-                        <span>Deploying...</span>
+                        <span>Reporting...</span>
                       </>
                     ) : (
                       <>
                         <Send size={12} />
-                        <span>Submit Report</span>
+                        <span>Report Issue</span>
                       </>
                     )}
                   </button>

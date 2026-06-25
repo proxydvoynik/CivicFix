@@ -1,64 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import CardShell from './CardShell';
-
-// WARD_ZONES mapping as defined in the spec
-const WARD_ZONES = {
-  "Kannoth–Court Corridor": ["11", "12", "47", "48", "51", "52"],
-  "Punnol–Thiruvangad Seafront": ["33", "34", "37", "41", "42", "43"],
-  "Illikkunnu–Nittoor Uplands": ["1", "2", "3", "4", "5", "7", "8", "9", "10"],
-  "Chirakkara–Morakunnu Hills": ["13", "14", "15", "16", "17", "18", "19", "20", "21"],
-  "Kodiyeri–Madapeedika South": ["22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"],
-  "Thiruvangad–Overbury's Heritage Quarter": ["6", "35", "36", "38", "39", "40", "44", "45", "46", "50"]
-};
-
-// Mappings from Full Zone Names to Short Names
-const ZONE_MAPPING = [
-  {
-    fullName: "Kannoth–Court Corridor",
-    shortName: "Court Corridor"
-  },
-  {
-    fullName: "Punnol–Thiruvangad Seafront",
-    shortName: "Seafront"
-  },
-  {
-    fullName: "Illikkunnu–Nittoor Uplands",
-    shortName: "North Uplands"
-  },
-  {
-    fullName: "Chirakkara–Morakunnu Hills",
-    shortName: "Chirakkara Hills"
-  },
-  {
-    fullName: "Kodiyeri–Madapeedika South",
-    shortName: "South Highway"
-  },
-  {
-    fullName: "Thiruvangad–Overbury's Heritage Quarter",
-    shortName: "Heritage Quarter"
-  }
-];
-
-// Helper to resolve incident category tag colors
-const getCategoryInfo = (type = "") => {
-  const t = type.toLowerCase();
-  if (t.includes('drain') || t.includes('logging') || t.includes('water')) {
-    return { label: 'Drainage', color: '#3b82f6', bg: 'bg-blue-500/10 text-[#3b82f6] border-blue-500/20' };
-  }
-  if (t.includes('pothole') || t.includes('road')) {
-    return { label: 'Pothole', color: '#f97316', bg: 'bg-orange-500/10 text-[#f97316] border-orange-500/20' };
-  }
-  if (t.includes('garbage') || t.includes('waste') || t.includes('pileup')) {
-    return { label: 'Waste', color: '#22c55e', bg: 'bg-green-500/10 text-[#22c55e] border-green-500/20' };
-  }
-  if (t.includes('light') || t.includes('lamp') || t.includes('streetlight')) {
-    return { label: 'Streetlight', color: '#eab308', bg: 'bg-yellow-500/10 text-[#eab308] border-yellow-500/20' };
-  }
-  if (t.includes('safety') || t.includes('danger') || t.includes('hazard')) {
-    return { label: 'Safety', color: '#ef4444', bg: 'bg-red-500/10 text-[#ef4444] border-red-500/20' };
-  }
-  return { label: 'Other', color: '#6b7280', bg: 'bg-gray-500/10 text-[#6b7280] border-gray-500/20' };
-};
+import { 
+  WARD_ZONES, 
+  ZONE_MAPPING, 
+  getCategoryInfo, 
+  getZoneHealthScore, 
+  getZoneSummary, 
+  filterAlerts 
+} from '../lib/helpers';
 
 export default function LeftPanel({
   incidents = [],
@@ -92,10 +41,7 @@ export default function LeftPanel({
         const wardStr = inc.ward?.toString();
         return wardStr && wardList.includes(wardStr);
       });
-      const resolvedCount = zoneIncidents.filter(inc => inc.status === 'resolved').length;
-      scores[zoneName] = zoneIncidents.length === 0 
-        ? 100 
-        : Math.round((resolvedCount / zoneIncidents.length) * 100);
+      scores[zoneName] = getZoneHealthScore(zoneIncidents);
     });
     return scores;
   }, [incidents]);
@@ -188,31 +134,8 @@ export default function LeftPanel({
 
   // Filtered incidents based on activeZone, search query, and status pills
   const filteredIncidents = useMemo(() => {
-    return incidents.filter(inc => {
-      // 1. Filter by active zone wards if set
-      if (activeZone) {
-        const wardList = WARD_ZONES[activeZone];
-        const wardStr = inc.ward?.toString();
-        if (!wardStr || !wardList.includes(wardStr)) return false;
-      }
-
-      // 2. Filter by search query (description, ward, type)
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesDesc = (inc.description || "").toLowerCase().includes(q);
-        const matchesWard = (inc.ward || "").toString().toLowerCase().includes(q);
-        const matchesType = (inc.type || "").toLowerCase().includes(q);
-        if (!matchesDesc && !matchesWard && !matchesType) return false;
-      }
-
-      // 3. Filter by status pills
-      if (statusFilter !== "All") {
-        if (inc.status !== statusFilter.toLowerCase()) return false;
-      }
-
-      return true;
-    });
-  }, [incidents, activeZone, searchQuery, statusFilter]);
+    return filterAlerts(incidents, searchQuery, activeZone, statusFilter);
+  }, [incidents, searchQuery, activeZone, statusFilter]);
 
   // Helper to format relative time ago
   const formatTimeAgo = (inc) => {
@@ -354,31 +277,23 @@ export default function LeftPanel({
         {/* Scrollable grid container with hidden scrollbar */}
         <div className="space-y-2 flex-1 overflow-y-auto no-scrollbar pr-0.5 min-h-0">
           {ZONE_MAPPING.map(zone => {
-            const score = zoneScores[zone.fullName] || 0;
-            
-            // Status badge info
-            let statusBadge = "Stable";
-            let badgeStyle = "bg-emerald-950/30 text-emerald-400 border-emerald-500/20";
-            if (score < 70) {
-              statusBadge = "Critical";
-              badgeStyle = "bg-red-950/30 text-red-400 border-red-500/20";
-            } else if (score < 90) {
-              statusBadge = "Warning";
-              badgeStyle = "bg-amber-950/30 text-amber-400 border-amber-500/20";
-            }
-
-            // Calculate dominant issue tag with alphabetical tiebreaker
             const zoneIncidents = incidents.filter(inc => {
               const wardStr = inc.ward?.toString();
               return wardStr && WARD_ZONES[zone.fullName].includes(wardStr);
             });
-            const typeCounts = {};
-            zoneIncidents.forEach(inc => {
-              const cat = getCategoryInfo(inc.type).label;
-              typeCounts[cat] = (typeCounts[cat] || 0) + 1;
-            });
-            const dominantIssue = Object.entries(typeCounts)
-              .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || "Clear";
+            const summary = getZoneSummary(zoneIncidents);
+            const score = summary.healthScore;
+            
+            // Status badge info
+            const statusBadge = summary.status;
+            let badgeStyle = "bg-emerald-950/30 text-emerald-400 border-emerald-500/20";
+            if (statusBadge === "CRITICAL") {
+              badgeStyle = "bg-red-950/30 text-red-400 border-red-500/20";
+            } else if (statusBadge === "WARNING") {
+              badgeStyle = "bg-amber-950/30 text-amber-400 border-amber-500/20";
+            }
+
+            const dominantIssue = summary.dominantIssue;
 
             // Compare score to determine trend arrow
             const prevScore = previousScores[zone.fullName] ?? score;
