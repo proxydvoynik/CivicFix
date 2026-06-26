@@ -1,4 +1,4 @@
-// Preprocessed Thalassery Ward Polygons (52 Wards)
+// Preprocessed Thalassery Ward Polygons (53 Wards)
 // Coordinates projected from SVG viewport (0-1000, 0-868) to Thalassery Lat/Lng bounds
 
 export const WARD_POLYGONS = [

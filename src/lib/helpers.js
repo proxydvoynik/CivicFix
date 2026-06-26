@@ -31,12 +31,12 @@ export const WARD_ZONES = {
   "Court Corridor": ["11", "12", "47", "48", "51", "52"],
   "Seafront": ["33", "34", "37", "41", "42", "43"],
   "North Uplands": ["1", "2", "3", "4", "5", "7", "8", "9", "10", "49"],
-  "Chirakkara Hills": ["13", "14", "15", "16", "17", "18", "19", "20", "21"],
+  "Chirakkara Hills": ["13", "14", "15", "16", "17", "18", "19", "20", "21", "53"],
   "South Highway": ["22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"],
   "Heritage Quarter": ["6", "35", "36", "38", "39", "40", "44", "45", "46", "50"]
 };
 
-// Master list of 52 canonical wards
+// Master list of 53 canonical wards
 export const WARD_MASTER = [
   { wardNo: 1, wardName: "NITTOOR", zone: "North Uplands" },
   { wardNo: 2, wardName: "ILLIKKUNNU", zone: "North Uplands" },
@@ -89,7 +89,8 @@ export const WARD_MASTER = [
   { wardNo: 49, wardName: "PALISSERI", zone: "North Uplands" },
   { wardNo: 50, wardName: "CHETTAM KUNNU", zone: "Heritage Quarter" },
   { wardNo: 51, wardName: "COURT", zone: "Court Corridor" },
-  { wardNo: 52, wardName: "KODUVALLI", zone: "Court Corridor" }
+  { wardNo: 52, wardName: "KODUVALLI", zone: "Court Corridor" },
+  { wardNo: 53, wardName: "WARD 53", zone: "Chirakkara Hills" }
 ];
 
 const ZONE_CENTERS = {
@@ -153,7 +154,6 @@ export function inferWardFromCoordinates(lat, lng) {
   
   // 1. Point-in-Polygon check
   for (const wp of WARD_POLYGONS) {
-    if (wp.wardNo > 52) continue; // Skip ward 53 (not in master list)
     if (pointInPolygon(lat, lng, wp.polygon)) {
       const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wp.wardNo);
       if (canonicalWard) {
