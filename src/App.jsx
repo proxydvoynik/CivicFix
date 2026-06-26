@@ -47,12 +47,12 @@ function usePrevious(value) {
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
-  { name: "South Highway", availability: 97.2, active: 2, resolved: 41, severity: "warning", lat: 11.7511, lng: 75.4921, sparkline: [98, 97.5, 97.2, 97.0, 97.3, 97.2] },
-  { name: "Court Corridor", availability: 99.0, active: 1, resolved: 58, severity: "normal", lat: 11.7490, lng: 75.4891, sparkline: [99, 99.1, 98.9, 99.0, 99.0, 99.0] },
-  { name: "Heritage Quarter", availability: 94.6, active: 4, resolved: 32, severity: "critical", lat: 11.7455, lng: 75.4852, sparkline: [96, 95.2, 94.8, 94.1, 94.5, 94.6] },
-  { name: "Seafront", availability: 98.1, active: 1, resolved: 29, severity: "normal", lat: 11.7420, lng: 75.4810, sparkline: [98.5, 98.2, 98.0, 98.1, 98.3, 98.1] },
-  { name: "North Uplands", availability: 99.5, active: 0, resolved: 24, severity: "normal", lat: 11.7535, lng: 75.4985, sparkline: [99.5, 99.5, 99.5, 99.5, 99.5, 99.5] },
-  { name: "Chirakkara Hills", availability: 96.8, active: 3, resolved: 37, severity: "warning", lat: 11.7570, lng: 75.4840, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
+  { name: "South Highway", availability: 97.2, active: 2, resolved: 41, severity: "warning", lat: 11.745525, lng: 75.528233, sparkline: [98, 97.5, 97.2, 97.0, 97.3, 97.2] },
+  { name: "Court Corridor", availability: 99.0, active: 1, resolved: 58, severity: "normal", lat: 11.753798, lng: 75.490089, sparkline: [99, 99.1, 98.9, 99.0, 99.0, 99.0] },
+  { name: "Heritage Quarter", availability: 94.6, active: 4, resolved: 32, severity: "critical", lat: 11.742951, lng: 75.501934, sparkline: [96, 95.2, 94.8, 94.1, 94.5, 94.6] },
+  { name: "Seafront", availability: 98.1, active: 1, resolved: 29, severity: "normal", lat: 11.737300, lng: 75.509542, sparkline: [98.5, 98.2, 98.0, 98.1, 98.3, 98.1] },
+  { name: "North Uplands", availability: 99.5, active: 0, resolved: 24, severity: "normal", lat: 11.768448, lng: 75.489624, sparkline: [99.5, 99.5, 99.5, 99.5, 99.5, 99.5] },
+  { name: "Chirakkara Hills", availability: 96.8, active: 3, resolved: 37, severity: "warning", lat: 11.752816, lng: 75.506582, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
 ];
 
 // Mock Recent Issues Feed for Thalassery
@@ -62,14 +62,15 @@ const initialIssues = [
     type: "Pothole", 
     location: "Court Road Junction Bypass (Near Post Office)", 
     zone: "Court Corridor", 
+    ward: "47",
     timeAgo: "2m ago", 
     severity: "critical", 
-    votes: 4, 
-    verifications: 1,
+    votes: 8, 
+    verifications: 2,
     user: "Adithya V.",
     streetViewStatus: "verified",
-    lat: 11.7490,
-    lng: 75.4891,
+    lat: 11.746356,
+    lng: 75.492390,
     status: "dispatched",
     details: "Deep crater in the middle of the road, causing severe traffic block and safety risks for two-wheelers.",
     letterDrafted: `To,
@@ -84,7 +85,7 @@ I am writing to draw your immediate attention to a severe infrastructure hazard 
 
 This issue is verified by local community sensors. We request your engineering team to inspect and repair the road surface at the earliest.
 
-Coordinates: Lat 11.7490, Lng 75.4891
+Coordinates: Lat 11.746356, Lng 75.492390
 Report Reference: #CF-9811`
   },
   { 
@@ -92,14 +93,15 @@ Report Reference: #CF-9811`
     type: "Drainage", 
     location: "Railway Underpass (Overbury's Folly Road)", 
     zone: "Heritage Quarter", 
+    ward: "45",
     timeAgo: "14m ago", 
     severity: "critical", 
     votes: 18, 
-    verifications: 2,
+    verifications: 3,
     user: "Nihal P.",
     streetViewStatus: "verified",
-    lat: 11.7455,
-    lng: 75.4852,
+    lat: 11.743814,
+    lng: 75.491403,
     status: "escalated",
     details: "Water logged up to 60 cm under the railway bridge. Cars and autos are turning back.",
     letterDrafted: `To,
@@ -114,22 +116,23 @@ This is to notify the Thalassery Municipality regarding waterlogging at the Rail
 
 Local traffic is paralyzed. We urge the municipal drainage department to clear the blocks immediately.
 
-Coordinates: Lat 11.7455, Lng 75.4852
+Coordinates: Lat 11.743814, Lng 75.491403
 Report Reference: #CF-9812`
   },
   { 
     id: 3, 
     type: "Waste", 
-    location: "Behind Thalassery Municipal Bus Stand", 
+    location: "Madapeedika Junction (Near Highway Bypass)", 
     zone: "South Highway", 
+    ward: "32",
     timeAgo: "32m ago", 
     severity: "warning", 
     votes: 6, 
-    verifications: 0,
+    verifications: 1,
     user: "Shahana M.",
     streetViewStatus: "unverified",
-    lat: 11.7511,
-    lng: 75.4921,
+    lat: 11.736163,
+    lng: 75.530662,
     status: "open",
     details: "Commercial waste and plastic bags piled near the parking lot, attracting stray dogs.",
     letterDrafted: `To,
@@ -137,12 +140,12 @@ The Health Inspector,
 Thalassery Municipal Corporation,
 Thalassery, Kannur - 670101.
 
-Subject: Request for waste clearance behind Thalassery Municipal Bus Stand.
+Subject: Request for waste clearance near Madapeedika Junction.
 
 Respected Sir/Madam,
-I request the municipal sanitation department to clear commercial waste accumulated behind the Thalassery Municipal Bus Stand. The dump is causing unhygienic conditions.
+I request the municipal sanitation department to clear commercial waste accumulated near Madapeedika Junction. The dump is causing unhygienic conditions.
 
-Coordinates: Lat 11.7511, Lng 75.4921
+Coordinates: Lat 11.736163, Lng 75.530662
 Report Reference: #CF-9813`
   },
   { 
@@ -150,14 +153,15 @@ Report Reference: #CF-9813`
     type: "Drainage", 
     location: "Sea Bridge pathway near children's park", 
     zone: "Seafront", 
+    ward: "42",
     timeAgo: "1h ago", 
     severity: "warning", 
     votes: 9, 
     verifications: 1,
     user: "Ramesh Kumar",
     streetViewStatus: "verified",
-    lat: 11.7420,
-    lng: 75.4810,
+    lat: 11.742109,
+    lng: 75.500670,
     status: "inspected",
     details: "Cover slab of storm drain is broken, leaving a 1-meter deep open hole on the pedestrian walkway.",
     letterDrafted: `To,
@@ -170,8 +174,240 @@ Subject: Broken drain cover slab hazard near Sea Bridge pathway.
 Respected Sir/Madam,
 A broken cover slab on the storm drain near the Sea Bridge pathway has created an open hazard on the walkway. Please initiate immediate repairs to prevent accidents.
 
-Coordinates: Lat 11.7420, Lng 75.4810
+Coordinates: Lat 11.742109, Lng 75.500670
 Report Reference: #CF-9814`
+  },
+  { 
+    id: 5, 
+    type: "Streetlight", 
+    location: "Thalassery Town Hall Road", 
+    zone: "Court Corridor", 
+    ward: "12",
+    timeAgo: "2h ago", 
+    severity: "info", 
+    votes: 3, 
+    verifications: 0,
+    user: "Kiran Das",
+    streetViewStatus: "unverified",
+    lat: 11.751203,
+    lng: 75.498350,
+    status: "open",
+    details: "Three consecutive streetlights are not working on the Town Hall stretch, making it extremely dark and unsafe after 7 PM.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Non-functional streetlights on Town Hall Road.
+
+Respected Sir/Madam,
+This is to report that three consecutive streetlights are not functioning on the Town Hall Road stretch in Ward 12. The lack of lighting poses a significant safety concern for pedestrians and commuters after dark. Please replace the lamps at the earliest.
+
+Coordinates: Lat 11.751203, Lng 75.498350
+Report Reference: #CF-9815`
+  },
+  { 
+    id: 6, 
+    type: "Safety", 
+    location: "Chirakkara Junction Pedestrian Crossing", 
+    zone: "Chirakkara Hills", 
+    ward: "14",
+    timeAgo: "4h ago", 
+    severity: "critical", 
+    votes: 12, 
+    verifications: 2,
+    user: "Aiswarya K.",
+    streetViewStatus: "verified",
+    lat: 11.756198,
+    lng: 75.505553,
+    status: "open",
+    details: "Pedestrian crossing signs and markings have completely faded at a high-speed junction, causing close calls daily.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Dangerous pedestrian crossing at Chirakkara Junction.
+
+Respected Sir/Madam,
+This is to alert the traffic planning department that pedestrian crossing markings and signs at Chirakkara Junction in Ward 14 have completely faded. This high-speed junction has seen several near-miss incidents. We request immediate repainting and installation of warning lights.
+
+Coordinates: Lat 11.756198, Lng 75.505553
+Report Reference: #CF-9816`
+  },
+  { 
+    id: 7, 
+    type: "Pothole", 
+    location: "Nittoor High School Road", 
+    zone: "North Uplands", 
+    ward: "1",
+    timeAgo: "6h ago", 
+    severity: "warning", 
+    votes: 5, 
+    verifications: 1,
+    user: "Gautham S.",
+    streetViewStatus: "verified",
+    lat: 11.771405,
+    lng: 75.478565,
+    status: "resolved",
+    details: "Large pothole near the school entrance causing traffic delays during school assembly hours.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Resolved: Road pothole repaired near Nittoor High School.
+
+Respected Sir/Madam,
+This is to confirm that the large pothole near the Nittoor High School entrance in Ward 1 has been successfully patched by the public works department. Traffic flow has returned to normal.
+
+Coordinates: Lat 11.771405, Lng 75.478565
+Report Reference: #CF-9817`
+  },
+  { 
+    id: 8, 
+    type: "Waste", 
+    location: "Temple Gate Road Waste Dump", 
+    zone: "Heritage Quarter", 
+    ward: "38",
+    timeAgo: "8h ago", 
+    severity: "warning", 
+    votes: 7, 
+    verifications: 1,
+    user: "Suresh Babu",
+    streetViewStatus: "unverified",
+    lat: 11.739705,
+    lng: 75.512677,
+    status: "open",
+    details: "Illegal garbage dumping on the side of the road near the temple gate, spreading bad odor.",
+    letterDrafted: `To,
+The Health Inspector,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Uncontrolled garbage dumping near Temple Gate Road.
+
+Respected Sir/Madam,
+I am writing to draw your attention to the illegal dumping of domestic and commercial waste on the side of Temple Gate Road in Ward 38. The pile is emitting a foul smell and attracting stray animals. We request clean-up and warning boards.
+
+Coordinates: Lat 11.739705, Lng 75.512677
+Report Reference: #CF-9818`
+  },
+  { 
+    id: 9, 
+    type: "Safety", 
+    location: "Saidar Palli Beach Road Curve", 
+    zone: "Seafront", 
+    ward: "43",
+    timeAgo: "12h ago", 
+    severity: "critical", 
+    votes: 15, 
+    verifications: 3,
+    user: "Muhammed R.",
+    streetViewStatus: "verified",
+    lat: 11.736787,
+    lng: 75.496621,
+    status: "dispatched",
+    details: "Broken side barrier on the sharp sea-facing curve, exposing vehicles to fall onto the rocky shore.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Damaged sea-wall barrier at Saidar Palli Beach Road.
+
+Respected Sir/Madam,
+The side barrier on the sharp curve along the Saidar Palli Beach Road (Ward 43) has collapsed. Vehicles are now directly exposed to a steep fall onto the rocky sea bed below. Prompt repair is critical to avoid major accidents.
+
+Coordinates: Lat 11.736787, Lng 75.496621
+Report Reference: #CF-9819`
+  },
+  { 
+    id: 10, 
+    type: "Streetlight", 
+    location: "Morakunnu Residential Lane", 
+    zone: "Chirakkara Hills", 
+    ward: "13",
+    timeAgo: "1d ago", 
+    severity: "info", 
+    votes: 2, 
+    verifications: 0,
+    user: "Meera Nair",
+    streetViewStatus: "unverified",
+    lat: 11.759232,
+    lng: 75.502188,
+    status: "open",
+    details: "Flickering streetlight poles making the residential area look eerie and encouraging illegal parking.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Flickering streetlight on Morakunnu Lane.
+
+Respected Sir/Madam,
+The streetlight pole on the Morakunnu Residential Lane in Ward 13 is continuously flickering. This is creating blind spots and security concerns for the residents walking in the evening. Please dispatch a repair technician.
+
+Coordinates: Lat 11.759232, Lng 75.502188
+Report Reference: #CF-9820`
+  },
+  { 
+    id: 11, 
+    type: "Pothole", 
+    location: "Chandra Nagar Bypass Corner", 
+    zone: "South Highway", 
+    ward: "22",
+    timeAgo: "1d ago", 
+    severity: "warning", 
+    votes: 4, 
+    verifications: 1,
+    user: "Rahul R.",
+    streetViewStatus: "unverified",
+    lat: 11.752417,
+    lng: 75.521439,
+    status: "open",
+    details: "Series of potholes on the highway bypass exit, slowing down high-speed traffic abruptly.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Highway bypass potholes at Chandra Nagar Corner.
+
+Respected Sir/Madam,
+This is to report multiple potholes on the bypass exit curve at Chandra Nagar Corner in Ward 22. High-speed traffic exiting the bypass is forced to brake suddenly to avoid these road cavities, creating a risk of rear-end crashes. Please patch this section immediately.
+
+Coordinates: Lat 11.752417, Lng 75.521439
+Report Reference: #CF-9821`
+  },
+  { 
+    id: 12, 
+    type: "Drainage", 
+    location: "Ward 53 Main Road Waterlogging", 
+    zone: "Chirakkara Hills", 
+    ward: "53",
+    timeAgo: "2d ago", 
+    severity: "warning", 
+    votes: 11, 
+    verifications: 2,
+    user: "Fathima S.",
+    streetViewStatus: "verified",
+    lat: 11.763435,
+    lng: 75.475041,
+    status: "open",
+    details: "Stormwater accumulates on the roadway during slight showers, blocking pedestrian movements.",
+    letterDrafted: `To,
+The Municipal Commissioner,
+Thalassery Municipal Corporation,
+Thalassery, Kannur - 670101.
+
+Subject: Stormwater logging on Ward 53 Main Road.
+
+Respected Sir/Madam,
+We are facing recurrent waterlogging on the Ward 53 Main Road during light rains due to clogged side drains. This hinders pedestrian movement and damages the asphalt surface. We request cleaning of the stormwater drains in this sector.
+
+Coordinates: Lat 11.763435, Lng 75.475041
+Report Reference: #CF-9822`
   }
 ];
 

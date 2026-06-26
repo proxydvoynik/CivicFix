@@ -94,12 +94,12 @@ export const WARD_MASTER = [
 ];
 
 const ZONE_CENTERS = {
-  "Court Corridor": { lat: 11.7490, lng: 75.4891 },
-  "Seafront": { lat: 11.7420, lng: 75.4810 },
-  "North Uplands": { lat: 11.7535, lng: 75.4985 },
-  "Chirakkara Hills": { lat: 11.7570, lng: 75.4840 },
-  "South Highway": { lat: 11.7511, lng: 75.4921 },
-  "Heritage Quarter": { lat: 11.7455, lng: 75.4852 }
+  "Court Corridor": { lat: 11.753798, lng: 75.490089 },
+  "Seafront": { lat: 11.737300, lng: 75.509542 },
+  "North Uplands": { lat: 11.768448, lng: 75.489624 },
+  "Chirakkara Hills": { lat: 11.752816, lng: 75.506582 },
+  "South Highway": { lat: 11.745525, lng: 75.528233 },
+  "Heritage Quarter": { lat: 11.742951, lng: 75.501934 }
 };
 
 // Build canonical wards list using real pre-calculated centroids from polygons
