@@ -27,7 +27,10 @@ import {
   normalizeZoneName, 
   getMapMarkers, 
   getHeatmapData, 
-  getStabilityTrend 
+  getStabilityTrend,
+  CANONICAL_WARDS,
+  inferWardFromCoordinates,
+  getZoneFromWard
 } from './lib/helpers';
 
 function usePrevious(value) {
@@ -370,9 +373,14 @@ function App() {
   const [formType, setFormType] = useState("Pothole");
   const [formDetails, setFormDetails] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formZone, setFormZone] = useState("Court Corridor");
-  const [formLat, setFormLat] = useState(11.7490);
-  const [formLng, setFormLng] = useState(75.4891);
+  const [formWardNo, setFormWardNo] = useState(""); // "" means unselected/not inferred
+  const [formWardName, setFormWardName] = useState("");
+  const [lastInferredWardNo, setLastInferredWardNo] = useState("");
+  const [formLat, setFormLat] = useState(0);
+  const [formLng, setFormLng] = useState(0);
+  const [locationSource, setLocationSource] = useState(null); // 'map', 'gps', or null
+  const [locationError, setLocationError] = useState(null);
+  const [isGeolocationLoading, setIsGeolocationLoading] = useState(false);
   const [isImageVerifying, setIsImageVerifying] = useState(false);
   const [imageVerified, setImageVerified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -384,6 +392,14 @@ function App() {
   const wardMarkersGroup = useRef(null);
   const tempPlacementMarker = useRef(null);
   const hazardCirclesGroup = useRef(null);
+
+  // Cleanup map placement marker if coordinates are reset
+  useEffect(() => {
+    if (formLat === 0 && tempPlacementMarker.current && mapInstance) {
+      tempPlacementMarker.current.remove();
+      tempPlacementMarker.current = null;
+    }
+  }, [formLat, mapInstance]);
 
   // Gemini & Upload States
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -980,18 +996,7 @@ function App() {
     return `${sparklinePath} L400,50 L0,50 Z`;
   }, [sparklinePath]);
 
-  // Calculate distance between two coordinates in km (Haversine Formula)
-  const getDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
+
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -1422,7 +1427,8 @@ function App() {
       fillColor: '#ef4444',
       fillOpacity: 0.015,
       weight: 1.5,
-      dashArray: '5, 8'
+      dashArray: '5, 8',
+      interactive: false
     }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
       permanent: true,
       direction: 'top',
@@ -1438,20 +1444,21 @@ function App() {
       const { lat, lng } = e.latlng;
       setFormLat(lat);
       setFormLng(lng);
+      setLocationSource("map");
+      setLocationError(null);
 
-      // Auto-find closest district
-      let closestDistrict = initialDistricts[0];
-      let minDistance = Infinity;
-      
-      initialDistricts.forEach(d => {
-        const dist = getDistance(lat, lng, d.lat, d.lng);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestDistrict = d;
-        }
-      });
-
-      setFormZone(closestDistrict.name);
+      // Run ward inference
+      const inference = inferWardFromCoordinates(lat, lng);
+      if (inference && inference.confident) {
+        setFormWardNo(String(inference.ward.wardNo));
+        setFormWardName(inference.ward.wardName);
+        setLastInferredWardNo(String(inference.ward.wardNo));
+      } else {
+        setFormWardNo("");
+        setFormWardName("");
+        setLastInferredWardNo("");
+        setLocationError("Coordinates are outside Thalassery municipal boundaries. Please select the ward manually.");
+      }
       setIsReportModalOpen(true);
 
       // Add temporary marker
@@ -1470,7 +1477,7 @@ function App() {
       setAiLogs(prev => [...prev, { 
         id: `log-click-${Date.now()}`, 
         type: "info", 
-        text: `Map clicked: Coords set to (${lat.toFixed(4)}, ${lng.toFixed(4)}). Auto-selected ${closestDistrict.name.split(" ")[0]}.` 
+        text: `Map clicked: Coords set to (${lat.toFixed(4)}, ${lng.toFixed(4)}). ${inference && inference.confident ? `Auto-selected Ward ${inference.ward.wardNo}` : 'Outside boundary'}.` 
       }]);
     });
 
@@ -1626,7 +1633,8 @@ function App() {
           fillColor: h.color,
           fillOpacity: 0.25,
           radius: h.radius,
-          stroke: false
+          stroke: false,
+          interactive: false
         });
         hazardCirclesGroup.current.addLayer(circle);
       });
@@ -1711,7 +1719,7 @@ Report Reference: #CF-${generatedRef}`
 
       if (isGeminiConfigured) {
         try {
-          const result = await analyzeIssueImage(rawBase64, mimeType, formType, formDetails || "Unknown Location", formZone);
+          const result = await analyzeIssueImage(rawBase64, mimeType, formType, formDetails || "Unknown Location", formWardName || "Unknown Ward");
           setIsImageVerifying(false);
           if (result.isValid) {
             setImageVerified(true);
@@ -1765,7 +1773,7 @@ Thalassery, Kannur - 670101.
 Subject: Report regarding ${formType} at ${formDetails || "specified location"}.
 
 Respected Sir/Madam,
-This is to notify the Thalassery Municipality regarding ${formType} observed at ${formDetails || "specified location"} in the ${formZone} ward. Standard image comparison confirms surface changes.
+This is to notify the Thalassery Municipality regarding ${formType} observed at ${formDetails || "specified location"} in Ward ${formWardNo} (${formWardName || "Unassigned"}). Standard image comparison confirms surface changes.
 
 Please initiate inspections.
 
@@ -1779,6 +1787,108 @@ Report Reference: #CF-${generatedRef}`);
     }, 1500);
   };
 
+  // Geolocation helpers
+  const handlePickFromMap = () => {
+    setIsReportModalOpen(false);
+    setAiLogs(prev => [...prev, {
+      id: `log-pick-map-${Date.now()}`,
+      type: "info",
+      text: "System: Please click anywhere on the tactical map to pin coordinates for your report."
+    }]);
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Browser geolocation not supported. Please pick from map.");
+      return;
+    }
+    
+    setIsGeolocationLoading(true);
+    setLocationError(null);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setFormLat(latitude);
+        setFormLng(longitude);
+        setLocationSource("gps");
+        
+        // Run ward inference
+        const inference = inferWardFromCoordinates(latitude, longitude);
+        let logText = "";
+        
+        if (inference && inference.confident) {
+          setFormWardNo(String(inference.ward.wardNo));
+          setFormWardName(inference.ward.wardName);
+          setLastInferredWardNo(String(inference.ward.wardNo));
+          logText = `GPS: Location locked at Lat ${latitude.toFixed(5)}, Lng ${longitude.toFixed(5)} (Ward ${inference.ward.wardNo} - ${inference.ward.wardName}).`;
+        } else {
+          setFormWardNo("");
+          setFormWardName("");
+          setLastInferredWardNo("");
+          setLocationError("GPS coordinates are outside municipal boundaries. Please select the ward manually.");
+          logText = `GPS: Location locked at Lat ${latitude.toFixed(5)}, Lng ${longitude.toFixed(5)} but outside Thalassery boundaries.`;
+        }
+        
+        setIsGeolocationLoading(false);
+        setAiLogs(prev => [...prev, {
+          id: `log-gps-${Date.now()}`,
+          type: inference && inference.confident ? "success" : "warning",
+          text: logText
+        }]);
+
+        // Draw visual map marker
+        if (tempPlacementMarker.current && mapInstance) {
+          tempPlacementMarker.current.setLatLng([latitude, longitude]);
+        } else if (mapInstance) {
+          const tempIcon = L.divIcon({
+            className: 'custom-temp-marker',
+            html: '<div class="w-4 h-4 rounded-full bg-blue-500 border border-white animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+          tempPlacementMarker.current = L.marker([latitude, longitude], { icon: tempIcon }).addTo(mapInstance);
+        }
+
+        // Pan map
+        if (mapInstance) {
+          mapInstance.setView([latitude, longitude], 16, { animate: true });
+        }
+
+        // Optional: Reverse Geocoding via OSM Nominatim
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          if (response.ok) {
+            const data = await response.json();
+            const address = data.display_name || data.name || "";
+            if (address) {
+              const shortAddress = data.address.road || data.address.suburb || data.address.neighbourhood || address.split(',')[0];
+              setFormDetails(shortAddress);
+              setAiLogs(prev => [...prev, {
+                id: `log-geocode-${Date.now()}`,
+                type: "info",
+                text: `Geocode: Address identified as "${shortAddress}".`
+              }]);
+            }
+          }
+        } catch (err) {
+          console.error("Reverse geocoding failed", err);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error", error);
+        setIsGeolocationLoading(false);
+        setLocationError("Geolocation permission denied or failed. Please click 'Pick from map' to select location.");
+        setAiLogs(prev => [...prev, {
+          id: `log-gps-err-${Date.now()}`,
+          type: "error",
+          text: "GPS Error: Geolocation access failed or denied. Manual map selection required."
+        }]);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   // Submit new issue (Overlay Modal form)
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -1788,8 +1898,8 @@ Report Reference: #CF-${generatedRef}`);
       alert("Please select an issue category.");
       return;
     }
-    if (!formZone) {
-      alert("Please select a ward/sector.");
+    if (!formWardNo || !formWardName) {
+      alert("Please select a municipal ward.");
       return;
     }
     if (!formDetails || !formDetails.trim()) {
@@ -1800,13 +1910,17 @@ Report Reference: #CF-${generatedRef}`);
       alert("Please describe the issue.");
       return;
     }
-    if (formLat === undefined || formLng === undefined || formLat === null || formLng === null) {
-      alert("Please select coordinates on the map.");
+    if (formLat === undefined || formLng === undefined || formLat === null || formLng === null || formLat === 0 || formLng === 0) {
+      setLocationError("Location coordinates are required. Please use 'Use current location' or pick from map.");
+      alert("Location coordinates are required. Please use 'Use current location' or pick from map.");
       return;
     }
 
     setIsSubmitting(true);
     
+    const derivedZone = getZoneFromWard(formWardNo);
+    const wardCode = String(formWardNo);
+
     const generatedRef = Math.floor(1000 + Math.random() * 9000);
     const draftLetter = aiDraftedLetter || `To,
 The Municipal Commissioner,
@@ -1816,22 +1930,10 @@ Thalassery, Kannur - 670101.
 Subject: Grievance regarding ${formType} at ${formDetails}.
 
 Respected Sir/Madam,
-This is to notify the Thalassery Municipality regarding ${formType} at ${formDetails} (${formZone}). Community sensors have validated this concern.
+This is to notify the Thalassery Municipality regarding ${formType} at ${formDetails} (Ward ${wardCode} - ${formWardName}, ${derivedZone}). Community sensors have validated this concern.
 
 Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`;
-
-    const zoneName = DISTRICT_TO_ZONE[formZone] || "Court Corridor";
-    const defaultWardsForZone = {
-      "Court Corridor": "11",
-      "Seafront": "33",
-      "North Uplands": "1",
-      "Chirakkara Hills": "13",
-      "South Highway": "22",
-      "Heritage Quarter": "6"
-    };
-    const wardCode = defaultWardsForZone[zoneName] || "11";
-    const derivedZone = Object.keys(WARD_ZONES).find(z => WARD_ZONES[z].includes(wardCode)) || zoneName;
 
     const newReport = {
       id: Date.now(),
@@ -1858,7 +1960,7 @@ Report Reference: #CF-${generatedRef}`;
     if (isFirebaseConfigured) {
       try {
         await addDoc(collection(db, 'reports'), newReport);
-        setAiLogs(prev => [...prev, { id: `log-submit-db-${Date.now()}-${Math.random()}`, type: "success", text: `Firestore: Report added for ${formZone}.` }]);
+        setAiLogs(prev => [...prev, { id: `log-submit-db-${Date.now()}-${Math.random()}`, type: "success", text: `Firestore: Report added for ${derivedZone} (Ward ${wardCode}).` }]);
         await incrementUserKarma(10);
       } catch (error) {
         console.error("Failed to add document to Firestore:", error);
@@ -1876,12 +1978,19 @@ Report Reference: #CF-${generatedRef}`;
     // Reset form states
     setFormDetails("");
     setFormDescription("");
+    setFormLat(0);
+    setFormLng(0);
+    setFormWardNo("");
+    setFormWardName("");
+    setLastInferredWardNo("");
+    setLocationSource(null);
+    setLocationError(null);
     setImageVerified(false);
     setUploadedImage(null);
     setAiDraftedLetter("");
     setVerifiedDetails("");
     
-    setAiLogs(prev => [...prev, { id: `log-submit-${Date.now()}-${Math.random()}`, type: "success", text: `Report successfully uploaded and pinned to ${formZone} layout.` }]);
+    setAiLogs(prev => [...prev, { id: `log-submit-${Date.now()}-${Math.random()}`, type: "success", text: `Report successfully uploaded and pinned to Ward ${wardCode} layout.` }]);
   };
 
 
@@ -1946,7 +2055,16 @@ Report Reference: #CF-${generatedRef}`;
 
           {/* REPORT BUTTON */}
           <button
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={() => {
+              setFormLat(0);
+              setFormLng(0);
+              setFormWardNo("");
+              setFormWardName("");
+              setLastInferredWardNo("");
+              setLocationSource(null);
+              setLocationError(null);
+              setIsReportModalOpen(true);
+            }}
             className="h-8.5 px-3.5 flex items-center gap-1.5 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-semibold font-mono tracking-wider uppercase border border-blue-400/20 shadow-[0_0_12px_rgba(37,99,235,0.25)] transition-all hover:scale-[1.02]"
           >
             <PlusCircle size={12} />
@@ -2208,16 +2326,39 @@ Report Reference: #CF-${generatedRef}`;
 
                 {/* Ward / Sector Selector */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
-                    Ward / Sector
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                      Ward / Sector
+                    </label>
+                    {formWardNo !== "" && (
+                      <span className={`text-[8px] font-mono font-bold uppercase px-1 rounded ${
+                        (lastInferredWardNo === formWardNo || (lastInferredWardNo !== "" && getZoneFromWard(lastInferredWardNo) === getZoneFromWard(formWardNo)))
+                          ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/20' 
+                          : 'bg-amber-950/40 text-amber-400 border border-amber-500/20'
+                      }`}>
+                        {(lastInferredWardNo === formWardNo || (lastInferredWardNo !== "" && getZoneFromWard(lastInferredWardNo) === getZoneFromWard(formWardNo))) 
+                          ? '✨ Inferred Ward' 
+                          : '⚠️ Manual Override'}
+                      </span>
+                    )}
+                  </div>
                   <select
-                    value={formZone}
-                    onChange={(e) => setFormZone(e.target.value)}
-                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
+                    value={formWardNo}
+                    onChange={(e) => {
+                      const selectedWardNo = e.target.value;
+                      const w = CANONICAL_WARDS.find(x => String(x.wardNo) === selectedWardNo);
+                      if (w) {
+                        setFormWardNo(String(w.wardNo));
+                        setFormWardName(w.wardName);
+                      }
+                    }}
+                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded cursor-pointer"
                   >
-                    {districts.map(d => (
-                      <option key={d.name} value={d.name}>{d.name}</option>
+                    <option value="" disabled>Select a Ward...</option>
+                    {CANONICAL_WARDS.map(w => (
+                      <option key={w.wardNo} value={String(w.wardNo)}>
+                        Ward {w.wardNo} - {w.wardName} ({w.zone})
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -2313,18 +2454,68 @@ Report Reference: #CF-${generatedRef}`;
                   </span>
                 </div>
 
+                {/* Location Selection Method */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                    Incident Location
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={isGeolocationLoading}
+                      onClick={handleUseCurrentLocation}
+                      className="flex items-center justify-center gap-1.5 bg-[#16171d] hover:bg-[#1d1e26] border border-[#1b1d24] hover:border-blue-500/40 text-[10px] font-bold font-mono py-2 px-3 text-[#e2e8f0] rounded transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      {isGeolocationLoading ? (
+                        <>
+                          <RefreshCw size={11} className="animate-spin text-blue-400" />
+                          <span>Locating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <MapPin size={11} className="text-blue-400" />
+                          <span>Use current location</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePickFromMap}
+                      className="flex items-center justify-center gap-1.5 bg-[#16171d] hover:bg-[#1d1e26] border border-[#1b1d24] hover:border-blue-500/40 text-[10px] font-bold font-mono py-2 px-3 text-[#e2e8f0] rounded transition-all cursor-pointer"
+                    >
+                      <MapPin size={11} className="text-blue-400" />
+                      <span>Pick from map</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Selected Map Coordinates */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
-                    Incident Coordinates (Selected from Map)
+                    Incident Coordinates
                   </label>
                   <div className="bg-[#16171d]/60 border border-[#1b1d24] text-xs px-3 py-2 text-white rounded flex items-center justify-between">
-                    <span className="font-mono text-blue-400">
-                      Lat: {formLat.toFixed(5)} / Lng: {formLng.toFixed(5)}
+                    {formLat !== 0 ? (
+                      <span className="font-mono text-blue-400">
+                        Lat: {formLat.toFixed(5)} / Lng: {formLng.toFixed(5)}
+                      </span>
+                    ) : (
+                      <span className="text-[#e2e8f0]/40 font-mono italic">
+                        Not specified (Required)
+                      </span>
+                    )}
+                    <span className="text-[9px] text-[#555] uppercase font-bold select-none">
+                      {locationSource === 'map' ? 'Map Pinned' : (locationSource === 'gps' ? 'GPS Locked' : 'Pending')}
                     </span>
-                    <span className="text-[9px] text-[#555] uppercase font-bold select-none">Read-Only</span>
                   </div>
                 </div>
+
+                {/* Location Error Message */}
+                {locationError && (
+                  <div className="text-[10px] text-red-400 font-mono bg-red-950/20 border border-red-500/20 px-3 py-2 rounded leading-normal">
+                    ⚠️ {locationError}
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-2 border-t border-[#1b1d24] mt-4">

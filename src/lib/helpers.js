@@ -1,3 +1,5 @@
+import { WARD_POLYGONS } from './ward_polygons';
+
 export const DISTRICT_TO_ZONE = {
   // Map old mixed landmark names
   "Court Road Junction": "Court Corridor",
@@ -28,11 +30,186 @@ export const ZONE_TO_DISTRICT = {
 export const WARD_ZONES = {
   "Court Corridor": ["11", "12", "47", "48", "51", "52"],
   "Seafront": ["33", "34", "37", "41", "42", "43"],
-  "North Uplands": ["1", "2", "3", "4", "5", "7", "8", "9", "10"],
+  "North Uplands": ["1", "2", "3", "4", "5", "7", "8", "9", "10", "49"],
   "Chirakkara Hills": ["13", "14", "15", "16", "17", "18", "19", "20", "21"],
   "South Highway": ["22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"],
   "Heritage Quarter": ["6", "35", "36", "38", "39", "40", "44", "45", "46", "50"]
 };
+
+// Master list of 52 canonical wards
+export const WARD_MASTER = [
+  { wardNo: 1, wardName: "NITTOOR", zone: "North Uplands" },
+  { wardNo: 2, wardName: "ILLIKKUNNU", zone: "North Uplands" },
+  { wardNo: 3, wardName: "MANNAYAD", zone: "North Uplands" },
+  { wardNo: 4, wardName: "BAALATHIL", zone: "North Uplands" },
+  { wardNo: 5, wardName: "KUNNOTH", zone: "North Uplands" },
+  { wardNo: 6, wardName: "KAVUM BAGHAM", zone: "Heritage Quarter" },
+  { wardNo: 7, wardName: "KOLASSERI", zone: "North Uplands" },
+  { wardNo: 8, wardName: "KUYYALI", zone: "North Uplands" },
+  { wardNo: 9, wardName: "KOMATH PARA", zone: "North Uplands" },
+  { wardNo: 10, wardName: "KUZHIPPANGADE", zone: "North Uplands" },
+  { wardNo: 11, wardName: "KANNOTH PALLI", zone: "Court Corridor" },
+  { wardNo: 12, wardName: "TOWN HALL", zone: "Court Corridor" },
+  { wardNo: 13, wardName: "MORAKUNNU", zone: "Chirakkara Hills" },
+  { wardNo: 14, wardName: "CHIRAKKARA", zone: "Chirakkara Hills" },
+  { wardNo: 15, wardName: "KUNHAMPARAMB", zone: "Chirakkara Hills" },
+  { wardNo: 16, wardName: "CHELLAKKARA", zone: "Chirakkara Hills" },
+  { wardNo: 17, wardName: "MANHODI", zone: "Chirakkara Hills" },
+  { wardNo: 18, wardName: "PERINGALAM", zone: "Chirakkara Hills" },
+  { wardNo: 19, wardName: "VAYALALAM", zone: "Chirakkara Hills" },
+  { wardNo: 20, wardName: "URAANGODE", zone: "Chirakkara Hills" },
+  { wardNo: 21, wardName: "KUTTIMAKKOOL", zone: "Chirakkara Hills" },
+  { wardNo: 22, wardName: "CHANDROTH", zone: "South Highway" },
+  { wardNo: 23, wardName: "MOOZHIKKARA", zone: "South Highway" },
+  { wardNo: 24, wardName: "EENGAYIL PEEDIKA", zone: "South Highway" },
+  { wardNo: 25, wardName: "KODIYERI WEST", zone: "South Highway" },
+  { wardNo: 26, wardName: "KARAAL THERU", zone: "South Highway" },
+  { wardNo: 27, wardName: "MAMBALLI KUNNU", zone: "South Highway" },
+  { wardNo: 28, wardName: "KODIYERI", zone: "South Highway" },
+  { wardNo: 29, wardName: "MEETALE KODIYERI", zone: "South Highway" },
+  { wardNo: 30, wardName: "PAARAL", zone: "South Highway" },
+  { wardNo: 31, wardName: "POTHUVACHERI", zone: "South Highway" },
+  { wardNo: 32, wardName: "MADAPEEDIKA", zone: "South Highway" },
+  { wardNo: 33, wardName: "PUNNOL EAST", zone: "Seafront" },
+  { wardNo: 34, wardName: "PUNNOL", zone: "Seafront" },
+  { wardNo: 35, wardName: "KOMMAL VAYAL", zone: "Heritage Quarter" },
+  { wardNo: 36, wardName: "NANGARATH", zone: "Heritage Quarter" },
+  { wardNo: 37, wardName: "THALAYI", zone: "Seafront" },
+  { wardNo: 38, wardName: "TEMPLE", zone: "Heritage Quarter" },
+  { wardNo: 39, wardName: "KALLAYI THERU", zone: "Heritage Quarter" },
+  { wardNo: 40, wardName: "THIRUVANGADE", zone: "Heritage Quarter" },
+  { wardNo: 41, wardName: "GOPALA PETTA", zone: "Seafront" },
+  { wardNo: 42, wardName: "ST. PETERS", zone: "Seafront" },
+  { wardNo: 43, wardName: "SAIDAR PALLI", zone: "Seafront" },
+  { wardNo: 44, wardName: "WEAVERS", zone: "Heritage Quarter" },
+  { wardNo: 45, wardName: "MAARIYAMMA", zone: "Heritage Quarter" },
+  { wardNo: 46, wardName: "KAIVATTAM", zone: "Heritage Quarter" },
+  { wardNo: 47, wardName: "MATTAMBRAM", zone: "Court Corridor" },
+  { wardNo: 48, wardName: "KAAYYATH", zone: "Court Corridor" },
+  { wardNo: 49, wardName: "PALISSERI", zone: "North Uplands" },
+  { wardNo: 50, wardName: "CHETTAM KUNNU", zone: "Heritage Quarter" },
+  { wardNo: 51, wardName: "COURT", zone: "Court Corridor" },
+  { wardNo: 52, wardName: "KODUVALLI", zone: "Court Corridor" }
+];
+
+const ZONE_CENTERS = {
+  "Court Corridor": { lat: 11.7490, lng: 75.4891 },
+  "Seafront": { lat: 11.7420, lng: 75.4810 },
+  "North Uplands": { lat: 11.7535, lng: 75.4985 },
+  "Chirakkara Hills": { lat: 11.7570, lng: 75.4840 },
+  "South Highway": { lat: 11.7511, lng: 75.4921 },
+  "Heritage Quarter": { lat: 11.7455, lng: 75.4852 }
+};
+
+// Build canonical wards list using real pre-calculated centroids from polygons
+export const CANONICAL_WARDS = WARD_MASTER.map(w => {
+  const wp = WARD_POLYGONS.find(x => x.wardNo === w.wardNo);
+  const lat = wp ? wp.centroid[0] : ZONE_CENTERS[w.zone].lat;
+  const lng = wp ? wp.centroid[1] : ZONE_CENTERS[w.zone].lng;
+  
+  return {
+    wardNo: w.wardNo,
+    wardName: w.wardName,
+    zone: w.zone,
+    lat,
+    lng,
+    aliases: [w.wardName.toLowerCase(), `ward ${w.wardNo}`]
+  };
+});
+
+// Haversine Distance helper
+export function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// Ray-casting Point-in-Polygon check
+export function pointInPolygon(lat, lng, polygon) {
+  let inside = false;
+  const x = lng;
+  const y = lat;
+  
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][1], yi = polygon[i][0];
+    const xj = polygon[j][1], yj = polygon[j][0];
+    
+    const intersect = ((yi > y) !== (yj > y))
+        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Infer closest ward from lat/lng using PIP first, fallback to centroid distance
+export function inferWardFromCoordinates(lat, lng) {
+  if (!lat || !lng) return null;
+  
+  // 1. Point-in-Polygon check
+  for (const wp of WARD_POLYGONS) {
+    if (wp.wardNo > 52) continue; // Skip ward 53 (not in master list)
+    if (pointInPolygon(lat, lng, wp.polygon)) {
+      const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wp.wardNo);
+      if (canonicalWard) {
+        return {
+          ward: canonicalWard,
+          confident: true,
+          method: 'polygon'
+        };
+      }
+    }
+  }
+  
+  // 2. Fallback to nearest centroid distance matching
+  let closestWard = null;
+  let minDistance = Infinity;
+  
+  CANONICAL_WARDS.forEach(w => {
+    const wp = WARD_POLYGONS.find(x => x.wardNo === w.wardNo);
+    const targetLat = wp ? wp.centroid[0] : w.lat;
+    const targetLng = wp ? wp.centroid[1] : w.lng;
+    
+    const dist = getDistance(lat, lng, targetLat, targetLng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestWard = w;
+    }
+  });
+  
+  // 3.0 km fallback distance threshold
+  if (minDistance <= 3.0) {
+    return {
+      ward: closestWard,
+      distance: minDistance,
+      confident: true,
+      method: 'centroid'
+    };
+  }
+  
+  return {
+    ward: closestWard,
+    distance: minDistance,
+    confident: false,
+    method: 'failed'
+  };
+}
+
+// Lookup zone from wardNo
+export function getZoneFromWard(wardNo) {
+  const wardStr = String(wardNo);
+  for (const [zone, wards] of Object.entries(WARD_ZONES)) {
+    if (wards.includes(wardStr)) {
+      return zone;
+    }
+  }
+  return "Court Corridor";
+}
 
 export const ZONE_MAPPING = [
   { fullName: "Court Corridor", shortName: "Court Corridor" },
