@@ -895,14 +895,29 @@ function App() {
 
   // Upvote/Downvote report
   const handleVote = useCallback(async (id, docId) => {
+    if (!currentUser) {
+      alert("Please enter a civic alias profile to upvote issues.");
+      return;
+    }
+    const userId = currentUser.uid;
+    const report = reports.find(r => r.id === id || r.docId === docId);
+    if (!report) return;
+
+    const upvotedByList = report.upvotedBy || [];
+    if (upvotedByList.includes(userId)) {
+      alert("You have already upvoted this issue!");
+      return;
+    }
+
+    const nextUpvotedBy = [...upvotedByList, userId];
+    const nextVotesCount = (report.votes || 0) + 1;
+
     if (isFirebaseConfigured && docId) {
       try {
         const docRef = doc(db, 'reports', docId);
-        // Find existing report to get current votes count safely
-        const report = reports.find(r => r.docId === docId);
-        if (!report) return;
         await updateDoc(docRef, {
-          votes: increment(1)
+          votes: nextVotesCount,
+          upvotedBy: nextUpvotedBy
         });
         setAiLogs(prev => [...prev, { id: `log-vote-${id}-${Date.now()}`, type: "success", text: `Firestore: Logged upvote for issue #CF-${id.toString().substring(0, 4)}` }]);
         await incrementUserKarma(2);
@@ -910,10 +925,10 @@ function App() {
         console.error("Error updating vote in Firestore:", error);
       }
     } else {
-      setReports(prev => prev.map(r => r.id === id ? { ...r, votes: r.votes + 1 } : r));
+      setReports(prev => prev.map(r => r.id === id ? { ...r, votes: nextVotesCount, upvotedBy: nextUpvotedBy } : r));
       await incrementUserKarma(2);
     }
-  }, [reports, isFirebaseConfigured, incrementUserKarma]);
+  }, [reports, isFirebaseConfigured, incrementUserKarma, currentUser]);
 
   // Verify issue locally (Gamification Verification loop)
   const handleVerify = useCallback(async (id, docId) => {
@@ -1214,6 +1229,23 @@ function App() {
           console.error("Error pre-populating Firestore:", err);
         }
       } else {
+        // Self-heal: check if any seed reports (id <= 12) are missing the image property, and write them to Firestore
+        reportsList.forEach(async (report) => {
+          if (report.id && report.id <= 12 && !report.image) {
+            const seedIssue = initialIssues.find(i => i.id === report.id);
+            if (seedIssue && seedIssue.image) {
+              console.log(`Self-healing: Seeding missing image for report #${report.id} in Firestore...`);
+              try {
+                const reportRef = doc(db, 'reports', report.docId);
+                await updateDoc(reportRef, {
+                  image: seedIssue.image
+                });
+              } catch (err) {
+                console.error(`Failed to update image for report #${report.id}:`, err);
+              }
+            }
+          }
+        });
         setReports(reportsList);
       }
     }, (error) => {
