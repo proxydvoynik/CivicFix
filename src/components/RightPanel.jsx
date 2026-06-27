@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import CardShell from './CardShell';
+import CardShell from './CardShell.jsx';
 
 // Dispatch Queue stage mapper configuration
 const DISPATCH_STAGES = {

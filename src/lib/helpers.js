@@ -1,4 +1,4 @@
-import { WARD_POLYGONS } from './ward_polygons';
+import { WARD_POLYGONS } from './ward_polygons.js';
 
 export const DISTRICT_TO_ZONE = {
   // Map old mixed landmark names

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import CardShell from './CardShell';
+import CardShell from './CardShell.jsx';
 import { 
   WARD_ZONES, 
   ZONE_MAPPING, 
@@ -7,7 +7,7 @@ import {
   getZoneHealthScore, 
   getZoneSummary, 
   filterAlerts 
-} from '../lib/helpers';
+} from '../lib/helpers.js';
 
 export default function LeftPanel({
   incidents = [],
@@ -17,6 +17,7 @@ export default function LeftPanel({
   onIncidentFocus,
   onUpvote,
   onVerify,
+  onViewLetter,
   onAutoEscalate,
   onAgentLog
 }) {
@@ -500,6 +501,18 @@ export default function LeftPanel({
                       >
                         ✓ Verify
                       </button>
+                      {incident.status === 'escalated' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewLetter && onViewLetter(incident);
+                          }}
+                          className="bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white px-2 py-0.5 rounded border border-purple-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                          title="Review AI Grievance Draft"
+                        >
+                          ✉ Dispatch
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
