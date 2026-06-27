@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   MapPin, Activity, PlusCircle, RefreshCw, 
   CheckCircle2, Send, Globe, Shield, X, 
-  Heart, Camera, AlertCircle, FileText, CloudSun
+  Heart, Camera, AlertCircle, FileText, CloudSun, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeftPanel from './components/LeftPanel.jsx';
@@ -30,8 +30,48 @@ import {
   getStabilityTrend,
   CANONICAL_WARDS,
   inferWardFromCoordinates,
-  getZoneFromWard
+  getZoneFromWard,
+  pointInPolygon
 } from './lib/helpers.js';
+import { WARD_POLYGONS } from './lib/ward_polygons.js';
+
+export const THALASSERY_POLYGON_COORDS = [
+  [11.766029, 75.469595],
+  [11.772881, 75.470949],
+  [11.779733, 75.479075],
+  [11.781104, 75.484492],
+  [11.783845, 75.484492],
+  [11.783845, 75.489909],
+  [11.781104, 75.489909],
+  [11.782474, 75.493971],
+  [11.781104, 75.495326],
+  [11.778363, 75.492617],
+  [11.772881, 75.503451],
+  [11.766029, 75.502097],
+  [11.759177, 75.50616],
+  [11.759177, 75.508868],
+  [11.763288, 75.512931],
+  [11.759177, 75.514285],
+  [11.759177, 75.529182],
+  [11.745473, 75.540016],
+  [11.73725, 75.540016],
+  [11.738621, 75.538662],
+  [11.73588, 75.538662],
+  [11.733139, 75.533245],
+  [11.734509, 75.530537],
+  [11.731769, 75.530537],
+  [11.731769, 75.527828],
+  [11.729028, 75.527828],
+  [11.724917, 75.523765],
+  [11.727657, 75.521057],
+  [11.722176, 75.512931],
+  [11.734509, 75.503451],
+  [11.733139, 75.498034],
+  [11.742732, 75.491263],
+  [11.748214, 75.483137],
+  [11.753695, 75.483137],
+  [11.766029, 75.469595]
+];
 
 function usePrevious(value) {
   const [current, setCurrent] = useState(value);
@@ -610,6 +650,7 @@ function App() {
   
   // Heatmap Overlay Toggle Feature
   const [showHazardHeatmap, setShowHazardHeatmap] = useState(false);
+  const [showWardBorders, setShowWardBorders] = useState(true);
 
   // Active Letter View Modal
   const [activeLetter, setActiveLetter] = useState(null);
@@ -640,6 +681,7 @@ function App() {
   const wardMarkersGroup = useRef(null);
   const tempPlacementMarker = useRef(null);
   const hazardCirclesGroup = useRef(null);
+  const wardPolygonsGroup = useRef(null);
 
   // Cleanup map placement marker if coordinates are reset
   useEffect(() => {
@@ -1290,13 +1332,14 @@ function App() {
   useEffect(() => {
     if (!mapRef.current) return;
 
-    const boundaryLimit = L.latLngBounds([11.7150, 75.4450], [11.7950, 75.5350]);
+    // Extended panning boundary limits to cover all of Thalassery, especially the eastern borders
+    const boundaryLimit = L.latLngBounds([11.7000, 75.4300], [11.8100, 75.5600]);
 
-    // Initialize Map centered on Thalassery Town with restricted panning bounds and zoom levels
+    // Initialize Map centered on Thalassery Town with expanded zoom capabilities and panning bounds
     const map = L.map(mapRef.current, {
       center: [11.7490, 75.4891],
-      zoom: 14,
-      minZoom: 13,
+      zoom: 13,         // Centered slightly zoomed out so the entire town is visible on boot
+      minZoom: 11,      // Decreased minZoom to allow zooming out to view all borders
       maxZoom: 18,
       maxBounds: boundaryLimit,
       maxBoundsViscosity: 1.0,
@@ -1310,405 +1353,7 @@ function App() {
     }).addTo(map);
 
     // Draw custom dashed irregular boundary polygon for Thalassery Municipality
-    const thalasseryPolygonCoords = [
-      [11.766385, 75.4695947],
-      [11.7650957, 75.4711298],
-      [11.7640887, 75.4726003],
-      [11.7637939, 75.4730407],
-      [11.7630997, 75.4736629],
-      [11.7624012, 75.4742047],
-      [11.7619837, 75.4745239],
-      [11.7616581, 75.4746795],
-      [11.7614608, 75.4747557],
-      [11.7613797, 75.4748136],
-      [11.7606812, 75.475578],
-      [11.7603057, 75.4759455],
-      [11.7600536, 75.4761708],
-      [11.7597855, 75.476301],
-      [11.7595048, 75.476325],
-      [11.7593998, 75.4763719],
-      [11.7590085, 75.4768601],
-      [11.7587651, 75.4772063],
-      [11.7585623, 75.4773362],
-      [11.7584519, 75.4774068],
-      [11.7579455, 75.4774942],
-      [11.7578951, 75.4775495],
-      [11.7578873, 75.4776916],
-      [11.7578741, 75.4779357],
-      [11.7576982, 75.4782468],
-      [11.7570863, 75.4790139],
-      [11.756871, 75.4791963],
-      [11.7565617, 75.4795833],
-      [11.7562513, 75.4797837],
-      [11.7562172, 75.479828],
-      [11.7559821, 75.4804958],
-      [11.7559333, 75.4805802],
-      [11.7557314, 75.4807895],
-      [11.7550985, 75.4814655],
-      [11.7546967, 75.4818919],
-      [11.7543195, 75.4821342],
-      [11.7539667, 75.4824659],
-      [11.7535229, 75.4830962],
-      [11.7531527, 75.4833752],
-      [11.7528664, 75.4835388],
-      [11.7525566, 75.4836488],
-      [11.7522782, 75.4836112],
-      [11.7521889, 75.483622],
-      [11.7521495, 75.4836488],
-      [11.7520287, 75.4838821],
-      [11.7518055, 75.4841343],
-      [11.7516112, 75.4842201],
-      [11.7513092, 75.4842657],
-      [11.7512672, 75.4842925],
-      [11.7511779, 75.4844373],
-      [11.7510046, 75.4844642],
-      [11.7507919, 75.4844277],
-      [11.750503, 75.4842952],
-      [11.7504164, 75.4842174],
-      [11.7503586, 75.4841799],
-      [11.7503035, 75.4841986],
-      [11.7495052, 75.4850382],
-      [11.7492688, 75.4851133],
-      [11.74898, 75.4851267],
-      [11.748397, 75.4850703],
-      [11.7479007, 75.484888],
-      [11.7477746, 75.4848692],
-      [11.7476617, 75.4848745],
-      [11.7474273, 75.4850489],
-      [11.7473046, 75.4851186],
-      [11.7470945, 75.4851964],
-      [11.7467216, 75.485183],
-      [11.746417, 75.4851803],
-      [11.7463172, 75.485242],
-      [11.7462909, 75.4853493],
-      [11.7464458, 75.4860735],
-      [11.7464852, 75.4866126],
-      [11.746501, 75.4869345],
-      [11.7464196, 75.4874468],
-      [11.7463145, 75.4877713],
-      [11.7462489, 75.4879564],
-      [11.7458397, 75.4886081],
-      [11.7454859, 75.4892378],
-      [11.7454428, 75.4893199],
-      [11.7450934, 75.4898366],
-      [11.7447021, 75.4903811],
-      [11.7445104, 75.4906467],
-      [11.7442295, 75.4909685],
-      [11.7440666, 75.4911187],
-      [11.743917, 75.4912877],
-      [11.7437646, 75.4914299],
-      [11.7435047, 75.4917195],
-      [11.7433, 75.491874],
-      [11.7431528, 75.4920226],
-      [11.7428193, 75.4923016],
-      [11.7425908, 75.4924464],
-      [11.7423938, 75.4925296],
-      [11.7422851, 75.492584],
-      [11.7421745, 75.4926395],
-      [11.7421155, 75.492669],
-      [11.7418817, 75.4928327],
-      [11.7416848, 75.4930338],
-      [11.7414274, 75.4931572],
-      [11.7411569, 75.4933181],
-      [11.7409285, 75.4934871],
-      [11.740721, 75.4937097],
-      [11.7404952, 75.4938707],
-      [11.740335, 75.493935],
-      [11.7402797, 75.4939778],
-      [11.74016, 75.4940704],
-      [11.7400645, 75.4941443],
-      [11.7399716, 75.4941958],
-      [11.7397257, 75.494332],
-      [11.7395603, 75.494795],
-      [11.739274, 75.4946834],
-      [11.7390219, 75.4948658],
-      [11.738849, 75.494972],
-      [11.738417, 75.495265],
-      [11.738176, 75.495423],
-      [11.737961, 75.4956356],
-      [11.7377509, 75.4957482],
-      [11.7374883, 75.4959279],
-      [11.7372808, 75.4960701],
-      [11.7371495, 75.4962149],
-      [11.736879, 75.4964402],
-      [11.7366875, 75.4965631],
-      [11.7365825, 75.4966041],
-      [11.7365085, 75.4966761],
-      [11.7364245, 75.4967381],
-      [11.7363305, 75.4967991],
-      [11.7362565, 75.4968701],
-      [11.7361715, 75.4969511],
-      [11.7361615, 75.4969611],
-      [11.7359326, 75.497108],
-      [11.7357283, 75.4973157],
-      [11.7356873, 75.4973457],
-      [11.7354523, 75.4974737],
-      [11.7354413, 75.4974827],
-      [11.7351973, 75.4976497],
-      [11.7350053, 75.4978167],
-      [11.734797, 75.497834],
-      [11.73474, 75.4977827],
-      [11.7346901, 75.4977518],
-      [11.7346507, 75.4977518],
-      [11.7346179, 75.4978162],
-      [11.7345601, 75.4978484],
-      [11.7343343, 75.4978618],
-      [11.7340625, 75.4978725],
-      [11.7340165, 75.4979114],
-      [11.7340008, 75.4981139],
-      [11.7339115, 75.498189],
-      [11.733771, 75.498211],
-      [11.733616, 75.498223],
-      [11.7331762, 75.4982507],
-      [11.7329766, 75.4983526],
-      [11.7322977, 75.4988045],
-      [11.7320653, 75.49905],
-      [11.7321467, 75.4991626],
-      [11.7323515, 75.4993182],
-      [11.7325511, 75.4994228],
-      [11.732819, 75.499506],
-      [11.7329529, 75.4995757],
-      [11.7330508, 75.4996744],
-      [11.7331787, 75.4998446],
-      [11.7332563, 75.4999512],
-      [11.7332812, 75.5000404],
-      [11.7332983, 75.5002235],
-      [11.7334269, 75.5003891],
-      [11.7336687, 75.5003731],
-      [11.733902, 75.5008714],
-      [11.7339965, 75.5011362],
-      [11.734049, 75.5013796],
-      [11.7341274, 75.501572],
-      [11.7342294, 75.5018457],
-      [11.7342511, 75.501986],
-      [11.7342749, 75.502144],
-      [11.7342885, 75.5022893],
-      [11.7342759, 75.5023546],
-      [11.7343365, 75.5025814],
-      [11.7343841, 75.5028574],
-      [11.7344013, 75.5029902],
-      [11.7343947, 75.5030519],
-      [11.7344209, 75.5031994],
-      [11.7344209, 75.5034032],
-      [11.7344052, 75.5035856],
-      [11.7343448, 75.5037332],
-      [11.734288, 75.503961],
-      [11.734236, 75.504135],
-      [11.7341321, 75.5043313],
-      [11.734076, 75.504457],
-      [11.7340244, 75.5046344],
-      [11.7339666, 75.5048034],
-      [11.733895, 75.504957],
-      [11.7338169, 75.5051225],
-      [11.733735, 75.505254],
-      [11.733613, 75.505401],
-      [11.733509, 75.505549],
-      [11.733423, 75.5057046],
-      [11.7333442, 75.505718],
-      [11.7332812, 75.5056939],
-      [11.7331709, 75.5056858],
-      [11.7329949, 75.5057153],
-      [11.7329529, 75.505777],
-      [11.7329503, 75.5058092],
-      [11.733016, 75.506005],
-      [11.7330291, 75.5060962],
-      [11.7329871, 75.5061659],
-      [11.7329083, 75.5062491],
-      [11.732819, 75.5062625],
-      [11.7327139, 75.5062437],
-      [11.7324369, 75.506001],
-      [11.7324093, 75.5059996],
-      [11.7323857, 75.5060157],
-      [11.73206, 75.5063269],
-      [11.7317029, 75.5067319],
-      [11.7316648, 75.5067185],
-      [11.7315505, 75.5066071],
-      [11.7312275, 75.5063014],
-      [11.7311934, 75.5063014],
-      [11.7311527, 75.5063336],
-      [11.7310246, 75.5064886],
-      [11.730957, 75.5065924],
-      [11.7309807, 75.5066621],
-      [11.7312407, 75.5068928],
-      [11.7313011, 75.5069974],
-      [11.7313063, 75.5071503],
-      [11.7307496, 75.5081695],
-      [11.7303451, 75.5086899],
-      [11.7300274, 75.5090547],
-      [11.7298278, 75.5092692],
-      [11.7294916, 75.5096045],
-      [11.7291029, 75.5099398],
-      [11.7287011, 75.5102348],
-      [11.7283729, 75.5104548],
-      [11.727963, 75.510756],
-      [11.727543, 75.5110583],
-      [11.7272252, 75.5113238],
-      [11.727065, 75.5114096],
-      [11.7269494, 75.5114204],
-      [11.7267105, 75.511415],
-      [11.7266107, 75.5114633],
-      [11.7264032, 75.5115572],
-      [11.7263244, 75.5116323],
-      [11.7261852, 75.5117691],
-      [11.7260854, 75.51182],
-      [11.7257834, 75.5119434],
-      [11.7256258, 75.512048],
-      [11.725497, 75.512144],
-      [11.7253606, 75.5122733],
-      [11.7252266, 75.5123484],
-      [11.7249745, 75.5124906],
-      [11.7247014, 75.512622],
-      [11.7246095, 75.5127078],
-      [11.7245149, 75.5128098],
-      [11.7244335, 75.5128714],
-      [11.7240448, 75.5130672],
-      [11.7238111, 75.5131893],
-      [11.7237349, 75.513255],
-      [11.7236194, 75.5133542],
-      [11.7235406, 75.5134374],
-      [11.7233856, 75.5135393],
-      [11.7230416, 75.5136386],
-      [11.7229707, 75.5136761],
-      [11.7228446, 75.5137646],
-      [11.7224609, 75.515036],
-      [11.722297, 75.5167054],
-      [11.7231364, 75.5175021],
-      [11.7235616, 75.5183687],
-      [11.7221757, 75.5192895],
-      [11.7223951, 75.519817],
-      [11.722717, 75.5205908],
-      [11.7234804, 75.5211052],
-      [11.7248055, 75.5211018],
-      [11.7258379, 75.521026],
-      [11.7261557, 75.521576],
-      [11.7264787, 75.5222744],
-      [11.7263397, 75.5231828],
-      [11.7244672, 75.5245108],
-      [11.7239319, 75.5248904],
-      [11.7245272, 75.5269971],
-      [11.7263111, 75.5265863],
-      [11.7297556, 75.5280262],
-      [11.7308021, 75.5295467],
-      [11.7318557, 75.5316406],
-      [11.7338569, 75.5324869],
-      [11.7345344, 75.533093],
-      [11.7347614, 75.5333738],
-      [11.7347255, 75.5337714],
-      [11.7344193, 75.5371629],
-      [11.7355085, 75.5390774],
-      [11.737652, 75.5393067],
-      [11.742184, 75.5398572],
-      [11.7427937, 75.5399313],
-      [11.7464068, 75.5400164],
-      [11.7466682, 75.5399212],
-      [11.7492138, 75.5389945],
-      [11.7498253, 75.5382848],
-      [11.7498253, 75.5367235],
-      [11.7504645, 75.53661],
-      [11.7516874, 75.5361558],
-      [11.7518263, 75.5347364],
-      [11.7524378, 75.5333738],
-      [11.7535549, 75.5326358],
-      [11.7551892, 75.532437],
-      [11.7575515, 75.5327777],
-      [11.7579405, 75.5313016],
-      [11.7579061, 75.530928],
-      [11.7581224, 75.5292766],
-      [11.7569737, 75.5284881],
-      [11.7576854, 75.5272832],
-      [11.7591677, 75.5263634],
-      [11.7591764, 75.5257423],
-      [11.7593305, 75.5251445],
-      [11.7599151, 75.5246446],
-      [11.7593103, 75.5233814],
-      [11.7588048, 75.5222258],
-      [11.7585107, 75.5215533],
-      [11.7583834, 75.520849],
-      [11.7582337, 75.5200213],
-      [11.758385, 75.5197132],
-      [11.7588274, 75.5188119],
-      [11.7591809, 75.5182286],
-      [11.7598122, 75.5175282],
-      [11.75997, 75.5172863],
-      [11.7600881, 75.5170593],
-      [11.7598623, 75.5166006],
-      [11.7592212, 75.5163234],
-      [11.7588221, 75.5156904],
-      [11.7593169, 75.513868],
-      [11.7616318, 75.5150628],
-      [11.7619702, 75.5142764],
-      [11.7607915, 75.5137753],
-      [11.7588694, 75.5114472],
-      [11.7595023, 75.5097833],
-      [11.7584662, 75.5088388],
-      [11.7584279, 75.5079823],
-      [11.7585764, 75.5077398],
-      [11.7587867, 75.5073964],
-      [11.7589787, 75.5072234],
-      [11.7601226, 75.5065655],
-      [11.7616144, 75.5063295],
-      [11.7625452, 75.5060268],
-      [11.763449, 75.5058933],
-      [11.7639324, 75.5054109],
-      [11.7644203, 75.5049459],
-      [11.7652669, 75.5043289],
-      [11.7655809, 75.5044006],
-      [11.7656902, 75.5044255],
-      [11.7664108, 75.5045026],
-      [11.767158, 75.5040224],
-      [11.7684337, 75.5030249],
-      [11.7685287, 75.5029506],
-      [11.7700575, 75.5028414],
-      [11.7708102, 75.5029065],
-      [11.7718033, 75.5030328],
-      [11.7728872, 75.502875],
-      [11.7733067, 75.5016887],
-      [11.7745719, 75.5014264],
-      [11.7751239, 75.5009058],
-      [11.7752207, 75.5004218],
-      [11.7752966, 75.5000424],
-      [11.7748294, 75.4986474],
-      [11.7749412, 75.4983184],
-      [11.7756405, 75.4976952],
-      [11.7765142, 75.4967837],
-      [11.7771243, 75.4955086],
-      [11.7779949, 75.4949447],
-      [11.7783807, 75.4946948],
-      [11.7794261, 75.4940991],
-      [11.7804056, 75.4939186],
-      [11.7812611, 75.4945827],
-      [11.7817769, 75.4952896],
-      [11.7826907, 75.4951715],
-      [11.7829007, 75.4943991],
-      [11.7827012, 75.4938304],
-      [11.7823596, 75.4931829],
-      [11.7818573, 75.4925868],
-      [11.7819593, 75.492208],
-      [11.7828482, 75.4919368],
-      [11.7837178, 75.4915409],
-      [11.7838064, 75.4908062],
-      [11.7838446, 75.4887372],
-      [11.7835932, 75.4872446],
-      [11.7835467, 75.4859486],
-      [11.7834486, 75.4842323],
-      [11.7820486, 75.484335],
-      [11.780812, 75.4840511],
-      [11.7798129, 75.4824042],
-      [11.7794781, 75.4816808],
-      [11.7776162, 75.4794666],
-      [11.7770294, 75.4787888],
-      [11.7756708, 75.4772195],
-      [11.7749901, 75.4750382],
-      [11.7739202, 75.4737465],
-      [11.7722528, 75.4727956],
-      [11.7712668, 75.4721566],
-      [11.7706352, 75.4717472],
-      [11.770238, 75.4714898],
-      [11.7689876, 75.4710765],
-      [11.7688207, 75.4710214],
-      [11.7675423, 75.4705388],
-      [11.766385, 75.4695947]
-    ];
+    const thalasseryPolygonCoords = THALASSERY_POLYGON_COORDS;
 
     L.polygon(thalasseryPolygonCoords, {
       color: '#ef4444',
@@ -1730,12 +1375,20 @@ function App() {
     // Add click handler to pick coordinates
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
+
+      // Verify if the clicked coordinates are inside the city borders first
+      const isInside = pointInPolygon(lat, lng, THALASSERY_POLYGON_COORDS);
+      if (!isInside) {
+        alert("Selected location is outside the Thalassery municipal border. Please select a valid location inside the city.");
+        return;
+      }
+
       setFormLat(lat);
       setFormLng(lng);
       setLocationSource("map");
       setLocationError(null);
 
-      // Run ward inference
+      // Run ward inference only if inside boundaries
       const inference = inferWardFromCoordinates(lat, lng);
       if (inference && inference.confident) {
         setFormWardNo(String(inference.ward.wardNo));
@@ -1745,7 +1398,7 @@ function App() {
         setFormWardNo("");
         setFormWardName("");
         setLastInferredWardNo("");
-        setLocationError("Coordinates are outside Thalassery municipal boundaries. Please select the ward manually.");
+        setLocationError("Could not automatically determine the ward. Please select it manually.");
       }
       setIsReportModalOpen(true);
 
@@ -1773,6 +1426,103 @@ function App() {
       map.remove();
     };
   }, []);
+
+  // Sync ward polygons (boundaries) layer on Leaflet map with active sector highlights
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    if (wardPolygonsGroup.current) {
+      mapInstance.removeLayer(wardPolygonsGroup.current);
+    }
+
+    if (!showWardBorders) {
+      return; // Do not render ward borders if toggled off
+    }
+
+    wardPolygonsGroup.current = L.layerGroup().addTo(mapInstance);
+
+    // Color theme mapping for sectors
+    const ZONE_COLORS = {
+      "Court Corridor": "#3b82f6",     // Blue
+      "Seafront": "#06b6d4",           // Cyan
+      "North Uplands": "#f59e0b",       // Amber
+      "Chirakkara Hills": "#a855f7",   // Purple
+      "South Highway": "#f43f5e",      // Rose/Red
+      "Heritage Quarter": "#10b981"    // Emerald
+    };
+
+    WARD_POLYGONS.forEach(wp => {
+      const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wp.wardNo);
+      const zone = canonicalWard ? canonicalWard.zone : null;
+      const zoneColor = ZONE_COLORS[zone] || "#94a3b8";
+
+      const isZoneMatch = selectedZone === "All" || selectedZone === zone;
+      
+      const fillOpacity = isZoneMatch ? 0.08 : 0.015;
+      const strokeOpacity = isZoneMatch ? 0.6 : 0.15;
+      const weight = isZoneMatch ? 1.0 : 0.5;
+
+      const polygon = L.polygon(wp.polygon, {
+        color: zoneColor,
+        opacity: strokeOpacity,
+        weight: weight,
+        fillColor: zoneColor,
+        fillOpacity: fillOpacity,
+        interactive: true
+      });
+
+      polygon.on('mouseover', () => {
+        polygon.setStyle({
+          weight: 2.0,
+          fillOpacity: 0.28,
+          opacity: 1.0
+        });
+      });
+
+      polygon.on('mouseout', () => {
+        polygon.setStyle({
+          weight: weight,
+          fillOpacity: fillOpacity,
+          opacity: strokeOpacity
+        });
+      });
+
+      polygon.bindTooltip(
+        `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/><span style="color:${zoneColor}">${zone || "General"} Sector</span>`,
+        { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+      );
+
+      polygon.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setFormLat(lat);
+        setFormLng(lng);
+        setLocationSource("map");
+        setLocationError(null);
+        setFormWardNo(String(wp.wardNo));
+        if (canonicalWard) {
+          setFormWardName(canonicalWard.wardName);
+          setLastInferredWardNo(String(wp.wardNo));
+        }
+        setIsReportModalOpen(true);
+        
+        setAiLogs(prev => [...prev, { 
+          id: `log-click-polygon-${Date.now()}`, 
+          type: "info", 
+          text: `Map clicked inside Ward ${wp.wardNo} (${canonicalWard ? canonicalWard.wardName : "Unknown"}). Pre-filled report coordinates.` 
+        }]);
+
+        L.DomEvent.stopPropagation(e);
+      });
+
+      wardPolygonsGroup.current.addLayer(polygon);
+    });
+
+    return () => {
+      if (wardPolygonsGroup.current && mapInstance) {
+        mapInstance.removeLayer(wardPolygonsGroup.current);
+      }
+    };
+  }, [mapInstance, selectedZone, showWardBorders, setFormLat, setFormLng, setLocationSource, setLocationError, setFormWardNo, setFormWardName, setLastInferredWardNo, setIsReportModalOpen, setAiLogs]);
 
   // Sync ward overlay markers
   useEffect(() => {
@@ -2128,11 +1878,20 @@ Report Reference: #CF-${generatedRef}`);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        
+        // Verify if coordinates are inside the city borders first
+        const isInside = pointInPolygon(latitude, longitude, THALASSERY_POLYGON_COORDS);
+        if (!isInside) {
+          alert("GPS coordinates are outside the Thalassery municipal border. Please select a location inside Thalassery.");
+          setIsGeolocationLoading(false);
+          return;
+        }
+
         setFormLat(latitude);
         setFormLng(longitude);
         setLocationSource("gps");
         
-        // Run ward inference
+        // Run ward inference only if inside boundaries
         const inference = inferWardFromCoordinates(latitude, longitude);
         let logText = "";
         
@@ -2145,8 +1904,8 @@ Report Reference: #CF-${generatedRef}`);
           setFormWardNo("");
           setFormWardName("");
           setLastInferredWardNo("");
-          setLocationError("GPS coordinates are outside municipal boundaries. Please select the ward manually.");
-          logText = `GPS: Location locked at Lat ${latitude.toFixed(5)}, Lng ${longitude.toFixed(5)} but outside Thalassery boundaries.`;
+          setLocationError("Could not automatically determine the ward. Please select it manually.");
+          logText = `GPS: Location locked at Lat ${latitude.toFixed(5)}, Lng ${longitude.toFixed(5)} but ward inference failed.`;
         }
         
         setIsGeolocationLoading(false);
@@ -2232,6 +1991,13 @@ Report Reference: #CF-${generatedRef}`);
     if (formLat === undefined || formLng === undefined || formLat === null || formLng === null || formLat === 0 || formLng === 0) {
       setLocationError("Location coordinates are required. Please use 'Use current location' or pick from map.");
       alert("Location coordinates are required. Please use 'Use current location' or pick from map.");
+      return;
+    }
+
+    const isInsideThalassery = pointInPolygon(formLat, formLng, THALASSERY_POLYGON_COORDS);
+    if (!isInsideThalassery) {
+      setLocationError("Selected location is outside the Thalassery municipal border. Please select a valid location inside the city.");
+      alert("Cannot submit report: Selected location is outside the Thalassery municipal border. Please select a valid location inside the city.");
       return;
     }
 
@@ -2440,7 +2206,7 @@ Report Reference: #CF-${generatedRef}`;
             <div ref={mapRef} className="flex-1 w-full rounded border border-[#1b1d24]/50 z-20 relative min-h-0"></div>
 
             {/* Map Mode selector buttons */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button 
                 onClick={() => { setSelectedZone("All"); setShowHazardHeatmap(false); handleMapFocus(11.7490, 75.4891, 14); }}
                 className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
@@ -2472,6 +2238,25 @@ Report Reference: #CF-${generatedRef}`;
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-white leading-tight">Hazard Heatmap</span>
                   <span className="text-[10px] text-[#8e8e8f] leading-tight">Toggle flood overlay</span>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => setShowWardBorders(!showWardBorders)}
+                className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
+                  showWardBorders 
+                    ? "border-emerald-500/40 bg-emerald-950/20 text-white shadow-[0_0_10px_rgba(16,185,129,0.15)]" 
+                    : "border-[#1b1d24]/40 bg-[#16171d]/60 text-[#7d8590] hover:text-white hover:border-blue-500/50"
+                }`}
+              >
+                <div className="w-6 h-6 rounded-full bg-[#1e2029]/80 flex items-center justify-center">
+                  <Layers size={13} className={showWardBorders ? "text-emerald-400" : "text-[#7d8590]"} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white leading-tight">Ward Borders</span>
+                  <span className="text-[10px] text-[#8e8e8f] leading-tight">
+                    {showWardBorders ? "Borders visible" : "Borders hidden"}
+                  </span>
                 </div>
               </button>
             </div>
