@@ -42,8 +42,8 @@ CivicFix uses a balanced three-column layout with a dark, premium matte charcoal
 
 ### 1. Central Tactical Map & History
 - **Interactive Live Tactical Map**: Powered by Leaflet, OpenStreetMap, and CartoDB Dark Matter tiles, providing a premium, fully zoomable, and draggable dark-themed tactical map.
-- **Irregular Municipal Boundary**: Renders the authentic, high-resolution geographic border coordinates of Thalassery Municipality extracted from OpenStreetMap.
-- **Strict Boundary Lock**: Map coordinates bounds are locked (`minZoom: 13, maxZoom: 18`) to restrict panning outside Thalassery Town limits, utilizing bounce-back boundaries.
+- **Irregular Municipal Boundary**: Dynamically computes the outer municipal perimeter on boot as the union of all 53 ward polygons using Turf.js (`turf.dissolve`), extracting only the outer perimeter to discard internal gaps/slivers. Includes a `turf.convex` fallback.
+- **Strict Boundary Lock**: Map coordinates bounds are locked (`minZoom: 11, maxZoom: 18`) to restrict panning outside Thalassery Town limits, utilizing bounce-back boundaries.
 - **Interactive Panning**: Clicking on any incident in the sidebar feed smoothly pans and zooms the Leaflet map focus to the target coordinates.
 - **Map Click Coordinates Capture**: Clicking any point on the map retrieves exact latitude/longitude coordinates, runs Point-in-Polygon geocoding, and opens the reporting form.
 - **Live Sync & Custom Markers**: Plots pulsing red/blue/amber custom markers for active reports, with live upvote and verification actions bound directly inside Leaflet popups.
@@ -59,6 +59,11 @@ CivicFix uses a balanced three-column layout with a dark, premium matte charcoal
 - **Precipitation & Hazards Forecast**: Displays meteorological radar values, wind speed, pressure, and a color-coded hourly rainfall chart.
 - **Volunteer Karma Board**: High-contrast leaderboard highlighting top wardens, badges, and contribution karma points.
 - **AI Dispatch Queue**: Real-time visual tracking of municipal notices (Drafted $\rightarrow$ Dispatched $\rightarrow$ Inspections $\rightarrow$ Clearance).
+- **Warden Consensus & Point System**: Calibrated for Thalassery's population density:
+  - Warden Consensus dispatch requires `15` warden approvals.
+  - Automated escalation requires `15` community verifications.
+  - Community review status requires `100` user upvotes.
+  - Context-aware priority scoring dynamically calculated using verifications and upvotes.
 
 ### 4. Interactive Overlay Modals
 - **Grievance Notice Draftsman**: Automatically composes formal legal notice letters directed to the Thalassery Municipal Commissioner.
@@ -102,6 +107,12 @@ The tactical centers for each of the six municipal zones are computed dynamicall
 $$\text{Center}_{\text{zone}} = \left(\frac{1}{N}\sum_{k=1}^N \text{Lat}_k, \quad \frac{1}{N}\sum_{k=1}^N \text{Lng}_k\right)$$
 
 This ensures that the zone markers on the Leaflet map represent the true geographic center of their administrative wards.
+
+### 4. Geographic Calibration Offset
+To align the custom ward overlays with the OpenStreetMap base tiles, a translation calibration offset ($dLat = -0.00014$, $dLng = +0.00180$) is applied to all ward polygon vertices, correcting the baseline coordinates to their actual coordinates on the map:
+
+$$\text{Lat}_{\text{calibrated}} = \text{Lat}_{\text{raw}} - 0.00014$$
+$$\text{Lng}_{\text{calibrated}} = \text{Lng}_{\text{raw}} + 0.00180$$
 
 ---
 
