@@ -38,7 +38,7 @@ Below are visual layouts and walkthrough placeholders demonstrating the high-den
 
 ## 🖥️ System Architecture & Dashboard Features
 
-CivicFix uses a balanced three-column layout with a dark, premium matte charcoal theme, frosted glass cards (glassmorphism), and full monospaced styling for high data readability:
+CivicFix uses a balanced, high-density layout with a dark, premium matte charcoal theme, frosted glass cards (glassmorphism), and full monospaced styling for maximum data readability:
 
 ### 1. Central Tactical Map & History
 - **Interactive Live Tactical Map**: Powered by Leaflet, OpenStreetMap, and CartoDB Dark Matter tiles, providing a premium, fully zoomable, and draggable dark-themed tactical map.
@@ -50,15 +50,29 @@ CivicFix uses a balanced three-column layout with a dark, premium matte charcoal
 - **Hazard Heatmap Layer**: Toggles interactive hazard boundary circles (red/orange radius overlays) around reported incidents dynamically scaled by severity.
 - **Civic Stability History**: 90-day stability charts featuring a custom multi-color gradient sparkline (Green $\rightarrow$ Yellow $\rightarrow$ Red) and a 48-bucket active stability bar graph.
 
-### 2. Left Column: Analytics & Incident Feeds
-- **Environmental Health (Wards Health)**: Plotted with a vector SVG Spiderweb Radar Chart tracking five primary metrics: *Lights, Safety, Waste, Drainage, and Roads*.
-- **Incident Streams**: Real-time citizen alert cards categorized by severity, with integrated search/filter queries, votes count, and action controls.
-- **AI Agent Console**: A live rolling terminal window tracking the background autonomous workflow decisions of the CivicFix monitoring agent.
+### 2. Left Column: Core Analytics
+- **Environmental Health (Wards Health)**: Plotted with a vector SVG Spiderweb Radar Chart tracking five primary metrics: *Lights, Safety, Waste, Drainage, and Roads*. Expanded layout centers the radar chart with enhanced breathing room.
+- **Active Grid Alerts Launcher**: Direct operational trigger opening the Active Alerts modal workspace.
+- **AI Dispatch Queue Launcher**: Direct operational trigger opening the AI Dispatch Queue modal workspace.
+- **Risk Forecast Launcher**: Direct operational trigger opening the Ward Hotspots modal workspace.
 
-### 3. Right Column: Hazard Forecasting & Dispatch Queue
+### 3. Right Column: Hazards & Community
 - **Precipitation & Hazards Forecast**: Displays meteorological radar values, wind speed, pressure, and a color-coded hourly rainfall chart.
 - **Volunteer Karma Board**: High-contrast leaderboard highlighting top wardens, badges, and contribution karma points.
-- **AI Dispatch Queue**: Real-time visual tracking of municipal notices (Drafted $\rightarrow$ Dispatched $\rightarrow$ Inspections $\rightarrow$ Clearance).
+- **Vertical Spacing Balance**: Side widgets grow vertically (`flex-1`) with aligned spacing metrics for visual stability.
+
+### 4. Centered Triage Agent Command Log
+- **Triage Agent Command Log Drawer**: A live rolling terminal window tracking the background autonomous workflow decisions, confidence scores, and action plans of the CivicFix monitoring agent. Located at the bottom of the viewport and centered horizontally (`max-w-6xl`) for a clean, premium developer-tool appearance.
+
+### 5. Interactive Split-Screen Workspace Modals
+- **Active Grid Alerts Workspace**: Frosted modal overlay with a searchable grid alerts feed on the left and a synchronized Leaflet map on the right. Clicking any card pans and centers the map to the incident coordinates.
+- **AI Dispatch Queue Workspace**: Frosted modal overlay with active municipal dispatches, status progress bars, and stage labels on the left, and a synchronized Leaflet map displaying active dispatch pins on the right.
+- **Ward Hotspots & Risk Predictions Workspace**: Frosted modal overlay showing AI-generated ward risk forecasts (critical, high, moderate, low), confidence ratings, spatial rationale, and action plans on the left, and a synchronized Leaflet map on the right.
+  - **Synchronized Map Highlighting**: Hovering over or clicking a ward in the left list highlights that ward's boundary polygon dynamically (white border highlight and increased opacity) and centers the map coordinates on its centroid.
+- **Consolidated Map Properties**: All workspace maps share the same strict coordinate limits, municipal boundaries, ward borders overlays, zoom constraints, and custom bottomright zoom controls as the main dashboard map.
+- **Citizen Evidence Verification**: Side-by-side comparative panel analyzing baseline archive imagery against mobile EXIF data uploads to verify infrastructure damage.
+- **Report Neighborhood Issue Modal**: Frosted overlay popup with categories, location selectors, coordinates feedback displays, and live photo validations.
+- **Lightweight Duplicate Detection & Merge Suggestion**: Autonomously compares categories and calculates spatial distance using Turf.js to identify active duplicate reports under 250 meters, suggesting merges before a new ticket is logged.
 - **Warden Consensus & Point System**: Calibrated for Thalassery's population density:
   - Warden Consensus dispatch requires `15` warden approvals.
   - Automated escalation requires `15` community verifications.
