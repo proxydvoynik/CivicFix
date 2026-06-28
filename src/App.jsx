@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeftPanel from './components/LeftPanel.jsx';
+import * as turf from '@turf/turf';
 
 // Live Integration Imports
 import { db, auth, isFirebaseConfigured } from './lib/firebase.js';
@@ -30,48 +31,11 @@ import {
   getStabilityTrend,
   CANONICAL_WARDS,
   inferWardFromCoordinates,
-  getZoneFromWard,
-  pointInPolygon
+  getZoneFromWard
 } from './lib/helpers.js';
 import { WARD_POLYGONS } from './lib/ward_polygons.js';
 
-export const THALASSERY_POLYGON_COORDS = [
-  [11.766029, 75.469595],
-  [11.772881, 75.470949],
-  [11.779733, 75.479075],
-  [11.781104, 75.484492],
-  [11.783845, 75.484492],
-  [11.783845, 75.489909],
-  [11.781104, 75.489909],
-  [11.782474, 75.493971],
-  [11.781104, 75.495326],
-  [11.778363, 75.492617],
-  [11.772881, 75.503451],
-  [11.766029, 75.502097],
-  [11.759177, 75.50616],
-  [11.759177, 75.508868],
-  [11.763288, 75.512931],
-  [11.759177, 75.514285],
-  [11.759177, 75.529182],
-  [11.745473, 75.540016],
-  [11.73725, 75.540016],
-  [11.738621, 75.538662],
-  [11.73588, 75.538662],
-  [11.733139, 75.533245],
-  [11.734509, 75.530537],
-  [11.731769, 75.530537],
-  [11.731769, 75.527828],
-  [11.729028, 75.527828],
-  [11.724917, 75.523765],
-  [11.727657, 75.521057],
-  [11.722176, 75.512931],
-  [11.734509, 75.503451],
-  [11.733139, 75.498034],
-  [11.742732, 75.491263],
-  [11.748214, 75.483137],
-  [11.753695, 75.483137],
-  [11.766029, 75.469595]
-];
+
 
 function usePrevious(value) {
   const [current, setCurrent] = useState(value);
@@ -667,6 +631,59 @@ function App() {
   const [lastInferredWardNo, setLastInferredWardNo] = useState("");
   const [formLat, setFormLat] = useState(0);
   const [formLng, setFormLng] = useState(0);
+
+  const thalasseryBoundaryGeoJSON = useMemo(() => {
+    try {
+      const features = WARD_POLYGONS.map(wp => {
+        const coords = wp.polygon.map(c => [c[1], c[0]]);
+        if (coords[0].toString() !== coords[coords.length - 1].toString()) {
+          coords.push([...coords[0]]);
+        }
+        return turf.polygon([coords], { group: 'thalassery' });
+      });
+      const merged = turf.dissolve(turf.featureCollection(features), { propertyName: 'group' });
+      
+      let boundaryFeature = merged.features[0] || null;
+      if (boundaryFeature) {
+        if (boundaryFeature.geometry.type === 'Polygon') {
+          // Extract only the outer ring to discard internal holes/slivers
+          const outerCoords = boundaryFeature.geometry.coordinates[0];
+          boundaryFeature = turf.polygon([outerCoords], boundaryFeature.properties);
+        } else if (boundaryFeature.geometry.type === 'MultiPolygon') {
+          // Find the polygon with the most points (assumed main boundary) and take its outer ring
+          let maxPoints = 0;
+          let mainOuterCoords = null;
+          boundaryFeature.geometry.coordinates.forEach(polyCoords => {
+            const outer = polyCoords[0];
+            if (outer && outer.length > maxPoints) {
+              maxPoints = outer.length;
+              mainOuterCoords = outer;
+            }
+          });
+          if (mainOuterCoords) {
+            boundaryFeature = turf.polygon([mainOuterCoords], boundaryFeature.properties);
+          }
+        }
+      }
+      
+      if (boundaryFeature) {
+        return boundaryFeature;
+      }
+      
+      // Fallback: Convex Hull of all ward coordinates
+      const points = [];
+      WARD_POLYGONS.forEach(wp => {
+        wp.polygon.forEach(c => {
+          points.push(turf.point([c[1], c[0]]));
+        });
+      });
+      const hull = turf.convex(turf.featureCollection(points));
+      return hull || null;
+    } catch (err) {
+      console.error("Error computing municipal boundary:", err);
+      return null;
+    }
+  }, []);
   const [locationSource, setLocationSource] = useState(null); // 'map', 'gps', or null
   const [locationError, setLocationError] = useState(null);
   const [isGeolocationLoading, setIsGeolocationLoading] = useState(false);
@@ -1352,21 +1369,24 @@ function App() {
       maxZoom: 20
     }).addTo(map);
 
-    // Draw custom dashed irregular boundary polygon for Thalassery Municipality
-    const thalasseryPolygonCoords = THALASSERY_POLYGON_COORDS;
-
-    L.polygon(thalasseryPolygonCoords, {
-      color: '#ef4444',
-      fillColor: '#ef4444',
-      fillOpacity: 0.015,
-      weight: 1.5,
-      dashArray: '5, 8',
-      interactive: false
-    }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
-      permanent: true,
-      direction: 'top',
-      className: 'custom-town-tooltip'
-    });
+    // Draw Thalassery Municipal Boundary calculated dynamically as dissolved union of all wards
+    if (thalasseryBoundaryGeoJSON) {
+      L.geoJSON(thalasseryBoundaryGeoJSON, {
+        style: {
+          color: '#ef4444',
+          weight: 2,
+          dashArray: '8 4',
+          fill: false,
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false
+        }
+      }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
+        permanent: true,
+        direction: 'top',
+        className: 'custom-town-tooltip'
+      });
+    }
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -1376,8 +1396,11 @@ function App() {
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
 
-      // Verify if the clicked coordinates are inside the city borders first
-      const isInside = pointInPolygon(lat, lng, THALASSERY_POLYGON_COORDS);
+      // Verify if the clicked coordinates are inside the city borders first using Turf.js
+      const point = turf.point([lng, lat]);
+      const isInside = thalasseryBoundaryGeoJSON
+        ? turf.booleanPointInPolygon(point, thalasseryBoundaryGeoJSON)
+        : false;
       if (!isInside) {
         alert("Selected location is outside the Thalassery municipal border. Please select a valid location inside the city.");
         return;
@@ -1425,7 +1448,7 @@ function App() {
     return () => {
       map.remove();
     };
-  }, []);
+  }, [thalasseryBoundaryGeoJSON]);
 
   // Sync ward polygons (boundaries) layer on Leaflet map with active sector highlights
   useEffect(() => {
@@ -1463,7 +1486,7 @@ function App() {
       const weight = isZoneMatch ? 1.0 : 0.5;
 
       const polygon = L.polygon(wp.polygon, {
-        color: zoneColor,
+        color: '#22d3ee',
         opacity: strokeOpacity,
         weight: weight,
         fillColor: zoneColor,
@@ -1600,7 +1623,7 @@ function App() {
       
       const badgeColor = issue.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/20' : 'bg-amber-950/40 text-amber-400 border-amber-500/20';
 
-      let actionButtonsHtml = "";
+      let actionButtonsHtml;
       if (issue.status === 'resolved') {
         actionButtonsHtml = `<div class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider text-center py-1">✓ Issue Resolved</div>`;
       } else {
@@ -1879,8 +1902,11 @@ Report Reference: #CF-${generatedRef}`);
       async (position) => {
         const { latitude, longitude } = position.coords;
         
-        // Verify if coordinates are inside the city borders first
-        const isInside = pointInPolygon(latitude, longitude, THALASSERY_POLYGON_COORDS);
+        // Verify if coordinates are inside the city borders first using Turf.js
+        const point = turf.point([longitude, latitude]);
+        const isInside = thalasseryBoundaryGeoJSON
+          ? turf.booleanPointInPolygon(point, thalasseryBoundaryGeoJSON)
+          : false;
         if (!isInside) {
           alert("GPS coordinates are outside the Thalassery municipal border. Please select a location inside Thalassery.");
           setIsGeolocationLoading(false);
@@ -1994,7 +2020,10 @@ Report Reference: #CF-${generatedRef}`);
       return;
     }
 
-    const isInsideThalassery = pointInPolygon(formLat, formLng, THALASSERY_POLYGON_COORDS);
+    const point = turf.point([formLng, formLat]);
+    const isInsideThalassery = thalasseryBoundaryGeoJSON
+      ? turf.booleanPointInPolygon(point, thalasseryBoundaryGeoJSON)
+      : false;
     if (!isInsideThalassery) {
       setLocationError("Selected location is outside the Thalassery municipal border. Please select a valid location inside the city.");
       alert("Cannot submit report: Selected location is outside the Thalassery municipal border. Please select a valid location inside the city.");
