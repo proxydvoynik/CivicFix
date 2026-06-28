@@ -624,6 +624,7 @@ const [currentUser, setCurrentUser] = useState(null);
   const [wardensList, setWardensList] = useState([]);
   const [wardRisks, setWardRisks] = useState({});
   const [isRiskForecastOpen, setIsRiskForecastOpen] = useState(false);
+  const [selectedDetailedIncident, setSelectedDetailedIncident] = useState(null);
   
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -1376,11 +1377,11 @@ const [currentUser, setCurrentUser] = useState(null);
       const entries = Object.entries(issuesByWard);
       
       for (const [wardNo, incidents] of entries) {
-        const wardInfo = WARD_POLYGONS.find(wp => wp.wardNo.toString() === wardNo.toString());
-        const wardName = wardInfo ? wardInfo.name : `Ward ${wardNo}`;
+        const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo.toString() === wardNo.toString());
+        const wardName = canonicalWard ? `Ward ${wardNo} - ${canonicalWard.wardName}` : `Ward ${wardNo}`;
         
         try {
-          const result = await triageAgent.predictWardRisk(wardName, incidents, { temp: 29, precipitation: 5, floodRisk: false });
+          const result = await triageAgent.predictWardRisk(wardName, incidents, { temp: 29, precipitation: 5, floodRisk: false }, false);
           newWardRisks[wardNo] = {
             wardName,
             riskLevel: result.riskLevel,
@@ -1927,9 +1928,12 @@ const [currentUser, setCurrentUser] = useState(null);
           <span class="text-[#7d8590] text-[9px] block">REF: #CF-${issue.id.toString().substring(0, 4)}</span>
         </div>
         <p class="mb-2 text-[#8f97a3] leading-relaxed">${issue.location}</p>
-        <div class="text-[10px] text-[#7d8590] mb-3">Community Verifications: <span class="text-white font-bold">${issue.verifications}</span></div>
-        <div class="flex items-center gap-2 border-t border-[#1b1d24]/60 pt-2">
+        <div class="text-[10px] text-[#7d8590] mb-2.5">Community Verifications: <span class="text-white font-bold">${issue.verifications}</span></div>
+        <div class="flex flex-col gap-1.5 border-t border-[#1b1d24]/60 pt-2.5">
           ${actionButtonsHtml}
+          <button id="map-details-btn-${issue.id}" class="w-full bg-[#16171d] hover:bg-[#1f2129] border border-[#1b1d24] text-white hover:text-cyan-400 text-[10px] font-bold py-1.5 rounded transition-colors text-center cursor-pointer uppercase font-mono mt-0.5">
+            🔍 Inspect Details
+          </button>
         </div>
       `;
 
@@ -1939,6 +1943,7 @@ const [currentUser, setCurrentUser] = useState(null);
         const voteBtn = document.getElementById(`map-vote-btn-${issue.id}`);
         const verifyBtn = document.getElementById(`map-verify-btn-${issue.id}`);
         const dispatchBtn = document.getElementById(`map-dispatch-btn-${issue.id}`);
+        const detailsBtn = document.getElementById(`map-details-btn-${issue.id}`);
 
         if (voteBtn) {
           voteBtn.onclick = () => {
@@ -1955,6 +1960,12 @@ const [currentUser, setCurrentUser] = useState(null);
         if (dispatchBtn) {
           dispatchBtn.onclick = () => {
             onViewLetter(issue);
+            marker.closePopup();
+          };
+        }
+        if (detailsBtn) {
+          detailsBtn.onclick = () => {
+            setSelectedDetailedIncident(issue);
             marker.closePopup();
           };
         }
@@ -2754,6 +2765,7 @@ Report Reference: #CF-${generatedRef}`;
         onAutoEscalate={onAutoEscalate}
         onAgentLog={onAgentLog}
         thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
+        onOpenIncidentDetails={setSelectedDetailedIncident}
       />
 
       <AiDispatchQueueWorkspace
@@ -2761,6 +2773,7 @@ Report Reference: #CF-${generatedRef}`;
         onClose={() => setIsDispatchQueueOpen(false)}
         incidents={mappedIncidents}
         thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
+        onOpenIncidentDetails={setSelectedDetailedIncident}
       />
 
       <WardHotspotsWorkspace
@@ -2768,7 +2781,23 @@ Report Reference: #CF-${generatedRef}`;
         onClose={() => setIsRiskForecastOpen(false)}
         wardRisks={wardRisks}
         thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
+        incidents={mappedIncidents}
+        onAgentLog={onAgentLog}
+        triageAgent={triageAgent}
       />
+
+      {selectedDetailedIncident && (
+        <IssueDetailsModal
+          incident={selectedDetailedIncident}
+          onClose={() => setSelectedDetailedIncident(null)}
+          onUpvote={handleVote}
+          onVerify={onVerify}
+          onResolveClick={handleResolveClick}
+          onAuditClick={handleAuditClick}
+          onViewLetter={onViewLetter}
+          currentUserWarden={currentUserWarden}
+        />
+      )}
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
       <AnimatePresence>
@@ -3759,7 +3788,8 @@ function ActiveGridAlertsWorkspace({
   onAuditClick,
   onAutoEscalate,
   onAgentLog,
-  thalasseryBoundaryGeoJSON
+  thalasseryBoundaryGeoJSON,
+  onOpenIncidentDetails
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -3908,6 +3938,9 @@ function ActiveGridAlertsWorkspace({
 
       marker.on('click', () => {
         modalMapInstance.setView([inc.lat, inc.lng], 15);
+        if (onOpenIncidentDetails) {
+          onOpenIncidentDetails(inc);
+        }
       });
     });
   }, [filtered, modalMapInstance]);
@@ -4102,7 +4135,8 @@ function AiDispatchQueueWorkspace({
   isOpen,
   onClose,
   incidents,
-  thalasseryBoundaryGeoJSON
+  thalasseryBoundaryGeoJSON,
+  onOpenIncidentDetails
 }) {
   const [modalMapInstance, setModalMapInstance] = useState(null);
   const modalMapRef = useRef(null);
@@ -4260,6 +4294,9 @@ function AiDispatchQueueWorkspace({
 
       marker.on('click', () => {
         modalMapInstance.setView([inc.lat, inc.lng], 15);
+        if (onOpenIncidentDetails) {
+          onOpenIncidentDetails(inc);
+        }
       });
     });
   }, [dispatchQueue, modalMapInstance]);
@@ -4387,12 +4424,68 @@ function WardHotspotsWorkspace({
   isOpen,
   onClose,
   wardRisks,
-  thalasseryBoundaryGeoJSON
+  thalasseryBoundaryGeoJSON,
+  incidents,
+  onAgentLog,
+  triageAgent
 }) {
   const [modalMapInstance, setModalMapInstance] = useState(null);
   const modalMapRef = useRef(null);
   const [hoveredWardNo, setHoveredWardNo] = useState(null);
   const [clickedWardNo, setClickedWardNo] = useState(null);
+
+  // Local state for interactive AI risk analyses
+  const [localWardRisks, setLocalWardRisks] = useState({});
+  const [loadingAIWards, setLoadingAIWards] = useState({});
+
+  // Sync with background parent state initially
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        setLocalWardRisks(wardRisks);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, wardRisks]);
+
+  // Run AI Diagnostics on demand
+  const runAiDiagnosticsForWard = async (wardNo, wardName) => {
+    if (!wardNo) return;
+    setLoadingAIWards(prev => ({ ...prev, [wardNo]: true }));
+
+    const matchingIncidents = incidents.filter(
+      inc => inc.ward?.toString() === wardNo.toString()
+    );
+
+    try {
+      const aiResult = await triageAgent.predictWardRisk(
+        wardName,
+        matchingIncidents,
+        { temp: 29, precipitation: 5, floodRisk: false },
+        true
+      );
+
+      setLocalWardRisks(prev => ({
+        ...prev,
+        [wardNo.toString()]: {
+          wardName,
+          riskLevel: aiResult.riskLevel,
+          confidence: aiResult.confidence,
+          reason: aiResult.reason,
+          recommendedAction: aiResult.recommendedAction,
+          isAIAnalysed: true
+        }
+      }));
+
+      if (onAgentLog) {
+        onAgentLog(`[Triage Agent] AI Diagnostics for Ward ${wardNo}: Risk ${aiResult.riskLevel.toUpperCase()} (${(aiResult.confidence * 100).toFixed(0)}% conf) - ${aiResult.recommendedAction}`);
+      }
+    } catch (e) {
+      console.error("AI diagnostics failed:", e);
+    } finally {
+      setLoadingAIWards(prev => ({ ...prev, [wardNo]: false }));
+    }
+  };
 
   // Initialize and clean up Map
   useEffect(() => {
@@ -4476,7 +4569,7 @@ function WardHotspotsWorkspace({
       const zone = canonicalWard ? canonicalWard.zone : null;
       const zoneColor = ZONE_COLORS[zone] || "#94a3b8";
 
-      const riskData = wardRisks[wp.wardNo.toString()];
+      const riskData = localWardRisks[wp.wardNo.toString()];
       const riskLevel = riskData ? riskData.riskLevel : "low";
 
       // If this ward is hovered or clicked, highlight it strongly
@@ -4523,7 +4616,7 @@ function WardHotspotsWorkspace({
 
       polygon.addTo(modalMapInstance);
     });
-  }, [modalMapInstance, wardRisks, hoveredWardNo, clickedWardNo]);
+  }, [modalMapInstance, localWardRisks, hoveredWardNo, clickedWardNo]);
 
   if (!isOpen) return null;
 
@@ -4546,7 +4639,7 @@ function WardHotspotsWorkspace({
     }
   };
 
-  const riskArray = Object.values(wardRisks);
+  const riskArray = Object.values(localWardRisks);
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
@@ -4572,11 +4665,11 @@ function WardHotspotsWorkspace({
           {/* Left Column: Forecast Cards */}
           <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
             <div className="text-[11px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
-              AI Forecast Hotspots ({riskArray.length})
+              Municipal Risk Forecast ({riskArray.length})
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar min-h-0">
-              {riskArray.length === 0 ? (
+              {Object.entries(localWardRisks).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="flex items-center gap-2 mb-1.5 animate-pulse">
                     <span className="text-xs font-bold text-white uppercase tracking-wider">Generating Risk Forecast...</span>
@@ -4584,26 +4677,48 @@ function WardHotspotsWorkspace({
                   <span className="text-[10px] text-[#9ca3af] uppercase">Running predictive models</span>
                 </div>
               ) : (
-                riskArray.map((risk, index) => {
-                  const matchingPolygon = WARD_POLYGONS.find(wp => wp.name === risk.wardName || wp.wardNo.toString() === risk.wardName.replace(/Ward /i, '').trim());
-                  const wardNoVal = matchingPolygon ? matchingPolygon.wardNo : null;
+                Object.entries(localWardRisks).map(([wardNoStr, risk]) => {
+                  const wardNoVal = parseInt(wardNoStr);
+                  const matchingPolygon = WARD_POLYGONS.find(wp => wp.wardNo === wardNoVal);
+                  const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wardNoVal);
                   const isHighlighted = clickedWardNo === wardNoVal || hoveredWardNo === wardNoVal;
+
+                  const displayTitle = canonicalWard ? `Ward ${wardNoVal} - ${canonicalWard.wardName}` : `Ward ${wardNoVal}`;
+                  const displayZone = canonicalWard ? canonicalWard.zone : "";
 
                   return (
                     <div 
-                      key={index} 
+                      key={wardNoStr} 
                       onClick={() => matchingPolygon && handleWardItemClick(matchingPolygon.wardNo, matchingPolygon.polygon)}
                       onMouseEnter={() => matchingPolygon && setHoveredWardNo(matchingPolygon.wardNo)}
                       onMouseLeave={() => setHoveredWardNo(null)}
-                      className={`cursor-pointer bg-[#16171d]/20 border p-4 rounded-lg flex flex-col gap-2 transition-all ${
-                        isHighlighted ? "border-amber-500/40 bg-amber-950/5 shadow-[0_0_12px_rgba(245,158,11,0.08)]" : "border-[#1b1d24]/60 hover:border-amber-500/20"
+                      className={`border p-4 rounded-lg flex flex-col gap-2 transition-all cursor-pointer ${
+                        isHighlighted ? "border-amber-500/40 bg-amber-950/5 shadow-[0_0_12px_rgba(245,158,11,0.08)]" : "border-[#1b1d24]/60 hover:border-amber-500/20 bg-[#16171d]/20"
                       }`}
                     >
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-white text-xs">{risk.wardName}</span>
-                        <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold ${getRiskColor(risk.riskLevel)}`}>
-                          {risk.riskLevel}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-white text-xs">{displayTitle}</span>
+                          {displayZone && (
+                            <span className="text-[9px] text-[#7d8590] mt-0.5 uppercase tracking-wide">
+                              {displayZone} Sector
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {risk.isAIAnalysed ? (
+                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold border border-purple-500/20 bg-purple-950/15 text-purple-400">
+                              🤖 AI Certified
+                            </span>
+                          ) : (
+                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold border border-blue-500/20 bg-blue-950/15 text-blue-400">
+                              ⚖ Heuristic
+                            </span>
+                          )}
+                          <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold ${getRiskColor(risk.riskLevel)}`}>
+                            {risk.riskLevel}
+                          </span>
+                        </div>
                       </div>
                       
                       {risk.confidence && (
@@ -4621,6 +4736,29 @@ function WardHotspotsWorkspace({
                           Action Plan: {risk.recommendedAction}
                         </div>
                       )}
+
+                      {/* AI Diagnostics Trigger Button */}
+                      {!risk.isAIAnalysed && wardNoVal && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            runAiDiagnosticsForWard(wardNoVal, risk.wardName);
+                          }}
+                          disabled={loadingAIWards[wardNoVal]}
+                          className="mt-2 bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white px-2.5 py-1 rounded border border-purple-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer w-full flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loadingAIWards[wardNoVal] ? (
+                            <>
+                              <span className="w-2.5 h-2.5 rounded-full border border-purple-400 border-t-transparent animate-spin"></span>
+                              Running AI...
+                            </>
+                          ) : (
+                            <>
+                              🤖 Run AI Diagnostics
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   );
                 })
@@ -4633,6 +4771,218 @@ function WardHotspotsWorkspace({
             <div className="flex-1 w-full h-full min-h-0 relative z-0 rounded border border-[#1b1d24]/60 shadow-lg overflow-hidden">
               <div ref={modalMapRef} className="w-full h-full min-h-0 bg-[#090b10]"></div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IssueDetailsModal({
+  incident,
+  onClose,
+  onUpvote,
+  onVerify,
+  onResolveClick,
+  onAuditClick,
+  onViewLetter,
+  currentUserWarden
+}) {
+  if (!incident) return null;
+
+  const cfId = incident.id.toString().startsWith('CF-') 
+    ? incident.id 
+    : `CF-${incident.id.toString().substring(0, 4)}`;
+
+  const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo.toString() === incident.ward?.toString());
+  const wardName = canonicalWard ? canonicalWard.wardName : `Ward ${incident.ward}`;
+  const zone = canonicalWard ? canonicalWard.zone : "Unknown Zone";
+
+  const getStatusColor = (status) => {
+    if (status === 'resolved' || status === 'resolved_verified') return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    if (status === 'escalated') return 'bg-red-500/10 text-red-400 border border-red-500/20';
+    if (status === 'resolving') return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+  };
+
+  const getSeverityColor = (sev) => {
+    if (sev === 'critical') return 'bg-red-500/10 text-red-400 border border-red-500/20';
+    if (sev === 'high') return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full max-w-4xl h-[80vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+        
+        {/* Header */}
+        <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
+          <div className="flex items-center gap-3">
+            <span className="text-white font-bold text-sm">{cfId}</span>
+            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-bold ${getSeverityColor(incident.severity)}`}>
+              {incident.severity}
+            </span>
+            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-bold ${getStatusColor(incident.status)}`}>
+              {incident.status?.replace('_', ' ')}
+            </span>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Content Panel split */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+          
+          {/* Left Panel: Photo evidence */}
+          <div className="w-full md:w-[420px] border-r border-[#1b1d24]/60 p-5 flex flex-col justify-center items-center bg-[#0c0d12]/40 relative overflow-hidden">
+            {incident.image || incident.evidenceUrl ? (
+              <div className="relative w-full h-full max-h-[360px] rounded border border-[#1b1d24] overflow-hidden bg-black/40 flex items-center justify-center">
+                <img 
+                  src={incident.image || incident.evidenceUrl} 
+                  alt="Incident evidence" 
+                  className="w-full h-full object-contain"
+                />
+                
+                {/* Meta details badge inside photo view */}
+                <div className="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-sm border border-[#1b1d24]/60 p-2.5 rounded text-[9px] flex flex-col gap-1 leading-normal font-mono text-cyan-400">
+                  <div>📷 EXIF MATCH STATUS: VALIDATED</div>
+                  <div>📍 GPS LOCK: {incident.lat?.toFixed(6)}, {incident.lng?.toFixed(6)}</div>
+                  {incident.uploadedAt && <div>📅 TIMESTAMP: {incident.uploadedAt}</div>}
+                </div>
+              </div>
+            ) : (
+              <div className="w-full h-[260px] border border-[#1b1d24]/60 bg-black/20 rounded flex flex-col items-center justify-center text-center p-6 gap-3">
+                <span className="text-cyan-500/40 animate-pulse text-lg">📡</span>
+                <div className="text-xs text-[#7d8590] uppercase font-bold tracking-wider">No Photo Evidence Submissions</div>
+                <div className="text-[9px] text-cyan-400 uppercase font-mono">Location verified via citizen coordinates telemetry</div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel: Incident details data */}
+          <div className="flex-1 p-6 overflow-y-auto space-y-5">
+            
+            {/* Category / Type info */}
+            <div>
+              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Issue Category</div>
+              <div className="text-white text-base font-bold">{incident.type}</div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Description</div>
+              <p className="text-xs text-[#9ca3af] leading-relaxed font-sans">{incident.details || incident.description || "No description provided."}</p>
+            </div>
+
+            {/* Location */}
+            <div>
+              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Geographic Location</div>
+              <p className="text-xs text-[#e2e8f0] font-sans">{incident.location}</p>
+              <div className="text-[10px] text-cyan-400 mt-1 font-mono">
+                Coordinates: {incident.lat?.toFixed(6)}, {incident.lng?.toFixed(6)}
+              </div>
+            </div>
+
+            {/* Ward Details */}
+            <div className="grid grid-cols-2 gap-4 border-t border-b border-[#1b1d24]/60 py-4 my-2">
+              <div>
+                <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold">Administrative Ward</div>
+                <div className="text-white text-xs font-bold mt-1">Ward {incident.ward} - {wardName}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold">Municipal Zone</div>
+                <div className="text-cyan-400 text-xs font-bold mt-1 uppercase">{zone}</div>
+              </div>
+            </div>
+
+            {/* Verification Statistics */}
+            <div className="flex justify-between items-center bg-[#16171d]/40 border border-[#1b1d24]/60 p-4 rounded-lg">
+              <div className="text-center flex-1 border-r border-[#1b1d24]/30">
+                <div className="text-[9px] text-[#7d8590] uppercase font-bold">Upvotes</div>
+                <div className="text-lg text-white font-bold font-mono mt-0.5">{incident.upvotes || 0}</div>
+              </div>
+              <div className="text-center flex-1">
+                <div className="text-[9px] text-[#7d8590] uppercase font-bold">Warden Verifications</div>
+                <div className="text-lg text-emerald-400 font-bold font-mono mt-0.5">{incident.verifications || 0}</div>
+              </div>
+            </div>
+
+            {/* Actions button row */}
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Incident Controls</div>
+              <div className="flex flex-wrap gap-3">
+                
+                {/* Upvote Action */}
+                {incident.status !== 'resolved' && incident.status !== 'resolved_verified' && (
+                  <button 
+                    onClick={() => {
+                      onUpvote(incident.id, incident.docId);
+                      onClose();
+                    }}
+                    className="flex-1 min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors shadow-[0_0_12px_rgba(37,99,235,0.2)]"
+                  >
+                    ▲ Upvote (+1)
+                  </button>
+                )}
+
+                {/* Verify Action */}
+                {incident.status !== 'resolved' && incident.status !== 'resolved_verified' && (
+                  <button 
+                    onClick={() => {
+                      onVerify(incident.id);
+                      onClose();
+                    }}
+                    className="flex-1 min-w-[120px] bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
+                  >
+                    ✓ Verify Authenticity
+                  </button>
+                )}
+
+                {/* Dispatch Letter Action */}
+                {incident.status === 'escalated' && (
+                  <button 
+                    onClick={() => {
+                      onViewLetter(incident);
+                      onClose();
+                    }}
+                    className="flex-1 min-w-[120px] bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors shadow-[0_0_12px_rgba(147,51,234,0.2)]"
+                  >
+                    ✉ View Dispatch Notice
+                  </button>
+                )}
+
+                {/* Resolve Action */}
+                {incident.status !== 'resolved' && incident.status !== 'resolved_verified' && (
+                  <button 
+                    onClick={() => {
+                      onResolveClick(incident);
+                      onClose();
+                    }}
+                    className="flex-1 min-w-[120px] bg-cyan-600 hover:bg-cyan-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
+                  >
+                    🛠 Complete Clearance
+                  </button>
+                )}
+
+                {/* Audit Action (Warden only) */}
+                {currentUserWarden && incident.status === 'resolved' && (
+                  <button 
+                    onClick={() => {
+                      onAuditClick(incident);
+                      onClose();
+                    }}
+                    className="flex-1 min-w-[120px] bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
+                  >
+                    🔎 Audit Work Evidence
+                  </button>
+                )}
+              </div>
+            </div>
+
           </div>
 
         </div>

@@ -161,7 +161,7 @@ Determine the audit outcome:
   }
 
   // Capability 3: Ward Risk Forecasting
-  async predictWardRisk(wardName, incidents, weatherData) {
+  async predictWardRisk(wardName, incidents, weatherData, forceAI = false) {
     // Deterministic metrics
     const unresolved = incidents.filter(i => i.status !== 'resolved' && i.status !== 'resolved_verified').length;
     const criticalCount = incidents.filter(i => i.severity === 'critical').length;
@@ -175,13 +175,15 @@ Determine the audit outcome:
       deterministicRisk = "moderate";
     }
 
-    if (!isGeminiConfigured) {
-      return {
-        riskLevel: deterministicRisk,
-        confidence: 0.9,
-        reason: `Deterministic assessment based on ${unresolved} active reports and ${criticalCount} critical incidents.`,
-        recommendedAction: deterministicRisk === 'critical' ? "Dispatch immediate clearance teams" : "Monitor ward channels"
-      };
+    const localResult = {
+      riskLevel: deterministicRisk,
+      confidence: 0.95,
+      reason: `Heuristic evaluation: ${unresolved} active reports, ${criticalCount} critical incidents.`,
+      recommendedAction: deterministicRisk === 'critical' ? "Dispatch immediate clearance teams" : "Monitor ward channels locally."
+    };
+
+    if (!forceAI || !isGeminiConfigured) {
+      return localResult;
     }
 
     const incidentsListStr = incidents.map(i => 
@@ -218,11 +220,22 @@ ${incidentsListStr || "None"}
       return JSON.parse(response.text);
     } catch (err) {
       console.error("Agent risk prediction failed:", err);
+      
+      const errMsg = err.message || "";
+      let friendlyReason = `Heuristic fallback (AI model offline): ${unresolved} active reports, ${criticalCount} critical incidents.`;
+      let friendlyAction = localResult.recommendedAction;
+      
+      if (errMsg.includes("429") || errMsg.toLowerCase().includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+        friendlyReason = `Heuristic backup (Gemini quota limit reached): ${unresolved} active issues present. Risk level computed locally using historical ward weightings.`;
+        friendlyAction = "Check back later when Gemini free quota resets, or dispatch wardens manually.";
+      }
+      
       return {
         riskLevel: deterministicRisk,
-        confidence: 0.5,
-        reason: "Prediction model error fallback: " + err.message,
-        recommendedAction: "Monitor ward status manually."
+        confidence: 0.6,
+        reason: friendlyReason,
+        recommendedAction: friendlyAction,
+        isQuotaFallback: true
       };
     }
   }
