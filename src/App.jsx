@@ -2077,6 +2077,34 @@ Report Reference: #CF-${generatedRef}`);
       return;
     }
 
+    // Check for duplicate reports (same category, within 150 meters, and not resolved)
+    const duplicate = reports.find(r => {
+      if (r.type?.toLowerCase() !== formType?.toLowerCase()) return false;
+      if (r.status === 'resolved') return false;
+      if (r.lat && r.lng) {
+        try {
+          const fromPoint = turf.point([formLng, formLat]);
+          const toPoint = turf.point([r.lng, r.lat]);
+          const distKm = turf.distance(fromPoint, toPoint);
+          return distKm < 0.15; // 150 meters
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    });
+
+    if (duplicate) {
+      const proceed = window.confirm(
+        `Possible Duplicate Detected!\n\n` +
+        `An active "${duplicate.type}" report already exists nearby at "${duplicate.location}".\n` +
+        `Do you still want to create a new ticket?`
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     
     const derivedZone = getZoneFromWard(formWardNo);
