@@ -16,7 +16,28 @@ const SEED_WARDENS = [
   { id: "seed_ashwin_raj", name: "Ashwin Raj", role: "Thalassery Warden", karma: 520 },
   { id: "seed_divya_balan", name: "Divya Balan", role: "Pothole Ranger", karma: 450 },
   { id: "seed_muhammed_shafi", name: "Muhammed Shafi", role: "Waste Tracker", karma: 390 },
-  { id: "seed_ananya_k", name: "Ananya K.", role: "Street Watcher", karma: 340 }
+  { id: "seed_ananya_k", name: "Ananya K.", role: "Street Watcher", karma: 340 },
+  { id: "seed_haris_p", name: "Haris P.", role: "Thalassery Warden", karma: 580 },
+  { id: "seed_suresh_m", name: "Suresh M.", role: "Thalassery Warden", karma: 490 },
+  { id: "seed_kavya_nair", name: "Kavya Nair", role: "Pothole Ranger", karma: 410 },
+  { id: "seed_rahul_k", name: "Rahul K.", role: "Waste Tracker", karma: 370 },
+  { id: "seed_meera_v", name: "Meera V.", role: "Street Watcher", karma: 330 },
+  { id: "seed_amal_roy", name: "Amal Roy", role: "Thalassery Warden", karma: 510 },
+  { id: "seed_fathima_z", name: "Fathima Z.", role: "Pothole Ranger", karma: 460 },
+  { id: "seed_sidharth_s", name: "Sidharth S.", role: "Waste Tracker", karma: 380 },
+  { id: "seed_neetu_p", name: "Neetu P.", role: "Street Watcher", karma: 320 },
+  { id: "seed_sreejith_v", name: "Sreejith V.", role: "Thalassery Warden", karma: 505 },
+  { id: "seed_anjana_das", name: "Anjana Das", role: "Pothole Ranger", karma: 430 },
+  { id: "seed_jithin_m", name: "Jithin M.", role: "Waste Tracker", karma: 395 },
+  { id: "seed_sruthy_k", name: "Sruthy K.", role: "Street Watcher", karma: 310 },
+  { id: "seed_arun_kumar", name: "Arun Kumar", role: "Thalassery Warden", karma: 540 },
+  { id: "seed_gopika_s", name: "Gopika S.", role: "Pothole Ranger", karma: 440 },
+  { id: "seed_shyam_p", name: "Shyam P.", role: "Waste Tracker", karma: 375 },
+  { id: "seed_athira_m", name: "Athira M.", role: "Street Watcher", karma: 305 },
+  { id: "seed_vivek_nair", name: "Vivek Nair", role: "Thalassery Warden", karma: 500 },
+  { id: "seed_reshma_r", name: "Reshma R.", role: "Pothole Ranger", karma: 420 },
+  { id: "seed_nikhil_v", name: "Nikhil V.", role: "Waste Tracker", karma: 385 },
+  { id: "seed_sneha_k", name: "Sneha K.", role: "Street Watcher", karma: 300 }
 ];
 
 export default function RightPanel({

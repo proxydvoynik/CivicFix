@@ -60,6 +60,7 @@ const initialDistricts = [
 ];
 
 // Mock Recent Issues Feed for Thalassery
+// Mock Recent Issues Feed for Thalassery
 const initialIssues = [
   { 
     id: 1, 
@@ -69,14 +70,15 @@ const initialIssues = [
     ward: "47",
     timeAgo: "2m ago", 
     severity: "critical", 
-    votes: 8, 
-    verifications: 2,
+    votes: 85, 
+    verifications: 12,
     user: "Adithya V.",
     streetViewStatus: "verified",
     image: "/images/seed/pothole.png",
     lat: 11.746356,
     lng: 75.492390,
     status: "dispatched",
+    dispatchApprovals: ["Ashwin Raj", "Divya Balan", "Muhammed Shafi", "Ananya K.", "Haris P.", "Suresh M.", "Kavya Nair", "Rahul K.", "Meera V.", "Amal Roy", "Fathima Z.", "Sidharth S.", "Neetu P.", "Sreejith V.", "Anjana Das"],
     details: "Deep crater in the middle of the road, causing severe traffic block and safety risks for two-wheelers.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -101,14 +103,15 @@ Report Reference: #CF-9811`
     ward: "45",
     timeAgo: "14m ago", 
     severity: "critical", 
-    votes: 18, 
-    verifications: 3,
+    votes: 180, 
+    verifications: 16,
     user: "Nihal P.",
     streetViewStatus: "verified",
     image: "/images/seed/drainage.png",
     lat: 11.743814,
     lng: 75.491403,
     status: "escalated",
+    dispatchApprovals: ["Ashwin Raj", "Divya Balan", "Muhammed Shafi", "Ananya K.", "Haris P.", "Suresh M.", "Kavya Nair", "Rahul K.", "Meera V.", "Amal Roy", "Fathima Z.", "Sidharth S."],
     details: "Water logged up to 60 cm under the railway bridge. Cars and autos are turning back.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -133,8 +136,8 @@ Report Reference: #CF-9812`
     ward: "32",
     timeAgo: "32m ago", 
     severity: "warning", 
-    votes: 6, 
-    verifications: 1,
+    votes: 60, 
+    verifications: 5,
     user: "Shahana M.",
     streetViewStatus: "unverified",
     image: "/images/seed/waste.png",
@@ -163,8 +166,8 @@ Report Reference: #CF-9813`
     ward: "42",
     timeAgo: "1h ago", 
     severity: "warning", 
-    votes: 9, 
-    verifications: 1,
+    votes: 90, 
+    verifications: 7,
     user: "Ramesh Kumar",
     streetViewStatus: "verified",
     image: "/images/seed/drainage.png",
@@ -193,8 +196,8 @@ Report Reference: #CF-9814`
     ward: "12",
     timeAgo: "2h ago", 
     severity: "info", 
-    votes: 3, 
-    verifications: 0,
+    votes: 30, 
+    verifications: 2,
     user: "Kiran Das",
     streetViewStatus: "unverified",
     image: "/images/seed/streetlight.png",
@@ -223,8 +226,8 @@ Report Reference: #CF-9815`
     ward: "14",
     timeAgo: "4h ago", 
     severity: "critical", 
-    votes: 12, 
-    verifications: 2,
+    votes: 120, 
+    verifications: 11,
     user: "Aiswarya K.",
     streetViewStatus: "verified",
     image: "/images/seed/safety.png",
@@ -253,8 +256,8 @@ Report Reference: #CF-9816`
     ward: "1",
     timeAgo: "6h ago", 
     severity: "warning", 
-    votes: 5, 
-    verifications: 1,
+    votes: 50, 
+    verifications: 4,
     user: "Gautham S.",
     streetViewStatus: "verified",
     image: "/images/seed/pothole.png",
@@ -283,8 +286,8 @@ Report Reference: #CF-9817`
     ward: "38",
     timeAgo: "8h ago", 
     severity: "warning", 
-    votes: 7, 
-    verifications: 1,
+    votes: 70, 
+    verifications: 6,
     user: "Suresh Babu",
     streetViewStatus: "unverified",
     image: "/images/seed/waste.png",
@@ -313,14 +316,15 @@ Report Reference: #CF-9818`
     ward: "43",
     timeAgo: "12h ago", 
     severity: "critical", 
-    votes: 15, 
-    verifications: 3,
+    votes: 150, 
+    verifications: 15,
     user: "Muhammed R.",
     streetViewStatus: "verified",
     image: "/images/seed/safety.png",
     lat: 11.736787,
     lng: 75.496621,
     status: "dispatched",
+    dispatchApprovals: ["Ashwin Raj", "Divya Balan", "Muhammed Shafi", "Ananya K.", "Haris P.", "Suresh M.", "Kavya Nair", "Rahul K.", "Meera V.", "Amal Roy", "Fathima Z.", "Sidharth S.", "Neetu P.", "Sreejith V.", "Anjana Das"],
     details: "Broken side barrier on the sharp sea-facing curve, exposing vehicles to fall onto the rocky shore.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -343,8 +347,8 @@ Report Reference: #CF-9819`
     ward: "13",
     timeAgo: "1d ago", 
     severity: "info", 
-    votes: 2, 
-    verifications: 0,
+    votes: 20, 
+    verifications: 1,
     user: "Meera Nair",
     streetViewStatus: "unverified",
     image: "/images/seed/streetlight.png",
@@ -373,8 +377,8 @@ Report Reference: #CF-9820`
     ward: "22",
     timeAgo: "1d ago", 
     severity: "warning", 
-    votes: 4, 
-    verifications: 1,
+    votes: 40, 
+    verifications: 3,
     user: "Rahul R.",
     streetViewStatus: "unverified",
     image: "/images/seed/pothole.png",
@@ -403,14 +407,15 @@ Report Reference: #CF-9821`
     ward: "53",
     timeAgo: "2d ago", 
     severity: "warning", 
-    votes: 11, 
-    verifications: 2,
+    votes: 110, 
+    verifications: 9,
     user: "Fathima S.",
     streetViewStatus: "verified",
     image: "/images/seed/drainage.png",
     lat: 11.763435,
     lng: 75.475041,
-    status: "open",
+    status: "escalated",
+    dispatchApprovals: ["Ashwin Raj", "Divya Balan", "Muhammed Shafi", "Ananya K.", "Haris P.", "Suresh M.", "Kavya Nair", "Rahul K.", "Meera V."],
     details: "Stormwater accumulates on the roadway during slight showers, blocking pedestrian movements.",
     letterDrafted: `To,
 The Municipal Commissioner,
@@ -482,10 +487,10 @@ const getPriorityScore = (incident, severityScore, floodRisk) => {
   let score = severityScore;
 
   const verifications = incident.verifications || 0;
-  score += Math.min(verifications * 5, 20);
+  score += Math.min(verifications * 1.33, 20);
 
   const upvotes = incident.votes || incident.upvotes || 0;
-  score += Math.min(upvotes * 1.5, 15);
+  score += Math.min(upvotes * 0.15, 15);
 
   const timeAgo = (incident.timeAgo || "").toLowerCase();
   const isOld = timeAgo.includes("h ago") || timeAgo.includes("d ago") || 
@@ -580,22 +585,22 @@ const getEscalationReason = (incident, floodRisk) => {
   if (incident.status === "resolved") {
     return "Issue successfully resolved by municipal action.";
   }
-  if (verifications >= 3 && isRainSensitive && floodRisk) {
+  if (verifications >= 15 && isRainSensitive && floodRisk) {
     return "Escalated due to repeated verification and flood risk.";
   }
-  if (verifications >= 3) {
+  if (verifications >= 15) {
     return `Escalated due to repeated volunteer verifications (${verifications}).`;
   }
   if (isRainSensitive && floodRisk) {
-    return "Priority boost due to active monsoon precipitation risk.";
+    return "Monsoon precipitation risk threshold active for low-lying zone.";
   }
-  if (hasImage && upvotes >= 10) {
+  if (hasImage && upvotes >= 100) {
     return "High priority based on photo evidence and community support.";
   }
   if (hasImage) {
     return "Verification pending with confirmed photo evidence.";
   }
-  if (upvotes >= 10) {
+  if (upvotes >= 100) {
     return "Under review due to significant community upvotes.";
   }
   return "Queued for routine inspection.";
@@ -732,7 +737,7 @@ function App() {
         let status = r.status;
         if (!status) {
           if (r.severity === "resolved") status = "resolved";
-          else if (r.verifications >= 3 || r.severity === "critical") status = "escalated";
+          else if (r.verifications >= 15 || r.severity === "critical") status = "escalated";
           else status = "open";
         }
         return (zone === "Seafront" || zone === "Court Corridor") &&
@@ -763,7 +768,7 @@ function App() {
       let status = r.status;
       if (!status) {
         if (r.severity === "resolved") status = "resolved";
-        else if (r.verifications >= 3 || r.severity === "critical") status = "escalated";
+        else if (r.verifications >= 15 || r.severity === "critical") status = "escalated";
         else status = "open";
       }
 
@@ -797,6 +802,9 @@ function App() {
         details: r.details,
         letterDrafted: r.letterDrafted,
         timeAgo: r.timeAgo,
+        image: r.image,
+        streetViewStatus: r.streetViewStatus,
+        hasImage: r.hasImage || !!r.image,
         
         // New functional fields
         severity: derivedSeverity,
@@ -996,8 +1004,8 @@ function App() {
         const report = reports.find(r => r.docId === docId);
         if (!report) return;
         const nextVerifications = (report.verifications || 0) + 1;
-        const nextSeverity = nextVerifications >= 3 ? "critical" : report.severity;
-        const nextStatus = nextVerifications >= 3 ? "escalated" : (report.status || "open");
+        const nextSeverity = nextVerifications >= 15 ? "critical" : report.severity;
+        const nextStatus = nextVerifications >= 15 ? "escalated" : (report.status || "open");
         
         const docRef = doc(db, 'reports', docId);
         await updateDoc(docRef, {
@@ -1010,7 +1018,7 @@ function App() {
         setAiLogs(prevLogs => [...prevLogs, { 
           id: `log-verify-${id}-${Date.now()}-${Math.random()}`, 
           type: "success", 
-          text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
+          text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 15 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
         }]);
         await incrementUserKarma(5);
       } catch (error) {
@@ -1020,14 +1028,14 @@ function App() {
       setReports(prev => prev.map(r => {
         if (r.id === id) {
           const nextVerifications = r.verifications + 1;
-          const nextSeverity = nextVerifications >= 3 ? "critical" : r.severity;
-          const nextStatus = nextVerifications >= 3 ? "escalated" : (r.status || "open");
+          const nextSeverity = nextVerifications >= 15 ? "critical" : r.severity;
+          const nextStatus = nextVerifications >= 15 ? "escalated" : (r.status || "open");
           
           // Log AI action
           setAiLogs(prevLogs => [...prevLogs, { 
             id: `log-verify-${id}-${Date.now()}-${Math.random()}`, 
             type: "success", 
-            text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 3 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
+            text: `Verification logged for report #${id}. [Status: ${nextVerifications >= 15 ? "ESCALATED" : "PENDING CLEARANCE"}]` 
           }]);
 
           return { ...r, verifications: nextVerifications, severity: nextSeverity, status: nextStatus };
@@ -1057,6 +1065,28 @@ function App() {
       alert("Permission Denied: Only registered Thalassery Wardens can review and dispatch AI Grievance Letters.");
       return;
     }
+    
+    // Seed mock approvals if empty and escalated
+    if (report.status === 'escalated' && (!report.dispatchApprovals || report.dispatchApprovals.length === 0)) {
+      const mockApprovalsCount = 11 + Math.floor(Math.random() * 3); // 11, 12, or 13 approvals
+      const mockNames = [
+        "Ashwin Raj", "Divya Balan", "Muhammed Shafi", "Ananya K.", 
+        "Haris P.", "Suresh M.", "Kavya Nair", "Rahul K.", 
+        "Meera V.", "Amal Roy", "Fathima Z.", "Sidharth S.", 
+        "Neetu P.", "Sreejith V.", "Anjana Das"
+      ].slice(0, mockApprovalsCount);
+      
+      report.dispatchApprovals = mockNames;
+      
+      // Update locally or in Firebase
+      if (isFirebaseConfigured && report.docId) {
+        const reportRef = doc(db, 'reports', report.docId);
+        updateDoc(reportRef, { dispatchApprovals: mockNames }).catch(e => console.error("Error setting mock approvals:", e));
+      } else {
+        setReports(prev => prev.map(r => r.id === report.id ? { ...r, dispatchApprovals: mockNames } : r));
+      }
+    }
+
     setActiveLetter(report);
   }, [currentUserWarden]);
 
@@ -1212,7 +1242,28 @@ function App() {
             { id: "seed_ashwin_raj", name: "Ashwin Raj", karma: 520, role: "Thalassery Warden" },
             { id: "seed_divya_balan", name: "Divya Balan", karma: 450, role: "Pothole Ranger" },
             { id: "seed_muhammed_shafi", name: "Muhammed Shafi", karma: 390, role: "Waste Tracker" },
-            { id: "seed_ananya_k", name: "Ananya K.", karma: 340, role: "Street Watcher" }
+            { id: "seed_ananya_k", name: "Ananya K.", karma: 340, role: "Street Watcher" },
+            { id: "seed_haris_p", name: "Haris P.", karma: 580, role: "Thalassery Warden" },
+            { id: "seed_suresh_m", name: "Suresh M.", karma: 490, role: "Thalassery Warden" },
+            { id: "seed_kavya_nair", name: "Kavya Nair", karma: 410, role: "Pothole Ranger" },
+            { id: "seed_rahul_k", name: "Rahul K.", karma: 370, role: "Waste Tracker" },
+            { id: "seed_meera_v", name: "Meera V.", karma: 330, role: "Street Watcher" },
+            { id: "seed_amal_roy", name: "Amal Roy", karma: 510, role: "Thalassery Warden" },
+            { id: "seed_fathima_z", name: "Fathima Z.", karma: 460, role: "Pothole Ranger" },
+            { id: "seed_sidharth_s", name: "Sidharth S.", karma: 380, role: "Waste Tracker" },
+            { id: "seed_neetu_p", name: "Neetu P.", karma: 320, role: "Street Watcher" },
+            { id: "seed_sreejith_v", name: "Sreejith V.", karma: 505, role: "Thalassery Warden" },
+            { id: "seed_anjana_das", name: "Anjana Das", karma: 430, role: "Pothole Ranger" },
+            { id: "seed_jithin_m", name: "Jithin M.", karma: 395, role: "Waste Tracker" },
+            { id: "seed_sruthy_k", name: "Sruthy K.", karma: 310, role: "Street Watcher" },
+            { id: "seed_arun_kumar", name: "Arun Kumar", karma: 540, role: "Thalassery Warden" },
+            { id: "seed_gopika_s", name: "Gopika S.", karma: 440, role: "Pothole Ranger" },
+            { id: "seed_shyam_p", name: "Shyam P.", karma: 375, role: "Waste Tracker" },
+            { id: "seed_athira_m", name: "Athira M.", karma: 305, role: "Street Watcher" },
+            { id: "seed_vivek_nair", name: "Vivek Nair", karma: 500, role: "Thalassery Warden" },
+            { id: "seed_reshma_r", name: "Reshma R.", karma: 420, role: "Pothole Ranger" },
+            { id: "seed_nikhil_v", name: "Nikhil V.", karma: 385, role: "Waste Tracker" },
+            { id: "seed_sneha_k", name: "Sneha K.", karma: 300, role: "Street Watcher" }
           ];
           for (const s of SEEDS) {
             await setDoc(doc(db, 'wardens', s.id), {
@@ -1686,17 +1737,13 @@ function App() {
         }
         if (verifyBtn) {
           verifyBtn.onclick = () => {
-            setActiveStreetCheck(issue);
+            onVerify(issue.id);
             marker.closePopup();
           };
         }
         if (dispatchBtn) {
           dispatchBtn.onclick = () => {
-            if (!currentUserWarden) {
-              alert("Permission Denied: Only registered Thalassery Wardens can review and dispatch AI Grievance Letters.");
-              return;
-            }
-            setActiveLetter(issue);
+            onViewLetter(issue);
             marker.closePopup();
           };
         }
@@ -1704,7 +1751,7 @@ function App() {
 
       reportMarkersGroup.current.addLayer(marker);
     });
-  }, [mappedIncidents, mapInstance, handleVote, handleVerify, setActiveStreetCheck, currentUserWarden]);
+  }, [mappedIncidents, mapInstance, handleVote, handleVerify, onVerify, currentUserWarden, onViewLetter]);
 
   // Sync hazard heatmap layer on Leaflet map
   useEffect(() => {
@@ -2725,7 +2772,7 @@ Report Reference: #CF-${generatedRef}`;
                 <div className="flex justify-between items-center text-[10px] font-mono">
                   <span className="text-[#8e8e8f] uppercase font-bold">Warden Consensus Progress</span>
                   <span className="text-cyan-400 font-bold">
-                    {(activeLetter.dispatchApprovals || []).length} / 5 Approvals
+                    {(activeLetter.dispatchApprovals || []).length} / 15 Approvals
                   </span>
                 </div>
                 
@@ -2733,7 +2780,7 @@ Report Reference: #CF-${generatedRef}`;
                 <div className="w-full bg-[#1b1d24] h-2 rounded-full overflow-hidden">
                   <div 
                     className="bg-cyan-500 h-full transition-all duration-300 shadow-[0_0_8px_#06b6d4]"
-                    style={{ width: `${Math.min(((activeLetter.dispatchApprovals || []).length / 5) * 100, 100)}%` }}
+                    style={{ width: `${Math.min(((activeLetter.dispatchApprovals || []).length / 15) * 100, 100)}%` }}
                   />
                 </div>
 
@@ -2764,24 +2811,24 @@ Report Reference: #CF-${generatedRef}`;
                       const currentApprovals = activeLetter.dispatchApprovals || [];
 
                       if (currentApprovals.includes(currentWardenName)) {
-                        alert(`You have already approved this dispatch notice. Approvals: ${currentApprovals.length}/5.`);
+                        alert(`You have already approved this dispatch notice. Approvals: ${currentApprovals.length}/15.`);
                         return;
                       }
 
                       const nextApprovals = [...currentApprovals, currentWardenName];
-                      const nextStatus = nextApprovals.length >= 5 ? 'dispatched' : 'escalated';
+                      const nextStatus = nextApprovals.length >= 15 ? 'dispatched' : 'escalated';
 
                       if (nextStatus === 'dispatched') {
                         setAiLogs(prev => [...prev, { 
                           id: `log-dispatch-${reportId}-${Date.now()}`, 
                           type: "success", 
-                          text: `Consensus Reached: Dispatch notice for #CF-${reportId.toString().substring(0, 4)} approved by 5 wardens and sent to Municipal Commissioner!` 
+                          text: `Consensus Reached: Dispatch notice for #CF-${reportId.toString().substring(0, 4)} approved by 15 wardens and sent to Municipal Commissioner!` 
                         }]);
                       } else {
                         setAiLogs(prev => [...prev, { 
                           id: `log-dispatch-approve-${reportId}-${Date.now()}`, 
                           type: "info", 
-                          text: `Dispatch approval registered by warden ${currentWardenName} (${nextApprovals.length}/5 approvals).` 
+                          text: `Dispatch approval registered by warden ${currentWardenName} (${nextApprovals.length}/15 approvals).` 
                         }]);
                       }
 
@@ -2803,7 +2850,7 @@ Report Reference: #CF-${generatedRef}`;
                         alert(`Consensus Reached! Formal dispatch notice sent to Municipal Commissioner.`);
                         setActiveLetter(null);
                       } else {
-                        alert(`Approval logged successfully (${nextApprovals.length}/5 approvals). This notice requires ${5 - nextApprovals.length} more warden approval(s) to be sent.`);
+                        alert(`Approval logged successfully (${nextApprovals.length}/15 approvals). This notice requires ${15 - nextApprovals.length} more warden approval(s) to be sent.`);
                         setActiveLetter(prev => prev ? { ...prev, dispatchApprovals: nextApprovals } : null);
                       }
                     }}
