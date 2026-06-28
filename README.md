@@ -61,8 +61,9 @@ CivicFix uses a balanced, high-density layout with a dark, premium matte charcoa
 - **Volunteer Karma Board**: High-contrast leaderboard highlighting top wardens, badges, and contribution karma points.
 - **Vertical Spacing Balance**: Side widgets grow vertically (`flex-1`) with aligned spacing metrics for visual stability.
 
-### 4. Centered Triage Agent Command Log
-- **Triage Agent Command Log Drawer**: A live rolling terminal window tracking the background autonomous workflow decisions, confidence scores, and action plans of the CivicFix monitoring agent. Located at the bottom of the viewport and centered horizontally (`max-w-6xl`) for a clean, premium developer-tool appearance.
+### 4. Centered Triage Agent Command Log & Integrated Footer
+- **Triage Agent Command Log Drawer**: A live rolling terminal window tracking background autonomous workflow decisions, confidence scores, and action plans of the CivicFix monitoring agent. It is docked at the bottom of the viewport and horizontally centered (`max-w-6xl`) for a clean, premium developer-tool layout.
+- **Integrated Footer**: Embedded directly inside the collapsible console drawer container. The developer signature, versioning info, and hackathon credits form a unified component that slides up and down dynamically with the console drawer, maximizing vertical screen real estate.
 
 ### 5. Interactive Split-Screen Workspace Modals
 - **Active Grid Alerts Workspace**: Frosted modal overlay with a searchable grid alerts feed on the left and a synchronized Leaflet map on the right. Clicking any card pans and centers the map to the incident coordinates.
@@ -79,11 +80,17 @@ CivicFix uses a balanced, high-density layout with a dark, premium matte charcoa
   - Community review status requires `100` user upvotes.
   - Context-aware priority scoring dynamically calculated using verifications and upvotes.
 
-### 4. Interactive Overlay Modals
+### 6. Interactive Overlay Modals
 - **Grievance Notice Draftsman**: Automatically composes formal legal notice letters directed to the Thalassery Municipal Commissioner.
 - **Citizen Evidence Verification**: Side-by-side comparative panel analyzing baseline archive imagery against mobile EXIF data uploads to verify infrastructure damage.
 - **Report Neighborhood Issue Modal**: Frosted overlay popup with categories, location selectors, coordinates feedback displays, and live photo validations.
 - **Lightweight Duplicate Detection & Merge Suggestion**: Autonomously compares categories and calculates spatial distance using Turf.js to identify active duplicate reports under 150 meters, suggesting merges before a new ticket is logged.
+
+### 7. Global Light Mode Theme System
+- **Theme Toggle Switcher**: Interactive Sun/Moon toggle button placed in the top header navbar to switch themes dynamically.
+- **Premium Frosted Mint & Indigo Theme**: Built a highly curated, non-generic light mode theme utilizing a radial minty-indigo gradient backdrop (`#f0fdfa` $\rightarrow$ `#f5f3ff` $\rightarrow$ `#e0e7ff`), semi-transparent glassmorphic card overlays, translucent border accents, and high-density typography rendering rich charcoal-indigo text for maximum readability.
+- **Dynamic Map Tile Swapping**: Re-fetches Leaflet tile layers instantly at runtime using `.setUrl()`, toggling between CartoDB Dark Matter (dark) and CartoDB Voyager light tiles across all 4 Leaflet map instances.
+- **Accent Contrast Control**: Automatically scales high-contrast color mapping for cyan/amber/emerald/red indicators and buttons to preserve solid-colored badge contrast while maintaining clean button readability.
 
 ---
 
