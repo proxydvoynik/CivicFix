@@ -23,21 +23,21 @@ import LiveTicker from './components/LiveTicker.jsx';
 import ConsoleDrawer from './components/ConsoleDrawer.jsx';
 
 import { 
-  DISTRICT_TO_ZONE, 
-  ZONE_TO_DISTRICT, 
-  WARD_ZONES, 
   normalizeZoneName, 
   getMapMarkers, 
   getHeatmapData, 
   getStabilityTrend,
   CANONICAL_WARDS,
   inferWardFromCoordinates,
-  getZoneFromWard
+  getZoneFromWard,
+  getCategoryInfo,
+  filterAlerts
 } from './lib/helpers.js';
 import { WARD_POLYGONS } from './lib/ward_polygons.js';
 
 
 
+/*
 function usePrevious(value) {
   const [current, setCurrent] = useState(value);
   const [previous, setPrevious] = useState(null);
@@ -49,6 +49,7 @@ function usePrevious(value) {
 
   return previous;
 }
+*/
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
@@ -613,19 +614,19 @@ const [currentUser, setCurrentUser] = useState(null);
   // Triage Agent & ADK-style states
   const triageAgent = useMemo(() => new CivicFixTriageAgent(), []);
   const [triageSuggestion, setTriageSuggestion] = useState(null);
-  const [agentLogs, setAgentLogs] = useState([]);
   const [activeResolveIncident, setActiveResolveIncident] = useState(null);
   const [resolveImage, setResolveImage] = useState(null);
   const [resolveNotes, setResolveNotes] = useState("");
   const [activeAuditIncident, setActiveAuditIncident] = useState(null);
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
-  const [wardRisks, setWardRisks] = useState({});
   const [aliasModalOpen, setAliasModalOpen] = useState(false);
   const [aliasInput, setAliasInput] = useState("");
   const [wardensList, setWardensList] = useState([]);
   
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isActiveAlertsOpen, setIsActiveAlertsOpen] = useState(false);
+  const [isDispatchQueueOpen, setIsDispatchQueueOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reports, setReports] = useState(initialIssues);
   
@@ -833,6 +834,7 @@ const [currentUser, setCurrentUser] = useState(null);
   }, [reports, floodRisk]);
 
   // Compute scores for previousScores comparison
+  /*
   const currentScores = useMemo(() => {
     const scores = {};
     Object.keys(WARD_ZONES).forEach(zoneName => {
@@ -848,8 +850,9 @@ const [currentUser, setCurrentUser] = useState(null);
     });
     return scores;
   }, [mappedIncidents]);
+  */
 
-  const previousScores = usePrevious(currentScores) || {};
+  // const previousScores = usePrevious(currentScores) || {};
 
   const [currentTime, setCurrentTime] = useState("");
   const [currentTemp, setCurrentTemp] = useState("28°C");
@@ -1344,8 +1347,6 @@ const [currentUser, setCurrentUser] = useState(null);
       } catch (err) {
         console.error("Failed to write agent log to Firestore:", err);
       }
-    } else {
-      setAgentLogs(prev => [newLog, ...prev]);
     }
     
     setAiLogs(prev => [
@@ -1358,57 +1359,8 @@ const [currentUser, setCurrentUser] = useState(null);
     ]);
   }, [isFirebaseConfigured]);
 
-  // Sync Agent logs from Firestore
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    const qLogs = query(collection(db, 'agent_logs'), orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(qLogs, (snapshot) => {
-      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAgentLogs(logs);
-    });
-    return () => unsubscribe();
-  }, [isFirebaseConfigured]);
-
   // Ward Risk Forecasting effect
-  useEffect(() => {
-    const issuesByWard = {};
-    reports.forEach(r => {
-      if (r.ward) {
-        if (!issuesByWard[r.ward]) issuesByWard[r.ward] = [];
-        issuesByWard[r.ward].push(r);
-      }
-    });
 
-    const runWardRiskForecast = async () => {
-      const newWardRisks = {};
-      const entries = Object.entries(issuesByWard);
-      
-      for (const [wardNo, incidents] of entries) {
-        const wardInfo = WARD_POLYGONS.find(wp => wp.wardNo.toString() === wardNo.toString());
-        const wardName = wardInfo ? wardInfo.name : `Ward ${wardNo}`;
-        
-        try {
-          const result = await triageAgent.predictWardRisk(wardName, incidents, { temp: 29, precipitation: 5, floodRisk: false });
-          newWardRisks[wardNo] = {
-            wardName,
-            riskLevel: result.riskLevel,
-            confidence: result.confidence,
-            reason: result.reason,
-            recommendedAction: result.recommendedAction
-          };
-        } catch (e) {
-          console.error("Risk prediction failed for ward", wardNo, e);
-        }
-      }
-      setWardRisks(newWardRisks);
-    };
-
-    const timeout = setTimeout(() => {
-      runWardRiskForecast();
-    }, 2000);
-
-    return () => clearTimeout(timeout);
-  }, [reports, triageAgent]);
 
   // Incident resolution action triggers
   const handleResolveClick = (incident) => {
@@ -2532,24 +2484,8 @@ Report Reference: #CF-${generatedRef}`;
       >
         <LeftPanel
           incidents={mappedIncidents}
-          previousScores={previousScores}
-          activeZone={selectedZone === "All" ? null : (DISTRICT_TO_ZONE[selectedZone] || selectedZone)}
-          onZoneSelect={(zoneName) => {
-            if (zoneName) {
-              const distName = ZONE_TO_DISTRICT[zoneName];
-              setSelectedZone(distName || "All");
-            } else {
-              setSelectedZone("All");
-            }
-          }}
-          onIncidentFocus={(incident) => handleMapFocus(incident.lat, incident.lng)}
-          onUpvote={onUpvote}
-          onVerify={onVerify}
-          onViewLetter={onViewLetter}
-          onAutoEscalate={onAutoEscalate}
-          onAgentLog={onAgentLog}
-          onResolveClick={handleResolveClick}
-          onAuditClick={handleAuditClick}
+          onActiveGridAlertsClick={() => setIsActiveAlertsOpen(true)}
+          onAiDispatchQueueClick={() => setIsDispatchQueueOpen(true)}
         />
 
         {/* Center column: Map & Stability */}
@@ -2568,12 +2504,30 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* Interactive Leaflet Map Container */}
-            <div ref={mapRef} className="flex-1 w-full rounded border border-[#1b1d24]/50 z-20 relative min-h-0"></div>
+            <div className="flex-1 w-full h-full min-h-0 relative z-0 rounded border border-[#1b1d24]/60">
+              <div ref={mapRef} className="w-full h-full min-h-0 rounded bg-[#090b10]"></div>
 
-            {/* Map Mode selector buttons */}
-            <div className="grid grid-cols-3 gap-2">
+              {/* FLOATING ACTION OVERLAY ON MAP FOR TACTICAL CONTROLS */}
+              <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
+                {selectedZone !== "All" && (
+                  <div className="flex items-center gap-1.5 bg-blue-950/90 backdrop-blur-sm border border-blue-500/40 text-blue-400 font-bold px-2 py-1 rounded text-[10px] font-mono shadow-xl">
+                    <span>SECTOR: {selectedZone.toUpperCase()}</span>
+                    <button 
+                      onClick={() => setSelectedZone("All")} 
+                      className="hover:text-white font-bold text-xs pl-0.5"
+                      title="Clear sector focus filter"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* MAP VIEW CONTROL ROW (Directly integrated below Map viewport - 3-column control grid) */}
+            <div className="grid grid-cols-3 gap-2 mt-1.5 flex-none font-mono">
               <button 
-                onClick={() => { setSelectedZone("All"); setShowHazardHeatmap(false); handleMapFocus(11.7490, 75.4891, 14); }}
+                onClick={() => { setSelectedZone("All"); setShowHazardHeatmap(false); handleMapFocus(11.7490, 75.4891, 13); }}
                 className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
                   selectedZone === "All" && !showHazardHeatmap
                     ? "border-blue-500/40 bg-blue-950/20 text-white shadow-[0_0_10px_rgba(59,130,246,0.15)]" 
@@ -2698,8 +2652,6 @@ Report Reference: #CF-${generatedRef}`;
           incidents={mappedIncidents} 
           wardens={mappedWardens} 
           onAgentLog={onAgentLog} 
-          agentLogs={agentLogs}
-          wardRisks={wardRisks}
         />
 
     </div>
@@ -2746,6 +2698,26 @@ Report Reference: #CF-${generatedRef}`;
           </div>
         )}
       </AnimatePresence>
+
+      {/* WORKSPACE MODALS */}
+      <ActiveGridAlertsWorkspace
+        isOpen={isActiveAlertsOpen}
+        onClose={() => setIsActiveAlertsOpen(false)}
+        incidents={mappedIncidents}
+        onUpvote={onUpvote}
+        onVerify={onVerify}
+        onViewLetter={onViewLetter}
+        onResolveClick={handleResolveClick}
+        onAuditClick={handleAuditClick}
+        onAutoEscalate={onAutoEscalate}
+        onAgentLog={onAgentLog}
+      />
+
+      <AiDispatchQueueWorkspace
+        isOpen={isDispatchQueueOpen}
+        onClose={() => setIsDispatchQueueOpen(false)}
+        incidents={mappedIncidents}
+      />
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
       <AnimatePresence>
@@ -3721,6 +3693,491 @@ Report Reference: #CF-${generatedRef}`;
       {/* Floating collapsible AI Agent Console Drawer */}
       <ConsoleDrawer logs={consoleLogs} />
 
+    </div>
+  );
+}
+
+function ActiveGridAlertsWorkspace({
+  isOpen,
+  onClose,
+  incidents,
+  onUpvote,
+  onVerify,
+  onViewLetter,
+  onResolveClick,
+  onAuditClick,
+  onAutoEscalate,
+  onAgentLog
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [modalMapInstance, setModalMapInstance] = useState(null);
+  const modalMapRef = useRef(null);
+
+  // Filtered incidents
+  const filtered = useMemo(() => {
+    return filterAlerts(incidents, searchQuery, null, statusFilter);
+  }, [incidents, searchQuery, statusFilter]);
+
+  // Initialize and clean up Map
+  useEffect(() => {
+    if (!isOpen || !modalMapRef.current) return;
+
+    let map = null;
+    const timer = setTimeout(() => {
+      if (!modalMapRef.current) return;
+      map = L.map(modalMapRef.current, {
+        center: [11.7490, 75.4891],
+        zoom: 13,
+        minZoom: 11,
+        maxZoom: 18,
+        zoomControl: true,
+        attributionControl: false
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+      }).addTo(map);
+
+      setModalMapInstance(map);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (map) {
+        map.remove();
+      }
+      setModalMapInstance(null);
+    };
+  }, [isOpen]);
+
+  // Sync ward overlay markers
+  useEffect(() => {
+    if (!modalMapInstance) return;
+
+    // Remove existing markers
+    modalMapInstance.eachLayer(layer => {
+      if (layer instanceof L.Marker) {
+        modalMapInstance.removeLayer(layer);
+      }
+    });
+
+    const markers = getMapMarkers(filtered);
+    markers.forEach(inc => {
+      if (!inc.lat || !inc.lng) return;
+      
+      const colorClass = inc.bgClass;
+      const markerIcon = L.divIcon({
+        className: 'custom-grid-marker',
+        html: `<div class="relative w-5 h-5 rounded-full border border-white flex items-center justify-center ${colorClass} shadow-xl"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      const marker = L.marker([inc.lat, inc.lng], { icon: markerIcon }).addTo(modalMapInstance);
+      
+      marker.bindTooltip(`<strong>${inc.type}</strong><br/>${inc.location}`, {
+        direction: 'top',
+        className: 'font-mono text-[9px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-1.5 rounded shadow-xl'
+      });
+
+      marker.on('click', () => {
+        modalMapInstance.setView([inc.lat, inc.lng], 15);
+      });
+    });
+  }, [filtered, modalMapInstance]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+        
+        {/* Header */}
+        <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
+          <div className="flex items-center gap-2 text-blue-400">
+            <AlertCircle size={16} />
+            <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Active Grid Alerts Workspace</span>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Content Split columns */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+          
+          {/* Left Column: Filter & Feed */}
+          <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
+            
+            {/* Search Input */}
+            <div className="flex items-center gap-2 bg-[#0c0d12]/80 border border-[#1b1d24]/60 px-3 py-2 rounded text-xs font-mono mb-3">
+              <svg className="w-4 h-4 text-[#6b7280] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search details, wards..."
+                className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-[#6b7280] hover:text-white shrink-0 text-xs font-bold px-1"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 mb-4 flex-none text-[10px] overflow-x-auto no-scrollbar">
+              {["All", "Open", "Escalated", "Resolved"].map(pill => {
+                const isSelected = statusFilter === pill;
+                return (
+                  <button
+                    key={pill}
+                    onClick={() => setStatusFilter(pill)}
+                    className={`px-3 py-1 rounded transition-colors font-bold uppercase ${
+                      isSelected 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-[#16171d]/60 border border-[#1b1d24]/50 text-[#9ca3af] hover:text-white'
+                    }`}
+                  >
+                    {pill}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Alert List Container */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar min-h-0">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">No active incidents</span>
+                  </div>
+                  <span className="text-[10px] text-[#9ca3af] uppercase">All clear in this zone</span>
+                </div>
+              ) : (
+                filtered.map(incident => {
+                  const catInfo = getCategoryInfo(incident.type);
+                  return (
+                    <div
+                      key={incident.id}
+                      onClick={() => {
+                        if (modalMapInstance && incident.lat && incident.lng) {
+                          modalMapInstance.setView([incident.lat, incident.lng], 15);
+                        }
+                      }}
+                      className="cursor-pointer border border-[#1b1d24]/60 bg-[#16171d]/30 hover:bg-[#1d1e26]/40 p-3.5 rounded-lg flex flex-col gap-2 transition-all hover:border-blue-500/20"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-bold border px-1.5 py-0.2 rounded uppercase ${catInfo.bg}`}>
+                            {catInfo.label}
+                          </span>
+                          <span className="text-[10px] font-mono text-[#9ca3af] font-semibold">
+                            CF-{incident.id.toString().substring(0, 4)}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#9ca3af] font-mono font-medium">
+                          {incident.timeAgo || "Just now"}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-[#d1d5db] leading-relaxed line-clamp-2">
+                        {incident.description || incident.details}
+                      </p>
+
+                      <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-[#1b1d24]/30">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-[#101115] border border-[#1b1d24]/70 px-1.5 py-0.2 text-[#7d8590] rounded font-bold">
+                            Ward {incident.ward}
+                          </span>
+                          <span className="text-[10px] text-[#9ca3af] flex items-center gap-0.5">
+                            🛡 {incident.verifications || 0} verified
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onUpvote(incident.id); }}
+                            className="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white px-2 py-0.5 rounded border border-blue-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                          >
+                            ↑ Upvote ({incident.votes || 0})
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onVerify(incident.id);
+                              // Trigger auto-escalation & logging if verified >= 15 after this call
+                              if ((incident.verifications || 0) + 1 >= 15) {
+                                onAutoEscalate && onAutoEscalate(incident.id);
+                                onAgentLog && onAgentLog(`>> Auto-escalated CF-${incident.id}: community threshold reached`);
+                              }
+                            }}
+                            className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-0.5 rounded border border-emerald-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                          >
+                            ✓ Verify
+                          </button>
+                          {incident.status === 'escalated' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onViewLetter && onViewLetter(incident); }}
+                              className="bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white px-2 py-0.5 rounded border border-purple-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                            >
+                              ✉ Dispatch
+                            </button>
+                          )}
+                          {(incident.status !== 'resolved' && incident.status !== 'resolved_verified' && incident.status !== 'resolved_pending_verification') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onResolveClick && onResolveClick(incident); }}
+                              className="bg-amber-600/10 hover:bg-amber-600 text-amber-400 hover:text-white px-2 py-0.5 rounded border border-amber-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer font-bold"
+                            >
+                              ⚙ Resolve
+                            </button>
+                          )}
+                          {incident.status === 'resolved_pending_verification' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onAuditClick && onAuditClick(incident); }}
+                              className="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white px-2 py-0.5 rounded border border-purple-500/30 text-[10px] font-bold font-mono transition-colors cursor-pointer animate-pulse font-bold"
+                            >
+                              🔍 Audit Proof
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+          </div>
+
+          {/* Right Column: Leaflet Map */}
+          <div className="flex-1 h-full min-h-0 relative bg-[#090b10] z-0">
+            <div ref={modalMapRef} className="w-full h-full min-h-0"></div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function AiDispatchQueueWorkspace({
+  isOpen,
+  onClose,
+  incidents
+}) {
+  const [modalMapInstance, setModalMapInstance] = useState(null);
+  const modalMapRef = useRef(null);
+
+  // Filter only active dispatching/escalated/resolved incidents
+  const dispatchQueue = useMemo(() => {
+    return incidents
+      .filter(inc => inc.status !== "resolved" && inc.status !== "resolved_verified")
+      .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0));
+  }, [incidents]);
+
+  // Stage configuration mapping
+  const stages = {
+    "REPORTED": { label: "Reported", progress: 15, color: "#6b7280" },
+    "UNDER_REVIEW": { label: "Under Review", progress: 25, color: "#3b82f6" },
+    "ESCALATED": { label: "Escalated", progress: 40, color: "#f59e0b" },
+    "DISPATCHED": { label: "Dispatched", progress: 65, color: "#00f5d4" },
+    "IN_PROGRESS": { label: "In Progress", progress: 85, color: "#a855f7" }
+  };
+
+  // Initialize and clean up Map
+  useEffect(() => {
+    if (!isOpen || !modalMapRef.current) return;
+
+    let map = null;
+    const timer = setTimeout(() => {
+      if (!modalMapRef.current) return;
+      map = L.map(modalMapRef.current, {
+        center: [11.7490, 75.4891],
+        zoom: 13,
+        minZoom: 11,
+        maxZoom: 18,
+        zoomControl: true,
+        attributionControl: false
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+      }).addTo(map);
+
+      setModalMapInstance(map);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (map) {
+        map.remove();
+      }
+      setModalMapInstance(null);
+    };
+  }, [isOpen]);
+
+  // Sync ward overlay markers
+  useEffect(() => {
+    if (!modalMapInstance) return;
+
+    // Remove existing markers
+    modalMapInstance.eachLayer(layer => {
+      if (layer instanceof L.Marker) {
+        modalMapInstance.removeLayer(layer);
+      }
+    });
+
+    const markers = getMapMarkers(dispatchQueue);
+    markers.forEach(inc => {
+      if (!inc.lat || !inc.lng) return;
+      
+      const colorClass = inc.bgClass;
+      const markerIcon = L.divIcon({
+        className: 'custom-grid-marker',
+        html: `<div class="relative w-5 h-5 rounded-full border border-white flex items-center justify-center ${colorClass} shadow-xl"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      const marker = L.marker([inc.lat, inc.lng], { icon: markerIcon }).addTo(modalMapInstance);
+      
+      marker.bindTooltip(`<strong>${inc.type}</strong><br/>${inc.location}`, {
+        direction: 'top',
+        className: 'font-mono text-[9px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-1.5 rounded shadow-xl'
+      });
+
+      marker.on('click', () => {
+        modalMapInstance.setView([inc.lat, inc.lng], 15);
+      });
+    });
+  }, [dispatchQueue, modalMapInstance]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+        
+        {/* Header */}
+        <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
+          <div className="flex items-center gap-2 text-cyan-400">
+            <AlertCircle size={16} />
+            <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">AI Dispatch Queue Workspace</span>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Content Split columns */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+          
+          {/* Left Column: Dispatch List */}
+          <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
+            <div className="text-[11px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
+              Active Municipal Dispatches ({dispatchQueue.length})
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-5 pr-1 no-scrollbar min-h-0">
+              {dispatchQueue.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">No active dispatches</span>
+                  </div>
+                  <span className="text-[10px] text-[#9ca3af] uppercase">all clear in Thalassery</span>
+                </div>
+              ) : (
+                dispatchQueue.map(incident => {
+                  const statusKey = incident.dispatchStatus || "REPORTED";
+                  const stageInfo = stages[statusKey] || stages["REPORTED"];
+                  const cfId = incident.id.toString().startsWith('CF-') 
+                    ? incident.id 
+                    : `CF-${incident.id.toString().substring(0, 4)}`;
+
+                  return (
+                    <div 
+                      key={incident.id} 
+                      onClick={() => {
+                        if (modalMapInstance && incident.lat && incident.lng) {
+                          modalMapInstance.setView([incident.lat, incident.lng], 15);
+                        }
+                      }}
+                      className="cursor-pointer bg-[#16171d]/20 border border-[#1b1d24]/60 p-4 rounded-lg flex flex-col gap-2.5 hover:border-cyan-500/20 transition-all"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-bold font-mono">{cfId}</span>
+                          {incident.assignedDepartment && (
+                            <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-cyan-500/20">
+                              {incident.assignedDepartment}
+                            </span>
+                          )}
+                        </div>
+                        <span 
+                          className="font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border" 
+                          style={{ 
+                            color: stageInfo.color,
+                            borderColor: `${stageInfo.color}30`,
+                            backgroundColor: `${stageInfo.color}15`
+                          }}
+                        >
+                          {stageInfo.label}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[#9ca3af] text-xs">
+                        <span className="truncate max-w-[240px]">{incident.type} @ Ward {incident.ward}</span>
+                        <span className="font-semibold font-mono">{stageInfo.progress}% dispatched</span>
+                      </div>
+
+                      <div className="w-full bg-[#1b1d24] h-[4px] rounded-full overflow-hidden mt-0.5">
+                        <div 
+                          className="h-full rounded-full" 
+                          style={{ 
+                            width: `${stageInfo.progress}%`,
+                            backgroundColor: stageInfo.color
+                          }}
+                        ></div>
+                      </div>
+
+                      {incident.escalationReason && (
+                        <div className="text-[10px] text-[#7d8590] italic leading-normal font-sans mt-0.5">
+                          🤖 {incident.escalationReason}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+          </div>
+
+          {/* Right Column: Leaflet Map */}
+          <div className="flex-1 h-full min-h-0 relative bg-[#090b10] z-0">
+            <div ref={modalMapRef} className="w-full h-full min-h-0"></div>
+          </div>
+
+        </div>
+
+      </div>
     </div>
   );
 }

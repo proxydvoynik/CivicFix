@@ -1,15 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import CardShell from './CardShell.jsx';
 
-// Dispatch Queue stage mapper configuration
-const DISPATCH_STAGES = {
-  "REPORTED": { label: "Reported", progress: 15, color: "#6b7280" },
-  "UNDER_REVIEW": { label: "Under Review", progress: 25, color: "#3b82f6" },
-  "ESCALATED": { label: "Escalated", progress: 40, color: "#f59e0b" },
-  "DISPATCHED": { label: "Dispatched", progress: 65, color: "#00f5d4" },
-  "IN_PROGRESS": { label: "In Progress", progress: 85, color: "#a855f7" },
-  "RESOLVED": { label: "Resolved", progress: 100, color: "#10b981" }
-};
+
 
 // Seed Wardens for fallbacks
 const SEED_WARDENS = [
@@ -41,11 +33,8 @@ const SEED_WARDENS = [
 ];
 
 export default function RightPanel({
-  incidents = [],
   wardens,
-  onAgentLog,
-  agentLogs = [],
-  wardRisks = {}
+  onAgentLog
 }) {
   // --- SECTION 1: Weather Fetching & Precipitation Chart ---
   const [weather, setWeather] = useState(null);
@@ -118,358 +107,169 @@ export default function RightPanel({
 
   const rankIcons = ["🏆", "🥈", "🥉"];
 
-  // --- SECTION 3: AI Dispatch Queue ---
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    const timer = setTimeout(() => {
-      if (active) setIsMounted(true);
-    }, 50);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, []);
-
-  const dispatchQueue = useMemo(() => {
-    return incidents
-      .filter(inc => inc.status !== "resolved")
-      .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0))
-      .slice(0, 5);
-  }, [incidents]);
-
   return (
-    <aside className="w-full h-full overflow-y-auto no-scrollbar flex flex-col pt-3 md:pt-4 font-mono text-[#e2e8f0]">
+    <aside className="w-full h-full overflow-hidden flex flex-col pt-3 md:pt-4 font-mono text-[#e2e8f0]">
       
-      <div className="flex flex-col gap-4 px-3 md:px-4 pb-3">
-          {/* SECTION 1: Precipitation & Hazards */}
-          <CardShell className="flex-1 flex flex-col gap-4 min-h-0">
-        <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Precipitation & Hazards</h3>
-          {!loading && !error && (
-            <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-              LIVE RADAR
+      <div className="flex flex-col gap-4 px-3 md:px-4 pb-3 flex-1 overflow-hidden">
+        {/* SECTION 1: Precipitation & Hazards */}
+        <CardShell className="flex-1 flex flex-col gap-4 min-h-0 justify-between py-6">
+          <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2 flex-none">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Precipitation & Hazards</h3>
+            {!loading && !error && (
+              <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
+                LIVE RADAR
+              </span>
+            )}
+          </div>
+
+          {loading ? (
+            /* Skeleton Loader */
+            <div className="flex flex-col gap-4 animate-pulse py-2 flex-1 justify-center">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
+                <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
+                <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
+              </div>
+              <div className="h-24 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded w-full"></div>
+            </div>
+          ) : error ? (
+            /* Error State */
+            <div className="py-4 text-center flex-1 flex items-center justify-center">
+              <span className="text-xs text-gray-500 font-bold">Weather data unavailable</span>
+            </div>
+          ) : (
+            /* Loaded Weather UI */
+            <div className="flex-1 flex flex-col justify-between min-h-0">
+              {/* Stat chips row */}
+              <div className="grid grid-cols-3 gap-2.5 text-center flex-none">
+                <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
+                  <span className="text-[10px] text-[#9ca3af] block font-bold">WIND</span>
+                  <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.wind} km/h</span>
+                </div>
+                <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
+                  <span className="text-[10px] text-[#9ca3af] block font-bold">HUMIDITY</span>
+                  <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.humidity}%</span>
+                </div>
+                <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
+                  <span className="text-[10px] text-[#9ca3af] block font-bold">PRESSURE</span>
+                  <span className="text-sm font-bold text-white mt-0.5 block truncate">{weatherStats.pressure} hPa</span>
+                </div>
+              </div>
+
+              {/* Precipitation Bar chart */}
+              <div className="flex flex-col gap-2 min-h-0 justify-center flex-1 mt-4">
+                <span className="text-[10px] text-[#9ca3af] uppercase font-bold">Forecast Rain Level</span>
+                <div className="flex-1 min-h-[120px] w-full relative">
+                  <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
+                    {/* Baseline grid marker */}
+                    <line x1="0" y1="60" x2="240" y2="60" stroke="#1b1d24" strokeWidth="0.8" />
+
+                    {/* SVG Bar items */}
+                    {(() => {
+                      const barWidth = 7;
+                      const gap = 2.5;
+                      const startX = 8;
+                      const precipValues = weatherStats.precipArray;
+                      const maxVal = Math.max(...precipValues, 1);
+                      const scale = 55 / maxVal;
+
+                      return precipValues.map((val, idx) => {
+                        const h = val === 0 ? 2 : val * scale;
+                        const y = 60 - h;
+                        const x = startX + idx * (barWidth + gap);
+
+                        // Bar coloring thresholds
+                        let color = "#22c55e"; // == 0mm
+                        if (val > 0 && val <= 5) color = "#eab308"; // 0-5mm
+                        else if (val > 5 && val <= 15) color = "#f97316"; // 5-15mm
+                        else if (val > 15) color = "#ef4444"; // > 15mm
+
+                        const isCurrentHour = idx === currentHourIndex;
+
+                        return (
+                          <rect
+                            key={`precip-bar-${idx}`}
+                            x={x}
+                            y={y}
+                            width={barWidth}
+                            height={h}
+                            fill={color}
+                            fillOpacity={isCurrentHour ? "1.0" : "0.75"}
+                            stroke={isCurrentHour ? "white" : "none"}
+                            strokeWidth={isCurrentHour ? "1" : "0"}
+                            strokeOpacity={isCurrentHour ? "0.9" : "0"}
+                            rx="0.5"
+                            className="hover:fill-opacity-100 transition-all cursor-pointer"
+                          >
+                            <title>{`${idx}:00 - ${val}mm rain`}</title>
+                          </rect>
+                        );
+                      });
+                    })()}
+
+                    {/* X-axis labels aligned with points */}
+                    {(() => {
+                      const barWidth = 7;
+                      const gap = 2.5;
+                      const startX = 8;
+                      const hours = [0, 6, 12, 18];
+                      return hours.map(hour => {
+                        const x = startX + hour * (barWidth + gap) + barWidth / 2;
+                        const label = hour < 10 ? `0${hour}:00` : `${hour}:00`;
+                        return (
+                          <text
+                            key={`axis-lbl-${hour}`}
+                            x={x}
+                            y="74"
+                            textAnchor="middle"
+                            className="fill-[#6b7280] text-[8px] font-mono font-medium"
+                          >
+                            {label}
+                          </text>
+                        );
+                      });
+                    })()}
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardShell>
+
+        {/* SECTION 2: Volunteer Karma Board */}
+        <CardShell className="flex-1 flex flex-col gap-3 min-h-0 justify-between py-6">
+          <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2 flex-none">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Volunteer Karma Board</h3>
+            <span className="text-[10px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
+              TOP WARDENS
             </span>
-          )}
-        </div>
-
-        {loading ? (
-          /* Skeleton Loader */
-          <div className="flex flex-col gap-4 animate-pulse py-2">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
-              <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
-              <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
-            </div>
-            <div className="h-20 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded w-full"></div>
           </div>
-        ) : error ? (
-          /* Error State */
-          <div className="py-4 text-center">
-            <span className="text-xs text-gray-500 font-bold">Weather data unavailable</span>
-          </div>
-        ) : (
-          /* Loaded Weather UI */
-          <div className="flex-1 flex flex-col justify-between min-h-0">
-            {/* Stat chips row */}
-            <div className="grid grid-cols-3 gap-2.5 text-center">
-              <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                <span className="text-[10px] text-[#9ca3af] block font-bold">WIND</span>
-                <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.wind} km/h</span>
-              </div>
-              <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                <span className="text-[10px] text-[#9ca3af] block font-bold">HUMIDITY</span>
-                <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.humidity}%</span>
-              </div>
-              <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                <span className="text-[10px] text-[#9ca3af] block font-bold">PRESSURE</span>
-                <span className="text-sm font-bold text-white mt-0.5 block truncate">{weatherStats.pressure} hPa</span>
-              </div>
-            </div>
 
-            {/* Precipitation Bar chart */}
-            <div className="flex flex-col gap-2 min-h-0 justify-center">
-              <span className="text-[10px] text-[#9ca3af] uppercase font-bold">Forecast Rain Level</span>
-              <div className="flex-1 min-h-[100px] w-full relative">
-                <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
-                  {/* Baseline grid marker */}
-                  <line x1="0" y1="60" x2="240" y2="60" stroke="#1b1d24" strokeWidth="0.8" />
-
-                  {/* SVG Bar items */}
-                  {(() => {
-                    const barWidth = 7;
-                    const gap = 2.5;
-                    const startX = 8;
-                    const precipValues = weatherStats.precipArray;
-                    const maxVal = Math.max(...precipValues, 1);
-                    const scale = 55 / maxVal;
-
-                    return precipValues.map((val, idx) => {
-                      const h = val === 0 ? 2 : val * scale;
-                      const y = 60 - h;
-                      const x = startX + idx * (barWidth + gap);
-
-                      // Bar coloring thresholds
-                      let color = "#22c55e"; // == 0mm
-                      if (val > 0 && val <= 5) color = "#eab308"; // 0-5mm
-                      else if (val > 5 && val <= 15) color = "#f97316"; // 5-15mm
-                      else if (val > 15) color = "#ef4444"; // > 15mm
-
-                      const isCurrentHour = idx === currentHourIndex;
-
-                      return (
-                        <rect
-                          key={`precip-bar-${idx}`}
-                          x={x}
-                          y={y}
-                          width={barWidth}
-                          height={h}
-                          fill={color}
-                          fillOpacity={isCurrentHour ? "1.0" : "0.75"}
-                          stroke={isCurrentHour ? "white" : "none"}
-                          strokeWidth={isCurrentHour ? "1" : "0"}
-                          strokeOpacity={isCurrentHour ? "0.9" : "0"}
-                          rx="0.5"
-                          className="hover:fill-opacity-100 transition-all cursor-pointer"
-                        >
-                          <title>{`${idx}:00 - ${val}mm rain`}</title>
-                        </rect>
-                      );
-                    });
-                  })()}
-
-                  {/* X-axis labels aligned with points */}
-                  {(() => {
-                    const barWidth = 7;
-                    const gap = 2.5;
-                    const startX = 8;
-                    const hours = [0, 6, 12, 18];
-                    return hours.map(hour => {
-                      const x = startX + hour * (barWidth + gap) + barWidth / 2;
-                      const label = hour < 10 ? `0${hour}:00` : `${hour}:00`;
-                      return (
-                        <text
-                          key={`axis-lbl-${hour}`}
-                          x={x}
-                          y="74"
-                          textAnchor="middle"
-                          className="fill-[#6b7280] text-[8px] font-mono font-medium"
-                        >
-                          {label}
-                        </text>
-                      );
-                    });
-                  })()}
-                </svg>
-              </div>
-            </div>
-          </div>
-        )}
-      </CardShell>
-
-      {/* SECTION 2: Volunteer Karma Board */}
-      <CardShell className="flex-1 flex flex-col gap-3 min-h-0">
-        <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Volunteer Karma Board</h3>
-          <span className="text-[10px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
-            TOP WARDENS
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-between">
-          {topWardens.map((item, idx) => (
-            <div 
-              key={idx} 
-              className={`flex items-center justify-between py-3 ${
-                idx !== topWardens.length - 1 ? 'border-b border-[#1b1d24]/40' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <span className="text-base shrink-0">{rankIcons[idx]}</span>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-bold text-white truncate">{item.name}</span>
-                  <span className="text-xs font-mono text-[#9ca3af] mt-0.5 truncate">{item.role}</span>
+          <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-around py-4">
+            {topWardens.map((item, idx) => (
+              <div 
+                key={idx} 
+                className={`flex items-center justify-between py-4 ${
+                  idx !== topWardens.length - 1 ? 'border-b border-[#1b1d24]/40' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <span className="text-base shrink-0">{rankIcons[idx]}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-bold text-white truncate">{item.name}</span>
+                    <span className="text-xs font-mono text-[#9ca3af] mt-0.5 truncate">{item.role}</span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-sm font-mono font-bold text-cyan-400">{item.karma}</span>
+                  <span className="text-[10px] font-mono text-[#7d8590] block mt-0.5">karma</span>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <span className="text-sm font-mono font-bold text-cyan-400">{item.karma}</span>
-                <span className="text-[10px] font-mono text-[#7d8590] block mt-0.5">karma</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardShell>
-
-      {/* Spacer & Indicator */}
-      <div className="text-center pt-2 pb-1 text-[10px] text-[#555] uppercase tracking-wider select-none font-bold">
-        Dispatch queue below ↓
+            ))}
+          </div>
+        </CardShell>
       </div>
-
-    {/* SECTION 3: AI Dispatch Queue */}
-    <CardShell className="flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">AI Dispatch Queue</h3>
-          <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
-            Municipality Status
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {dispatchQueue.length === 0 ? (
-            /* Empty State */
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                <span className="text-xs font-bold text-white uppercase tracking-wider">No active dispatches</span>
-              </div>
-              <span className="text-[10px] text-[#9ca3af] uppercase">all clear in Thalassery</span>
-            </div>
-          ) : (
-            /* Dispatch items list */
-            dispatchQueue.map(incident => {
-              const statusKey = incident.dispatchStatus || "REPORTED";
-              const stageInfo = DISPATCH_STAGES[statusKey] || DISPATCH_STAGES["REPORTED"];
-              const cfId = incident.id.startsWith('CF-') 
-                ? incident.id 
-                : `CF-${incident.id.toString().substring(0, 4)}`;
-
-              return (
-                <div key={incident.id} className="flex flex-col gap-2.5">
-                  {/* Row 1: ID & Stage Label */}
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-bold font-mono">{cfId}</span>
-                      {incident.assignedDepartment && (
-                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-cyan-500/20">
-                          {incident.assignedDepartment}
-                        </span>
-                      )}
-                    </div>
-                    <span 
-                      className="font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border" 
-                      style={{ 
-                        color: stageInfo.color,
-                        borderColor: `${stageInfo.color}30`,
-                        backgroundColor: `${stageInfo.color}15`
-                      }}
-                    >
-                      {stageInfo.label}
-                    </span>
-                  </div>
-
-                  {/* Row 2: Type @ Ward & progress percentage */}
-                  <div className="flex justify-between items-center text-[#9ca3af] text-xs">
-                    <span className="truncate max-w-[170px]">{incident.type} @ Ward {incident.ward}</span>
-                    <span className="font-semibold font-mono">{stageInfo.progress}% dispatched</span>
-                  </div>
-
-                  {/* Row 3: Progress track & bar */}
-                  <div className="w-full bg-[#1b1d24] h-[4px] rounded-full overflow-hidden mt-0.5">
-                    <div 
-                      className="h-full rounded-full" 
-                      style={{ 
-                        width: isMounted ? `${stageInfo.progress}%` : '0%',
-                        transition: 'width 600ms ease-out',
-                        backgroundColor: stageInfo.color
-                      }}
-                    ></div>
-                  </div>
-
-                  {/* Row 4: Escalation Reason */}
-                  {incident.escalationReason && (
-                    <div className="text-[10px] text-[#7d8590] italic leading-normal font-sans mt-0.5">
-                      🤖 {incident.escalationReason}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </CardShell>
-
-      {/* SECTION 4: Triage Agent Decision Logs */}
-      <CardShell className="flex flex-col gap-3 max-h-[300px]">
-        <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Triage Agent Command Log</h3>
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]"></span>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar text-xs font-mono">
-          {agentLogs.length === 0 ? (
-            <div className="text-center py-6 text-[10px] text-[#555] uppercase font-bold">
-              Waiting for agent activity...
-            </div>
-          ) : (
-            agentLogs.slice(0, 10).map((log, index) => {
-              let decisionColor = "text-blue-400";
-              if (log.decision.includes("duplicate") || log.decision.includes("merge")) decisionColor = "text-amber-400";
-              if (log.decision.includes("resolved") || log.decision.includes("success")) decisionColor = "text-emerald-400";
-              if (log.decision.includes("critical")) decisionColor = "text-red-400";
-              
-              return (
-                <div key={log.id || index} className="bg-[#121318] p-2.5 rounded border border-[#1b1d24] space-y-1">
-                  <div className="flex justify-between items-center text-[10px] text-[#555]">
-                    <span>{log.agentType || "Triage Agent"}</span>
-                    <span>{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ""}</span>
-                  </div>
-                  <div className="flex justify-between items-center font-bold">
-                    <span className={decisionColor}>{log.decision?.toUpperCase()}</span>
-                    <span className="text-[#9ca3af]">{(log.confidence * 100).toFixed(0)}% conf</span>
-                  </div>
-                  <p className="text-[11px] text-[#8e8e8f] leading-normal font-sans italic">
-                    {log.reason}
-                  </p>
-                  <div className="text-[10px] text-cyan-400 font-bold leading-normal font-sans">
-                    Action: {log.recommendedAction}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </CardShell>
-
-      {/* SECTION 5: Ward Hotspot Risk Forecast */}
-      <CardShell className="flex flex-col gap-3">
-        <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Ward Hotspots & Risk Predictions</h3>
-          <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">AI Forecast</span>
-        </div>
-        <div className="space-y-3 text-xs font-mono max-h-[300px] overflow-y-auto no-scrollbar">
-          {Object.keys(wardRisks).length === 0 ? (
-            <div className="text-center py-6 text-[10px] text-[#555] uppercase font-bold">
-              Calculating ward risk metrics...
-            </div>
-          ) : (
-            Object.values(wardRisks).map((risk, index) => {
-              let riskBg = "bg-green-500/10 text-green-400 border border-green-500/20";
-              if (risk.riskLevel === "critical") riskBg = "bg-red-500/10 text-red-400 border border-red-500/20";
-              else if (risk.riskLevel === "high") riskBg = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
-              else if (risk.riskLevel === "moderate") riskBg = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
-
-              return (
-                <div key={index} className="bg-[#121318] p-2.5 rounded border border-[#1b1d24] space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-white truncate max-w-[150px]">{risk.wardName}</span>
-                    <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded font-bold ${riskBg}`}>
-                      {risk.riskLevel}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-[#8e8e8f] leading-normal font-sans italic">
-                    {risk.reason}
-                  </div>
-                  <div className="text-[9px] text-[#555] font-sans">
-                    Action Plan: {risk.recommendedAction}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </CardShell>
-    </div>
     </aside>
   );
 }
