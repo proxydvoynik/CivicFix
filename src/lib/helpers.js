@@ -309,7 +309,14 @@ export function filterAlerts(incidents, query, activeZone, statusFilter) {
 
     // 3. Filter by status pills
     if (statusFilter && statusFilter !== "All") {
-      if (inc.status !== statusFilter.toLowerCase()) return false;
+      const sf = statusFilter.toLowerCase();
+      if (sf === "open") {
+        if (inc.status === "resolved" || inc.status === "resolved_verified") return false;
+      } else if (sf === "resolved") {
+        if (inc.status !== "resolved" && inc.status !== "resolved_verified") return false;
+      } else {
+        if (inc.status !== sf) return false;
+      }
     }
 
     return true;
@@ -324,9 +331,12 @@ export function getMapMarkers(incidents) {
     let bgClass;
     let showPing = true;
 
-    if (inc.status === 'resolved') {
+    if (inc.status === 'resolved' || inc.status === 'resolved_verified') {
       bgClass = 'bg-emerald-500';
       showPing = false;
+    } else if (inc.status === 'resolved_pending_verification') {
+      pingBg = 'bg-purple-400 animate-pulse';
+      bgClass = 'bg-purple-500';
     } else if (inc.status === 'dispatched') {
       pingBg = 'bg-blue-400';
       bgClass = 'bg-blue-500';

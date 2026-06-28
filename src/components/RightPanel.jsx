@@ -43,7 +43,9 @@ const SEED_WARDENS = [
 export default function RightPanel({
   incidents = [],
   wardens,
-  onAgentLog
+  onAgentLog,
+  agentLogs = [],
+  wardRisks = {}
 }) {
   // --- SECTION 1: Weather Fetching & Precipitation Chart ---
   const [weather, setWeather] = useState(null);
@@ -381,6 +383,86 @@ export default function RightPanel({
                       🤖 {incident.escalationReason}
                     </div>
                   )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </CardShell>
+
+      {/* SECTION 4: Triage Agent Decision Logs */}
+      <CardShell className="flex flex-col gap-3 max-h-[300px]">
+        <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Triage Agent Command Log</h3>
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]"></span>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar text-xs font-mono">
+          {agentLogs.length === 0 ? (
+            <div className="text-center py-6 text-[10px] text-[#555] uppercase font-bold">
+              Waiting for agent activity...
+            </div>
+          ) : (
+            agentLogs.slice(0, 10).map((log, index) => {
+              let decisionColor = "text-blue-400";
+              if (log.decision.includes("duplicate") || log.decision.includes("merge")) decisionColor = "text-amber-400";
+              if (log.decision.includes("resolved") || log.decision.includes("success")) decisionColor = "text-emerald-400";
+              if (log.decision.includes("critical")) decisionColor = "text-red-400";
+              
+              return (
+                <div key={log.id || index} className="bg-[#121318] p-2.5 rounded border border-[#1b1d24] space-y-1">
+                  <div className="flex justify-between items-center text-[10px] text-[#555]">
+                    <span>{log.agentType || "Triage Agent"}</span>
+                    <span>{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ""}</span>
+                  </div>
+                  <div className="flex justify-between items-center font-bold">
+                    <span className={decisionColor}>{log.decision?.toUpperCase()}</span>
+                    <span className="text-[#9ca3af]">{(log.confidence * 100).toFixed(0)}% conf</span>
+                  </div>
+                  <p className="text-[11px] text-[#8e8e8f] leading-normal font-sans italic">
+                    {log.reason}
+                  </p>
+                  <div className="text-[10px] text-cyan-400 font-bold leading-normal font-sans">
+                    Action: {log.recommendedAction}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </CardShell>
+
+      {/* SECTION 5: Ward Hotspot Risk Forecast */}
+      <CardShell className="flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Ward Hotspots & Risk Predictions</h3>
+          <span className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">AI Forecast</span>
+        </div>
+        <div className="space-y-3 text-xs font-mono max-h-[300px] overflow-y-auto no-scrollbar">
+          {Object.keys(wardRisks).length === 0 ? (
+            <div className="text-center py-6 text-[10px] text-[#555] uppercase font-bold">
+              Calculating ward risk metrics...
+            </div>
+          ) : (
+            Object.values(wardRisks).map((risk, index) => {
+              let riskBg = "bg-green-500/10 text-green-400 border border-green-500/20";
+              if (risk.riskLevel === "critical") riskBg = "bg-red-500/10 text-red-400 border border-red-500/20";
+              else if (risk.riskLevel === "high") riskBg = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+              else if (risk.riskLevel === "moderate") riskBg = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+
+              return (
+                <div key={index} className="bg-[#121318] p-2.5 rounded border border-[#1b1d24] space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-white truncate max-w-[150px]">{risk.wardName}</span>
+                    <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded font-bold ${riskBg}`}>
+                      {risk.riskLevel}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-[#8e8e8f] leading-normal font-sans italic">
+                    {risk.reason}
+                  </div>
+                  <div className="text-[9px] text-[#555] font-sans">
+                    Action Plan: {risk.recommendedAction}
+                  </div>
                 </div>
               );
             })

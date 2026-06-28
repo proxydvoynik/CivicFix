@@ -13,6 +13,7 @@ import { db, auth, isFirebaseConfigured } from './lib/firebase.js';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini.js';
+import { CivicFixTriageAgent } from './lib/triageAgent.js';
 
 // Leaflet Maps Imports
 import L from 'leaflet';
@@ -607,7 +608,18 @@ const getEscalationReason = (incident, floodRisk) => {
 };
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+const [currentUser, setCurrentUser] = useState(null);
+  
+  // Triage Agent & ADK-style states
+  const triageAgent = useMemo(() => new CivicFixTriageAgent(), []);
+  const [triageSuggestion, setTriageSuggestion] = useState(null);
+  const [agentLogs, setAgentLogs] = useState([]);
+  const [activeResolveIncident, setActiveResolveIncident] = useState(null);
+  const [resolveImage, setResolveImage] = useState(null);
+  const [resolveNotes, setResolveNotes] = useState("");
+  const [activeAuditIncident, setActiveAuditIncident] = useState(null);
+  const [isAgentProcessing, setIsAgentProcessing] = useState(false);
+  const [wardRisks, setWardRisks] = useState({});
   const [aliasModalOpen, setAliasModalOpen] = useState(false);
   const [aliasInput, setAliasInput] = useState("");
   const [wardensList, setWardensList] = useState([]);
@@ -925,7 +937,7 @@ function App() {
     });
   }, []);
 
-  const agentLogs = useMemo(() => {
+  const consoleLogs = useMemo(() => {
     return [...aiLogs].reverse().map(log => log.text);
   }, [aiLogs]);
 
@@ -1312,6 +1324,212 @@ function App() {
     }
     prevReportsRef.current = reports;
   }, [reports, currentUser, isFirebaseConfigured, incrementUserKarma]);
+
+  // Agent logging handler
+  const logAgentActivity = useCallback(async ({ reportId = null, wardId = null, agentType, decision, confidence, reason, recommendedAction }) => {
+    const newLog = {
+      reportId: reportId ? String(reportId) : null,
+      wardId: wardId ? String(wardId) : null,
+      agentType,
+      decision,
+      confidence: Number(confidence),
+      reason,
+      recommendedAction,
+      timestamp: new Date().toISOString()
+    };
+
+    if (isFirebaseConfigured) {
+      try {
+        await addDoc(collection(db, 'agent_logs'), newLog);
+      } catch (err) {
+        console.error("Failed to write agent log to Firestore:", err);
+      }
+    } else {
+      setAgentLogs(prev => [newLog, ...prev]);
+    }
+    
+    setAiLogs(prev => [
+      {
+        id: `rolling-log-${Date.now()}-${Math.random()}`,
+        type: decision.includes("resolved") || decision === "new_issue" ? "success" : "info",
+        text: `[${agentType}] ${decision.toUpperCase()} - ${recommendedAction}`
+      },
+      ...prev
+    ]);
+  }, [isFirebaseConfigured]);
+
+  // Sync Agent logs from Firestore
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const qLogs = query(collection(db, 'agent_logs'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(qLogs, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAgentLogs(logs);
+    });
+    return () => unsubscribe();
+  }, [isFirebaseConfigured]);
+
+  // Ward Risk Forecasting effect
+  useEffect(() => {
+    const issuesByWard = {};
+    reports.forEach(r => {
+      if (r.ward) {
+        if (!issuesByWard[r.ward]) issuesByWard[r.ward] = [];
+        issuesByWard[r.ward].push(r);
+      }
+    });
+
+    const runWardRiskForecast = async () => {
+      const newWardRisks = {};
+      const entries = Object.entries(issuesByWard);
+      
+      for (const [wardNo, incidents] of entries) {
+        const wardInfo = WARD_POLYGONS.find(wp => wp.wardNo.toString() === wardNo.toString());
+        const wardName = wardInfo ? wardInfo.name : `Ward ${wardNo}`;
+        
+        try {
+          const result = await triageAgent.predictWardRisk(wardName, incidents, { temp: 29, precipitation: 5, floodRisk: false });
+          newWardRisks[wardNo] = {
+            wardName,
+            riskLevel: result.riskLevel,
+            confidence: result.confidence,
+            reason: result.reason,
+            recommendedAction: result.recommendedAction
+          };
+        } catch (e) {
+          console.error("Risk prediction failed for ward", wardNo, e);
+        }
+      }
+      setWardRisks(newWardRisks);
+    };
+
+    const timeout = setTimeout(() => {
+      runWardRiskForecast();
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [reports, triageAgent]);
+
+  // Incident resolution action triggers
+  const handleResolveClick = (incident) => {
+    setActiveResolveIncident(incident);
+    setResolveNotes("");
+    setResolveImage(null);
+  };
+
+  const handleAuditClick = (incident) => {
+    setActiveAuditIncident(incident);
+  };
+
+  // Submit proof image + notes to triage agent auditor
+  const submitResolutionProof = async (e) => {
+    e.preventDefault();
+    if (!resolveNotes.trim()) {
+      alert("Please provide a brief summary of the resolution work done.");
+      return;
+    }
+    if (!resolveImage) {
+      alert("Please upload a photo showing proof of the resolved hazard.");
+      return;
+    }
+
+    setIsAgentProcessing(true);
+
+    try {
+      // Extract Base64 parts
+      const commaIdx = resolveImage.indexOf(",");
+      const base64Data = commaIdx > -1 ? resolveImage.substring(commaIdx + 1) : resolveImage;
+      const mimeType = resolveImage.substring(resolveImage.indexOf(":") + 1, resolveImage.indexOf(";"));
+
+      // Call Triage agent to audit proof
+      const agentResult = await triageAgent.auditResolution(activeResolveIncident, base64Data, mimeType, resolveNotes);
+
+      // Log decision
+      await logAgentActivity({
+        reportId: activeResolveIncident.id,
+        wardId: activeResolveIncident.ward,
+        agentType: "Resolution Auditor Agent",
+        decision: agentResult.decision,
+        confidence: agentResult.confidence,
+        reason: agentResult.reason,
+        recommendedAction: agentResult.recommendedAction
+      });
+
+      // Update report status to resolved_pending_verification (or open if rejected by AI)
+      const nextStatus = agentResult.decision === 'appears_resolved' ? 'resolved_pending_verification' : 'open';
+
+      const updateData = {
+        status: nextStatus,
+        resolutionProofImage: resolveImage,
+        resolutionAuditDecision: agentResult.decision,
+        resolutionAuditReason: agentResult.reason,
+        resolutionNotes: resolveNotes
+      };
+
+      if (isFirebaseConfigured && activeResolveIncident.docId) {
+        const reportRef = doc(db, 'reports', activeResolveIncident.docId);
+        await updateDoc(reportRef, updateData);
+      } else {
+        setReports(prev => prev.map(r => r.id === activeResolveIncident.id ? { ...r, ...updateData } : r));
+      }
+
+      if (agentResult.decision === 'appears_resolved') {
+        alert("AI Audit passed! Status updated to 'resolved_pending_verification'. A warden will verify this proof for final closure.");
+      } else {
+        alert(`AI Audit failed: ${agentResult.reason}. Ticket remains open.`);
+      }
+
+      setActiveResolveIncident(null);
+    } catch (err) {
+      console.error("Resolution submit failed:", err);
+      alert("Audit process failed: " + err.message);
+    } finally {
+      setIsAgentProcessing(false);
+    }
+  };
+
+  // Warden final verification consensus
+  const handleWardenResolutionAudit = async (approve) => {
+    if (!activeAuditIncident) return;
+    setIsAgentProcessing(true);
+
+    try {
+      const updateData = {
+        status: approve ? 'resolved_verified' : 'open',
+        finalResolvedAt: approve ? new Date().toISOString() : null,
+        // Clear resolution audit feedback if rejected to allow resubmission
+        resolutionAuditDecision: approve ? activeAuditIncident.resolutionAuditDecision : null,
+        resolutionAuditReason: approve ? activeAuditIncident.resolutionAuditReason : null
+      };
+
+      if (isFirebaseConfigured && activeAuditIncident.docId) {
+        const reportRef = doc(db, 'reports', activeAuditIncident.docId);
+        await updateDoc(reportRef, updateData);
+      } else {
+        setReports(prev => prev.map(r => r.id === activeAuditIncident.id ? { ...r, ...updateData } : r));
+      }
+
+      // Log decision
+      await logAgentActivity({
+        reportId: activeAuditIncident.id,
+        wardId: activeAuditIncident.ward,
+        agentType: "Warden Consensus Auditor",
+        decision: approve ? "resolution_approved" : "resolution_rejected",
+        confidence: 1.0,
+        reason: approve 
+          ? "Warden consensus verified the AI audit proof and finalized closure." 
+          : "Warden rejected the uploaded proof. Ticket returned to active status.",
+        recommendedAction: approve ? "Close ticket and archive history." : "Allow worker resubmission."
+      });
+
+      alert(approve ? "Incident resolution approved and verified!" : "Incident returned to active queue.");
+      setActiveAuditIncident(null);
+    } catch (err) {
+      console.error("Warden audit failed:", err);
+    } finally {
+      setIsAgentProcessing(false);
+    }
+  };
 
   // Real-time Firestore sync & Auto-population
   useEffect(() => {
@@ -2077,36 +2295,6 @@ Report Reference: #CF-${generatedRef}`);
       return;
     }
 
-    // Check for duplicate reports (same category, within 150 meters, and not resolved)
-    const duplicate = reports.find(r => {
-      if (r.type?.toLowerCase() !== formType?.toLowerCase()) return false;
-      if (r.status === 'resolved') return false;
-      if (r.lat && r.lng) {
-        try {
-          const fromPoint = turf.point([formLng, formLat]);
-          const toPoint = turf.point([r.lng, r.lat]);
-          const distKm = turf.distance(fromPoint, toPoint);
-          return distKm < 0.15; // 150 meters
-        } catch {
-          return false;
-        }
-      }
-      return false;
-    });
-
-    if (duplicate) {
-      const proceed = window.confirm(
-        `Possible Duplicate Detected!\n\n` +
-        `An active "${duplicate.type}" report already exists nearby at "${duplicate.location}".\n` +
-        `Do you still want to create a new ticket?`
-      );
-      if (!proceed) {
-        return;
-      }
-    }
-
-    setIsSubmitting(true);
-    
     const derivedZone = getZoneFromWard(formWardNo);
     const wardCode = String(formWardNo);
 
@@ -2130,7 +2318,7 @@ Report Reference: #CF-${generatedRef}`;
       location: formDetails,
       description: formDescription,
       details: formDescription || verifiedDetails || "Citizen reported infrastructure issue verified by community tools.",
-      zone: derivedZone, // Write new derived zone name (e.g. Kannoth–Court Corridor)
+      zone: derivedZone, 
       ward: wardCode,
       status: "open",
       timeAgo: "Just now",
@@ -2147,6 +2335,66 @@ Report Reference: #CF-${generatedRef}`;
       reportedAt: new Date().toISOString()
     };
 
+    // Agent Duplicate Report Detection / Merge Suggestion
+    const candidates = reports.filter(r => 
+      r.status !== 'resolved' && 
+      r.status !== 'resolved_verified' &&
+      r.status !== 'resolved_pending_verification' &&
+      r.type?.toLowerCase() === formType?.toLowerCase()
+    );
+
+    let nearbyCandidates = [];
+    candidates.forEach(c => {
+      if (c.lat && c.lng) {
+        try {
+          const fromPoint = turf.point([formLng, formLat]);
+          const toPoint = turf.point([c.lng, c.lat]);
+          const distKm = turf.distance(fromPoint, toPoint);
+          if (distKm < 0.25) { // 250 meters
+            nearbyCandidates.push(c);
+          }
+        } catch {
+          // ignore coordinate format exceptions
+        }
+      }
+    });
+
+    if (nearbyCandidates.length > 0) {
+      setIsSubmitting(true);
+      try {
+        const agentResult = await triageAgent.detectDuplicates(newReport, nearbyCandidates);
+        
+        await logAgentActivity({
+          wardId: wardCode,
+          agentType: "Triage Agent",
+          decision: agentResult.decision,
+          confidence: agentResult.confidence,
+          reason: agentResult.reason,
+          recommendedAction: agentResult.recommendedAction
+        });
+
+        if (agentResult.decision === 'possible_duplicate' || agentResult.decision === 'related_cluster') {
+          const matchedReport = nearbyCandidates.find(c => c.id?.toString() === agentResult.matchedReportId?.toString()) || nearbyCandidates[0];
+          setTriageSuggestion({
+            newReport,
+            matchedReport,
+            decision: agentResult.decision,
+            confidence: agentResult.confidence,
+            reason: agentResult.reason,
+            recommendedAction: agentResult.recommendedAction
+          });
+          setIsSubmitting(false);
+          return; // Pause normal flow, show custom duplicate/merge UI
+        }
+      } catch (err) {
+        console.error("Triage duplicate check failed:", err);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
+    // Default save flow
+    setIsSubmitting(true);
     if (isFirebaseConfigured) {
       try {
         await addDoc(collection(db, 'reports'), newReport);
@@ -2161,6 +2409,17 @@ Report Reference: #CF-${generatedRef}`;
       setReports(prev => [newReport, ...prev]);
       await incrementUserKarma(10);
     }
+    
+    // Log normal triage action if no duplicate was found
+    await logAgentActivity({
+      reportId: newReport.id,
+      wardId: newReport.ward,
+      agentType: "Triage Agent",
+      decision: "new_issue",
+      confidence: 1.0,
+      reason: "No duplicate detected. Incident triaged and registered successfully.",
+      recommendedAction: "Log new ticket in municipal registry."
+    });
 
     setIsSubmitting(false);
     setIsReportModalOpen(false);
@@ -2168,6 +2427,10 @@ Report Reference: #CF-${generatedRef}`;
     // Reset form states
     setFormDetails("");
     setFormDescription("");
+    setUploadedImage(null);
+    setImageVerified(false);
+    setVerifiedDetails("");
+    setAiDraftedLetter("");
     setFormLat(0);
     setFormLng(0);
     setFormWardNo("");
@@ -2175,10 +2438,6 @@ Report Reference: #CF-${generatedRef}`;
     setLastInferredWardNo("");
     setLocationSource(null);
     setLocationError(null);
-    setImageVerified(false);
-    setUploadedImage(null);
-    setAiDraftedLetter("");
-    setVerifiedDetails("");
     
     setAiLogs(prev => [...prev, { id: `log-submit-${Date.now()}-${Math.random()}`, type: "success", text: `Report successfully uploaded and pinned to Ward ${wardCode} layout.` }]);
   };
@@ -2289,6 +2548,8 @@ Report Reference: #CF-${generatedRef}`;
           onViewLetter={onViewLetter}
           onAutoEscalate={onAutoEscalate}
           onAgentLog={onAgentLog}
+          onResolveClick={handleResolveClick}
+          onAuditClick={handleAuditClick}
         />
 
         {/* Center column: Map & Stability */}
@@ -2433,7 +2694,13 @@ Report Reference: #CF-${generatedRef}`;
 
         </div>
 
-        <RightPanel incidents={mappedIncidents} wardens={mappedWardens} onAgentLog={onAgentLog} />
+        <RightPanel 
+          incidents={mappedIncidents} 
+          wardens={mappedWardens} 
+          onAgentLog={onAgentLog} 
+          agentLogs={agentLogs}
+          wardRisks={wardRisks}
+        />
 
     </div>
 
@@ -3081,6 +3348,359 @@ Report Reference: #CF-${generatedRef}`;
         )}
       </AnimatePresence>
 
+      {/* TRIAGE SUGGESTION / DUPLICATE MERGE MODAL */}
+      <AnimatePresence>
+        {triageSuggestion && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-[#101115] border border-[#1b1d24] w-full max-w-lg rounded shadow-2xl flex flex-col p-5 space-y-4 font-mono"
+            >
+              <div className="border-b border-[#1b1d24] pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <AlertCircle size={18} />
+                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Triage Agent Duplicate Warning</span>
+                </div>
+                <button 
+                  onClick={() => setTriageSuggestion(null)}
+                  className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="text-xs font-mono text-[#8e8e8f] space-y-2 leading-relaxed">
+                <p className="text-white font-bold">
+                  Potential duplicate detected (confidence: {(triageSuggestion.confidence * 100).toFixed(0)}%)
+                </p>
+                <div className="bg-[#121318] p-3 rounded border border-[#1b1d24] space-y-1 text-[11px]">
+                  <div className="text-amber-400 font-bold uppercase text-[9px]">Decision: {triageSuggestion.decision}</div>
+                  <div><span className="text-[#555]">Existing Location:</span> {triageSuggestion.matchedReport.location}</div>
+                  <div><span className="text-[#555]">Existing Description:</span> {triageSuggestion.matchedReport.details || triageSuggestion.matchedReport.description}</div>
+                  <div><span className="text-[#555]">Reason:</span> {triageSuggestion.reason}</div>
+                  <div><span className="text-[#555]">Recommended Action:</span> {triageSuggestion.recommendedAction}</div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end border-t border-[#1b1d24] pt-3 text-xs font-mono">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const matchedId = triageSuggestion.matchedReport.id;
+                    const docId = triageSuggestion.matchedReport.docId;
+                    
+                    if (isFirebaseConfigured && docId) {
+                      try {
+                        const reportRef = doc(db, 'reports', docId);
+                        await updateDoc(reportRef, { 
+                          votes: increment(1),
+                          verifications: increment(1)
+                        });
+                      } catch (err) {
+                        console.error("Failed to merge report:", err);
+                      }
+                    } else {
+                      setReports(prev => prev.map(r => r.id === matchedId ? { ...r, votes: (r.votes || 0) + 1, verifications: (r.verifications || 0) + 1 } : r));
+                    }
+                    
+                    await logAgentActivity({
+                      reportId: matchedId,
+                      wardId: triageSuggestion.matchedReport.ward,
+                      agentType: "Triage Agent",
+                      decision: "merge_successful",
+                      confidence: triageSuggestion.confidence,
+                      reason: `User merged new submission into duplicate report #CF-${String(matchedId).substring(0, 4)}.`,
+                      recommendedAction: "Increment upvotes/verifications of duplicate and close current triage flow."
+                    });
+                    
+                    alert(`Report merged successfully! Existing ticket upvoted.`);
+                    setTriageSuggestion(null);
+                    setIsReportModalOpen(false);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                >
+                  Merge into Existing
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const modifiedReport = {
+                      ...triageSuggestion.newReport,
+                      duplicateOf: triageSuggestion.matchedReport.id,
+                      triageDecision: triageSuggestion.decision,
+                      triageConfidence: triageSuggestion.confidence,
+                      triageReason: triageSuggestion.reason
+                    };
+                    
+                    if (isFirebaseConfigured) {
+                      await addDoc(collection(db, 'reports'), modifiedReport);
+                    } else {
+                      setReports(prev => [modifiedReport, ...prev]);
+                    }
+                    
+                    await logAgentActivity({
+                      reportId: modifiedReport.id,
+                      wardId: modifiedReport.ward,
+                      agentType: "Triage Agent",
+                      decision: "link_as_related",
+                      confidence: triageSuggestion.confidence,
+                      reason: `User linked new report #CF-${String(modifiedReport.id).substring(0, 4)} as related to #CF-${String(triageSuggestion.matchedReport.id).substring(0, 4)}.`,
+                      recommendedAction: "Submit new report with duplicateOf reference set."
+                    });
+                    
+                    alert(`Report linked as related and submitted!`);
+                    setTriageSuggestion(null);
+                    setIsReportModalOpen(false);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                >
+                  Link as Related
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const newReport = triageSuggestion.newReport;
+                    if (isFirebaseConfigured) {
+                      await addDoc(collection(db, 'reports'), newReport);
+                    } else {
+                      setReports(prev => [newReport, ...prev]);
+                    }
+                    
+                    await logAgentActivity({
+                      reportId: newReport.id,
+                      wardId: newReport.ward,
+                      agentType: "Triage Agent",
+                      decision: "submit_as_new",
+                      confidence: triageSuggestion.confidence,
+                      reason: "User manually bypassed duplicate warning and created a new independent ticket.",
+                      recommendedAction: "Create new independent ticket without links."
+                    });
+                    
+                    alert(`Report submitted as new independent ticket!`);
+                    setTriageSuggestion(null);
+                    setIsReportModalOpen(false);
+                  }}
+                  className="bg-[#1b1d24] hover:bg-[#252831] border border-[#1b1d24] text-white px-3 py-1.5 rounded transition-colors"
+                >
+                  Submit as New
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* RESOLVE ISSUE MODAL */}
+      <AnimatePresence>
+        {activeResolveIncident && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-[#101115] border border-[#1b1d24] w-full max-w-lg rounded shadow-2xl flex flex-col font-mono"
+            >
+              {/* Header */}
+              <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <AlertCircle size={16} />
+                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">
+                    Submit Resolution Proof
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setActiveResolveIncident(null)}
+                  className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={submitResolutionProof} className="p-5 space-y-4 text-xs font-mono">
+                <div>
+                  <div className="text-[#8e8e8f] uppercase text-[9px] font-bold">Grievance Info</div>
+                  <div className="text-white mt-1">
+                    #CF-{activeResolveIncident.id.toString().substring(0, 4)}: {activeResolveIncident.type} at {activeResolveIncident.location}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                    Resolution Notes
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={resolveNotes}
+                    onChange={(e) => setResolveNotes(e.target.value)}
+                    placeholder="Describe the actions taken to repair or clear this issue..."
+                    className="bg-[#0c0d12] border border-[#1b1d24] rounded p-2 text-white focus:outline-none focus:border-blue-500/50 w-full text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                    Upload Resolution Proof Image
+                  </label>
+                  <div className="flex items-center justify-center border border-dashed border-[#1b1d24] bg-[#0c0d12] rounded p-4 relative h-36">
+                    {resolveImage ? (
+                      <div className="relative w-full h-full">
+                        <img src={resolveImage} className="w-full h-full object-cover rounded" alt="Proof" />
+                        <button 
+                          type="button"
+                          onClick={() => setResolveImage(null)}
+                          className="absolute top-1 right-1 bg-black/85 text-white p-1 rounded-full hover:bg-black"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center cursor-pointer text-[#8e8e8f] hover:text-white transition-colors w-full h-full">
+                        <Camera size={24} className="mb-1.5 mx-auto" />
+                        <span className="text-[9px] uppercase tracking-wider font-bold text-center block">Choose Proof Image</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setResolveImage(ev.target.result);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden" 
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-[#1b1d24] pt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveResolveIncident(null)}
+                    className="border border-[#1b1d24] hover:bg-[#16171d] text-[#8e8e8f] hover:text-white px-3.5 py-1.5 rounded transition-colors font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isAgentProcessing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded font-bold transition-colors flex items-center gap-1.5"
+                  >
+                    {isAgentProcessing ? "AI Auditing..." : "Submit for Verification"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AUDIT PROOF VERIFICATION MODAL */}
+      <AnimatePresence>
+        {activeAuditIncident && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-[#101115] border border-[#1b1d24] w-full max-w-xl rounded shadow-2xl flex flex-col font-mono"
+            >
+              {/* Header */}
+              <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-purple-400">
+                  <Shield size={16} />
+                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">
+                    Warden Verification Audit
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setActiveAuditIncident(null)}
+                  className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 text-xs font-mono max-h-[500px] overflow-y-auto no-scrollbar">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase font-bold text-[#555]">Original Report</span>
+                    <div className="text-white font-bold">#CF-{activeAuditIncident.id.toString().substring(0, 4)}</div>
+                    <div className="text-[#8e8e8f]">{activeAuditIncident.type} @ {activeAuditIncident.location}</div>
+                    <div className="text-[#666] leading-normal font-sans italic">{activeAuditIncident.details || activeAuditIncident.description}</div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase font-bold text-[#555]">Resolution Notes</span>
+                    <div className="text-white font-bold">Uploaded by Worker</div>
+                    <div className="text-[#8e8e8f] leading-normal font-sans">{activeAuditIncident.resolutionNotes || "No notes logged."}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase font-bold text-[#555]">AI Agent Audit Assessment</span>
+                    <div className="bg-[#121318] p-3 rounded border border-[#1b1d24] space-y-1.5 text-[10px]">
+                      <div className="font-bold text-emerald-400 uppercase">Decision: {activeAuditIncident.resolutionAuditDecision || "None"}</div>
+                      <div className="text-[#8e8e8f]"><span className="text-[#555]">Reason:</span> {activeAuditIncident.resolutionAuditReason || "Verification pending."}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[9px] uppercase font-bold text-[#555]">Resolution Proof Image</span>
+                    <div className="w-full h-32 bg-black/60 rounded border border-[#1b1d24] overflow-hidden">
+                      {activeAuditIncident.resolutionProofImage ? (
+                        <img src={activeAuditIncident.resolutionProofImage} className="w-full h-full object-cover" alt="Proof" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[#555]">No Image Uploaded</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#1b1d24] pt-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => handleWardenResolutionAudit(false)}
+                    disabled={isAgentProcessing}
+                    className="border border-red-500/30 hover:bg-red-600/10 text-red-400 px-3.5 py-1.5 rounded transition-colors font-bold uppercase text-[10px]"
+                  >
+                    Reject Proof (Re-open)
+                  </button>
+                  <button
+                    onClick={() => handleWardenResolutionAudit(true)}
+                    disabled={isAgentProcessing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded font-bold transition-colors uppercase text-[10px]"
+                  >
+                    Approve & Verify Resolution
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* FOOTER */}
       <footer 
         style={{ height: '48px' }} 
@@ -3099,7 +3719,7 @@ Report Reference: #CF-${generatedRef}`;
       <div className="h-8 flex-shrink-0" />
 
       {/* Floating collapsible AI Agent Console Drawer */}
-      <ConsoleDrawer logs={agentLogs} />
+      <ConsoleDrawer logs={consoleLogs} />
 
     </div>
   );

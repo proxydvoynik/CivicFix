@@ -19,7 +19,9 @@ export default function LeftPanel({
   onVerify,
   onViewLetter,
   onAutoEscalate,
-  onAgentLog
+  onAgentLog,
+  onResolveClick,
+  onAuditClick
 }) {
   const [now] = useState(() => Date.now());
 
@@ -511,6 +513,30 @@ export default function LeftPanel({
                           title="Review AI Grievance Draft"
                         >
                           ✉ Dispatch
+                        </button>
+                      )}
+                      {(incident.status !== 'resolved' && incident.status !== 'resolved_verified' && incident.status !== 'resolved_pending_verification') && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onResolveClick && onResolveClick(incident);
+                          }}
+                          className="bg-amber-600/10 hover:bg-amber-600 text-amber-400 hover:text-white px-2 py-0.5 rounded border border-amber-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer font-bold"
+                          title="Submit resolution photo proof"
+                        >
+                          ⚙ Resolve
+                        </button>
+                      )}
+                      {incident.status === 'resolved_pending_verification' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAuditClick && onAuditClick(incident);
+                          }}
+                          className="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white px-2 py-0.5 rounded border border-purple-500/30 text-[10px] font-bold font-mono transition-colors cursor-pointer animate-pulse font-bold"
+                          title="Audit verification proof"
+                        >
+                          🔍 Audit Proof
                         </button>
                       )}
                     </div>

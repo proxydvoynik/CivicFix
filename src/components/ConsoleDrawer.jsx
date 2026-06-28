@@ -3,9 +3,19 @@ import { useState, useMemo } from 'react';
 export default function ConsoleDrawer({ logs = [] }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const formatLog = (log) => {
+    if (!log) return '';
+    if (typeof log === 'string') return log;
+    if (log.text) return log.text;
+    if (log.decision) {
+      return `[${log.agentType || 'Agent'}] ${log.decision.toUpperCase()}: ${log.reason} (${(log.confidence * 100).toFixed(0)}% conf)`;
+    }
+    return JSON.stringify(log);
+  };
+
   // Compute the last log entry to display in the header bar
   const lastLog = useMemo(() => {
-    return logs.length > 0 ? logs[0] : 'Console idle — awaiting logs...';
+    return logs.length > 0 ? formatLog(logs[0]) : 'Console idle — awaiting logs...';
   }, [logs]);
 
   // Display maximum of 50 logs, newest first
@@ -60,7 +70,7 @@ export default function ConsoleDrawer({ logs = [] }) {
           displayedLogs.map((log, idx) => (
             <div key={idx} className="flex items-start text-xs leading-relaxed">
               <span className="text-[#00f5d4] mr-2 select-none font-bold">&gt;&gt;</span>
-              <span className="text-[#9ca3af] whitespace-pre-wrap break-all">{log}</span>
+              <span className="text-[#9ca3af] whitespace-pre-wrap break-all">{formatLog(log)}</span>
             </div>
           ))
         )}
