@@ -12,27 +12,20 @@ Below are visual layouts and walkthrough placeholders demonstrating the high-den
 
 ### 🖥️ Tactical Dashboard Interface
 <!-- Add dashboard view screenshot here -->
-![Tactical Dashboard Screenshot](docs/screenshots/dashboard_tactical_view.png)
+![Tactical Dashboard Screenshot](<img width="1919" height="909" alt="Tactical Dashboard Screenshot" src="https://github.com/user-attachments/assets/a8e413de-4ac3-41c1-bdc4-b6b6c7bb2307" />
+)
 *Figure 1: Full tactical dashboard containing the 3-column layouts, dark-mode leaflet map, and live data charts.*
 
 ### 📍 Geocoding & Incident Auto-Fill Modal
 <!-- Add modal view screenshot here -->
-![Report Modal Screenshot](docs/screenshots/report_modal_autocomplete.png)
+![Report Modal Screenshot](<img width="1919" height="907" alt="Report Modal Screenshot" src="https://github.com/user-attachments/assets/37c643d9-42db-4950-a7a4-c493d2c48139" />)
 *Figure 2: Frosted reporting modal showing GPS location-lock and dynamic ward boundary auto-fill.*
 
 ### 🔍 Citizen Evidence Verification Panel
 <!-- Add Evidence View screenshot here -->
-![Evidence Verification Screenshot](docs/screenshots/streetview_verification_panel.png)
+![Evidence Verification Screenshot](<img width="1919" height="909" alt="Evidence Verification Screenshot" src="https://github.com/user-attachments/assets/c8878e1f-6128-4c59-bf7c-1410e2dfde45" />
+)
 *Figure 3: Centered evidence panel displaying citizen-submitted photo evidence along with EXIF photo metadata.*
-
-### 🎥 Demo Walkthrough Video
-<!-- Add product walkthrough video here -->
-```html
-<video src="docs/media/civicfix_demo_walkthrough.mp4" controls width="800" poster="docs/screenshots/dashboard_tactical_view.png">
-  Your browser does not support the video tag.
-</video>
-```
-*Video 1: Walkthrough showing map pings, boundary drawing, Point-in-Polygon checks, and AI console logs.*
 
 ---
 
