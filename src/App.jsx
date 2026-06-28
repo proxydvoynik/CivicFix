@@ -622,6 +622,8 @@ const [currentUser, setCurrentUser] = useState(null);
   const [aliasModalOpen, setAliasModalOpen] = useState(false);
   const [aliasInput, setAliasInput] = useState("");
   const [wardensList, setWardensList] = useState([]);
+  const [wardRisks, setWardRisks] = useState({});
+  const [isRiskForecastOpen, setIsRiskForecastOpen] = useState(false);
   
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -1360,6 +1362,45 @@ const [currentUser, setCurrentUser] = useState(null);
   }, [isFirebaseConfigured]);
 
   // Ward Risk Forecasting effect
+  useEffect(() => {
+    const issuesByWard = {};
+    reports.forEach(r => {
+      if (r.ward) {
+        if (!issuesByWard[r.ward]) issuesByWard[r.ward] = [];
+        issuesByWard[r.ward].push(r);
+      }
+    });
+
+    const runWardRiskForecast = async () => {
+      const newWardRisks = {};
+      const entries = Object.entries(issuesByWard);
+      
+      for (const [wardNo, incidents] of entries) {
+        const wardInfo = WARD_POLYGONS.find(wp => wp.wardNo.toString() === wardNo.toString());
+        const wardName = wardInfo ? wardInfo.name : `Ward ${wardNo}`;
+        
+        try {
+          const result = await triageAgent.predictWardRisk(wardName, incidents, { temp: 29, precipitation: 5, floodRisk: false });
+          newWardRisks[wardNo] = {
+            wardName,
+            riskLevel: result.riskLevel,
+            confidence: result.confidence,
+            reason: result.reason,
+            recommendedAction: result.recommendedAction
+          };
+        } catch (e) {
+          console.error("Risk prediction failed for ward", wardNo, e);
+        }
+      }
+      setWardRisks(newWardRisks);
+    };
+
+    const timeout = setTimeout(() => {
+      runWardRiskForecast();
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [reports, triageAgent]);
 
 
   // Incident resolution action triggers
@@ -2486,6 +2527,7 @@ Report Reference: #CF-${generatedRef}`;
           incidents={mappedIncidents}
           onActiveGridAlertsClick={() => setIsActiveAlertsOpen(true)}
           onAiDispatchQueueClick={() => setIsDispatchQueueOpen(true)}
+          onRiskForecastClick={() => setIsRiskForecastOpen(true)}
         />
 
         {/* Center column: Map & Stability */}
@@ -2711,12 +2753,21 @@ Report Reference: #CF-${generatedRef}`;
         onAuditClick={handleAuditClick}
         onAutoEscalate={onAutoEscalate}
         onAgentLog={onAgentLog}
+        thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
       />
 
       <AiDispatchQueueWorkspace
         isOpen={isDispatchQueueOpen}
         onClose={() => setIsDispatchQueueOpen(false)}
         incidents={mappedIncidents}
+        thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
+      />
+
+      <WardHotspotsWorkspace
+        isOpen={isRiskForecastOpen}
+        onClose={() => setIsRiskForecastOpen(false)}
+        wardRisks={wardRisks}
+        thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
       />
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
@@ -3707,7 +3758,8 @@ function ActiveGridAlertsWorkspace({
   onResolveClick,
   onAuditClick,
   onAutoEscalate,
-  onAgentLog
+  onAgentLog,
+  thalasseryBoundaryGeoJSON
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -3726,18 +3778,91 @@ function ActiveGridAlertsWorkspace({
     let map = null;
     const timer = setTimeout(() => {
       if (!modalMapRef.current) return;
+      
+      const boundaryLimit = L.latLngBounds([11.7000, 75.4300], [11.8100, 75.5600]);
       map = L.map(modalMapRef.current, {
         center: [11.7490, 75.4891],
         zoom: 13,
         minZoom: 11,
         maxZoom: 18,
-        zoomControl: true,
+        maxBounds: boundaryLimit,
+        maxBoundsViscosity: 1.0,
+        zoomControl: false,
         attributionControl: false
       });
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 20
       }).addTo(map);
+
+      // Draw Thalassery Municipal Boundary polygon
+      if (thalasseryBoundaryGeoJSON) {
+        L.geoJSON(thalasseryBoundaryGeoJSON, {
+          style: {
+            color: '#ef4444',
+            weight: 2,
+            dashArray: '8 4',
+            fill: false,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false
+          }
+        }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
+          permanent: true,
+          direction: 'top',
+          className: 'custom-town-tooltip'
+        });
+      }
+
+      // Draw Ward Borders
+      const ZONE_COLORS = {
+        "Court Corridor": "#3b82f6",     // Blue
+        "Seafront": "#06b6d4",           // Cyan
+        "North Uplands": "#f59e0b",       // Amber
+        "Chirakkara Hills": "#a855f7",   // Purple
+        "South Highway": "#f43f5e",      // Rose/Red
+        "Heritage Quarter": "#10b981"    // Emerald
+      };
+
+      WARD_POLYGONS.forEach(wp => {
+        const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wp.wardNo);
+        const zone = canonicalWard ? canonicalWard.zone : null;
+        const zoneColor = ZONE_COLORS[zone] || "#94a3b8";
+
+        const polygon = L.polygon(wp.polygon, {
+          color: '#22d3ee',
+          opacity: 0.5,
+          weight: 0.8,
+          fillColor: zoneColor,
+          fillOpacity: 0.05,
+          interactive: true
+        });
+
+        polygon.on('mouseover', () => {
+          polygon.setStyle({
+            weight: 1.5,
+            fillOpacity: 0.18,
+            opacity: 0.8
+          });
+        });
+
+        polygon.on('mouseout', () => {
+          polygon.setStyle({
+            weight: 0.8,
+            fillOpacity: 0.05,
+            opacity: 0.5
+          });
+        });
+
+        polygon.bindTooltip(
+          `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/><span style="color:${zoneColor}">${zone || "General"} Sector</span>`,
+          { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+        );
+
+        polygon.addTo(map);
+      });
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
 
       setModalMapInstance(map);
     }, 100);
@@ -3749,7 +3874,7 @@ function ActiveGridAlertsWorkspace({
       }
       setModalMapInstance(null);
     };
-  }, [isOpen]);
+  }, [isOpen, thalasseryBoundaryGeoJSON]);
 
   // Sync ward overlay markers
   useEffect(() => {
@@ -3976,7 +4101,8 @@ function ActiveGridAlertsWorkspace({
 function AiDispatchQueueWorkspace({
   isOpen,
   onClose,
-  incidents
+  incidents,
+  thalasseryBoundaryGeoJSON
 }) {
   const [modalMapInstance, setModalMapInstance] = useState(null);
   const modalMapRef = useRef(null);
@@ -4004,18 +4130,91 @@ function AiDispatchQueueWorkspace({
     let map = null;
     const timer = setTimeout(() => {
       if (!modalMapRef.current) return;
+      
+      const boundaryLimit = L.latLngBounds([11.7000, 75.4300], [11.8100, 75.5600]);
       map = L.map(modalMapRef.current, {
         center: [11.7490, 75.4891],
         zoom: 13,
         minZoom: 11,
         maxZoom: 18,
-        zoomControl: true,
+        maxBounds: boundaryLimit,
+        maxBoundsViscosity: 1.0,
+        zoomControl: false,
         attributionControl: false
       });
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 20
       }).addTo(map);
+
+      // Draw Thalassery Municipal Boundary polygon
+      if (thalasseryBoundaryGeoJSON) {
+        L.geoJSON(thalasseryBoundaryGeoJSON, {
+          style: {
+            color: '#ef4444',
+            weight: 2,
+            dashArray: '8 4',
+            fill: false,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false
+          }
+        }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
+          permanent: true,
+          direction: 'top',
+          className: 'custom-town-tooltip'
+        });
+      }
+
+      // Draw Ward Borders
+      const ZONE_COLORS = {
+        "Court Corridor": "#3b82f6",     // Blue
+        "Seafront": "#06b6d4",           // Cyan
+        "North Uplands": "#f59e0b",       // Amber
+        "Chirakkara Hills": "#a855f7",   // Purple
+        "South Highway": "#f43f5e",      // Rose/Red
+        "Heritage Quarter": "#10b981"    // Emerald
+      };
+
+      WARD_POLYGONS.forEach(wp => {
+        const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wp.wardNo);
+        const zone = canonicalWard ? canonicalWard.zone : null;
+        const zoneColor = ZONE_COLORS[zone] || "#94a3b8";
+
+        const polygon = L.polygon(wp.polygon, {
+          color: '#22d3ee',
+          opacity: 0.5,
+          weight: 0.8,
+          fillColor: zoneColor,
+          fillOpacity: 0.05,
+          interactive: true
+        });
+
+        polygon.on('mouseover', () => {
+          polygon.setStyle({
+            weight: 1.5,
+            fillOpacity: 0.18,
+            opacity: 0.8
+          });
+        });
+
+        polygon.on('mouseout', () => {
+          polygon.setStyle({
+            weight: 0.8,
+            fillOpacity: 0.05,
+            opacity: 0.5
+          });
+        });
+
+        polygon.bindTooltip(
+          `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/><span style="color:${zoneColor}">${zone || "General"} Sector</span>`,
+          { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+        );
+
+        polygon.addTo(map);
+      });
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
 
       setModalMapInstance(map);
     }, 100);
@@ -4027,7 +4226,7 @@ function AiDispatchQueueWorkspace({
       }
       setModalMapInstance(null);
     };
-  }, [isOpen]);
+  }, [isOpen, thalasseryBoundaryGeoJSON]);
 
   // Sync ward overlay markers
   useEffect(() => {
@@ -4171,8 +4370,269 @@ function AiDispatchQueueWorkspace({
           </div>
 
           {/* Right Column: Leaflet Map */}
-          <div className="flex-1 h-full min-h-0 relative bg-[#090b10] z-0">
-            <div ref={modalMapRef} className="w-full h-full min-h-0"></div>
+          <div className="flex-1 h-full min-h-0 p-4 bg-[#090b10] flex flex-col">
+            <div className="flex-1 w-full h-full min-h-0 relative z-0 rounded border border-[#1b1d24]/60 shadow-lg overflow-hidden">
+              <div ref={modalMapRef} className="w-full h-full min-h-0 bg-[#090b10]"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function WardHotspotsWorkspace({
+  isOpen,
+  onClose,
+  wardRisks,
+  thalasseryBoundaryGeoJSON
+}) {
+  const [modalMapInstance, setModalMapInstance] = useState(null);
+  const modalMapRef = useRef(null);
+  const [hoveredWardNo, setHoveredWardNo] = useState(null);
+  const [clickedWardNo, setClickedWardNo] = useState(null);
+
+  // Initialize and clean up Map
+  useEffect(() => {
+    if (!isOpen || !modalMapRef.current) return;
+
+    let map = null;
+    const timer = setTimeout(() => {
+      if (!modalMapRef.current) return;
+      
+      const boundaryLimit = L.latLngBounds([11.7000, 75.4300], [11.8100, 75.5600]);
+      map = L.map(modalMapRef.current, {
+        center: [11.7490, 75.4891],
+        zoom: 13,
+        minZoom: 11,
+        maxZoom: 18,
+        maxBounds: boundaryLimit,
+        maxBoundsViscosity: 1.0,
+        zoomControl: false,
+        attributionControl: false
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+      }).addTo(map);
+
+      // Draw Thalassery Municipal Boundary polygon
+      if (thalasseryBoundaryGeoJSON) {
+        L.geoJSON(thalasseryBoundaryGeoJSON, {
+          style: {
+            color: '#ef4444',
+            weight: 2,
+            dashArray: '8 4',
+            fill: false,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false
+          }
+        }).addTo(map).bindTooltip('Thalassery Municipal Boundary Limit', {
+          permanent: true,
+          direction: 'top',
+          className: 'custom-town-tooltip'
+        });
+      }
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      setModalMapInstance(map);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (map) {
+        map.remove();
+      }
+      setModalMapInstance(null);
+    };
+  }, [isOpen, thalasseryBoundaryGeoJSON]);
+
+  // Sync ward overlay polygons & highlights
+  useEffect(() => {
+    if (!modalMapInstance) return;
+
+    // Clear existing polygon layers (except the tile layer and boundary layer)
+    modalMapInstance.eachLayer(layer => {
+      if (layer instanceof L.Polygon && !layer.options.dashArray) {
+        modalMapInstance.removeLayer(layer);
+      }
+    });
+
+    const ZONE_COLORS = {
+      "Court Corridor": "#3b82f6",
+      "Seafront": "#06b6d4",
+      "North Uplands": "#f59e0b",
+      "Chirakkara Hills": "#a855f7",
+      "South Highway": "#f43f5e",
+      "Heritage Quarter": "#10b981"
+    };
+
+    WARD_POLYGONS.forEach(wp => {
+      const canonicalWard = CANONICAL_WARDS.find(w => w.wardNo === wp.wardNo);
+      const zone = canonicalWard ? canonicalWard.zone : null;
+      const zoneColor = ZONE_COLORS[zone] || "#94a3b8";
+
+      const riskData = wardRisks[wp.wardNo.toString()];
+      const riskLevel = riskData ? riskData.riskLevel : "low";
+
+      // If this ward is hovered or clicked, highlight it strongly
+      const isTarget = hoveredWardNo === wp.wardNo || clickedWardNo === wp.wardNo;
+      
+      let fillColor = zoneColor;
+      if (riskLevel === "critical") fillColor = "#ef4444";
+      else if (riskLevel === "high") fillColor = "#f59e0b";
+      else if (riskLevel === "moderate") fillColor = "#eab308";
+
+      const polygon = L.polygon(wp.polygon, {
+        color: isTarget ? '#ffffff' : '#22d3ee',
+        opacity: isTarget ? 0.9 : 0.4,
+        weight: isTarget ? 2.0 : 0.8,
+        fillColor: fillColor,
+        fillOpacity: isTarget ? 0.28 : (riskLevel !== "low" && riskLevel !== "moderate" ? 0.15 : 0.04),
+        interactive: true
+      });
+
+      polygon.bindTooltip(
+        `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/>
+         Risk Level: <span style="font-weight:bold;text-transform:uppercase;color:${fillColor}">${riskLevel}</span>`,
+        { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+      );
+
+      polygon.on('click', () => {
+        setClickedWardNo(wp.wardNo);
+        // Find center coordinates
+        let latSum = 0, lngSum = 0;
+        wp.polygon.forEach(c => {
+          latSum += c[0];
+          lngSum += c[1];
+        });
+        modalMapInstance.setView([latSum / wp.polygon.length, lngSum / wp.polygon.length], 15);
+      });
+
+      polygon.on('mouseover', () => {
+        setHoveredWardNo(wp.wardNo);
+      });
+
+      polygon.on('mouseout', () => {
+        setHoveredWardNo(null);
+      });
+
+      polygon.addTo(modalMapInstance);
+    });
+  }, [modalMapInstance, wardRisks, hoveredWardNo, clickedWardNo]);
+
+  if (!isOpen) return null;
+
+  const getRiskColor = (level) => {
+    if (level === "critical") return "bg-red-500/10 text-red-400 border border-red-500/20";
+    if (level === "high") return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+    if (level === "moderate") return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+    return "bg-green-500/10 text-green-400 border border-green-500/20";
+  };
+
+  const handleWardItemClick = (wardNo, polygonCoords) => {
+    setClickedWardNo(wardNo);
+    if (modalMapInstance && polygonCoords) {
+      let latSum = 0, lngSum = 0;
+      polygonCoords.forEach(c => {
+        latSum += c[0];
+        lngSum += c[1];
+      });
+      modalMapInstance.setView([latSum / polygonCoords.length, lngSum / polygonCoords.length], 15);
+    }
+  };
+
+  const riskArray = Object.values(wardRisks);
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+        
+        {/* Header */}
+        <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
+          <div className="flex items-center gap-2 text-amber-400">
+            <AlertCircle size={16} />
+            <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Ward Hotspots & Risk Predictions</span>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-[#8e8e8f] hover:text-white p-1 hover:bg-[#16171d] rounded transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Content Split columns */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+          
+          {/* Left Column: Forecast Cards */}
+          <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
+            <div className="text-[11px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
+              AI Forecast Hotspots ({riskArray.length})
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar min-h-0">
+              {riskArray.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="flex items-center gap-2 mb-1.5 animate-pulse">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">Generating Risk Forecast...</span>
+                  </div>
+                  <span className="text-[10px] text-[#9ca3af] uppercase">Running predictive models</span>
+                </div>
+              ) : (
+                riskArray.map((risk, index) => {
+                  const matchingPolygon = WARD_POLYGONS.find(wp => wp.name === risk.wardName || wp.wardNo.toString() === risk.wardName.replace(/Ward /i, '').trim());
+                  const wardNoVal = matchingPolygon ? matchingPolygon.wardNo : null;
+                  const isHighlighted = clickedWardNo === wardNoVal || hoveredWardNo === wardNoVal;
+
+                  return (
+                    <div 
+                      key={index} 
+                      onClick={() => matchingPolygon && handleWardItemClick(matchingPolygon.wardNo, matchingPolygon.polygon)}
+                      onMouseEnter={() => matchingPolygon && setHoveredWardNo(matchingPolygon.wardNo)}
+                      onMouseLeave={() => setHoveredWardNo(null)}
+                      className={`cursor-pointer bg-[#16171d]/20 border p-4 rounded-lg flex flex-col gap-2 transition-all ${
+                        isHighlighted ? "border-amber-500/40 bg-amber-950/5 shadow-[0_0_12px_rgba(245,158,11,0.08)]" : "border-[#1b1d24]/60 hover:border-amber-500/20"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-white text-xs">{risk.wardName}</span>
+                        <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold ${getRiskColor(risk.riskLevel)}`}>
+                          {risk.riskLevel}
+                        </span>
+                      </div>
+                      
+                      {risk.confidence && (
+                        <div className="text-[10px] text-[#7d8590] font-semibold">
+                          Confidence: {(risk.confidence * 100).toFixed(0)}%
+                        </div>
+                      )}
+
+                      <p className="text-[11px] text-[#8e8e8f] leading-relaxed font-sans italic mt-0.5">
+                        {risk.reason}
+                      </p>
+                      
+                      {risk.recommendedAction && (
+                        <div className="text-[10px] text-cyan-400 font-bold leading-normal font-sans mt-0.5 border-t border-[#1b1d24]/30 pt-1.5">
+                          Action Plan: {risk.recommendedAction}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Leaflet Map */}
+          <div className="flex-1 h-full min-h-0 p-4 bg-[#090b10] flex flex-col">
+            <div className="flex-1 w-full h-full min-h-0 relative z-0 rounded border border-[#1b1d24]/60 shadow-lg overflow-hidden">
+              <div ref={modalMapRef} className="w-full h-full min-h-0 bg-[#090b10]"></div>
+            </div>
           </div>
 
         </div>

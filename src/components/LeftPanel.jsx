@@ -9,7 +9,8 @@ import {
 export default function LeftPanel({
   incidents = [],
   onActiveGridAlertsClick,
-  onAiDispatchQueueClick
+  onAiDispatchQueueClick,
+  onRiskForecastClick
 }) {
   // --- Section 1 States & Computations ---
   const [animateOffset, setAnimateOffset] = useState(600);
@@ -227,10 +228,10 @@ export default function LeftPanel({
         </CardShell>
 
         {/* WORKSPACE BUTTONS */}
-        <div className="grid grid-cols-1 gap-3 flex-none mt-2">
+        <div className="grid grid-cols-1 gap-2.5 flex-none mt-2">
           <button
             onClick={onActiveGridAlertsClick}
-            className="w-full h-11 flex items-center justify-between px-4 rounded bg-[#16171d]/80 border border-[#1b1d24] text-xs font-bold font-mono tracking-wider uppercase hover:bg-[#1d1e26] hover:border-blue-500/30 transition-all text-left text-white group"
+            className="w-full h-10 flex items-center justify-between px-4 rounded bg-[#16171d]/80 border border-[#1b1d24] text-xs font-bold font-mono tracking-wider uppercase hover:bg-[#1d1e26] hover:border-blue-500/30 transition-all text-left text-white group"
           >
             <span className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 group-hover:animate-ping shadow-[0_0_8px_#3b82f6]"></span>
@@ -241,13 +242,24 @@ export default function LeftPanel({
           
           <button
             onClick={onAiDispatchQueueClick}
-            className="w-full h-11 flex items-center justify-between px-4 rounded bg-[#16171d]/80 border border-[#1b1d24] text-xs font-bold font-mono tracking-wider uppercase hover:bg-[#1d1e26] hover:border-cyan-500/30 transition-all text-left text-white group"
+            className="w-full h-10 flex items-center justify-between px-4 rounded bg-[#16171d]/80 border border-[#1b1d24] text-xs font-bold font-mono tracking-wider uppercase hover:bg-[#1d1e26] hover:border-cyan-500/30 transition-all text-left text-white group"
           >
             <span className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 group-hover:animate-ping shadow-[0_0_8px_#22d3ee]"></span>
               AI Dispatch Queue
             </span>
             <span className="text-[#6b7280] group-hover:text-cyan-400 font-bold font-sans">→</span>
+          </button>
+
+          <button
+            onClick={onRiskForecastClick}
+            className="w-full h-10 flex items-center justify-between px-4 rounded bg-[#16171d]/80 border border-[#1b1d24] text-xs font-bold font-mono tracking-wider uppercase hover:bg-[#1d1e26] hover:border-amber-500/30 transition-all text-left text-white group"
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 group-hover:animate-ping shadow-[0_0_8px_#f59e0b]"></span>
+              Risk Forecast
+            </span>
+            <span className="text-[#6b7280] group-hover:text-amber-400 font-bold font-sans">→</span>
           </button>
         </div>
       </div>
