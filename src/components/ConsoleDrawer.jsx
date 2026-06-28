@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
+import { Heart } from 'lucide-react';
 
-export default function ConsoleDrawer({ logs = [] }) {
+export default function ConsoleDrawer({ logs = [], theme }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const formatLog = (log) => {
@@ -26,11 +27,22 @@ export default function ConsoleDrawer({ logs = [] }) {
   return (
     <div
       style={{
-        height: isExpanded ? '200px' : '32px',
+        height: isExpanded ? '280px' : '80px',
         transition: 'height 300ms ease'
       }}
       className="fixed bottom-0 left-0 right-0 z-50 bg-[#0c0e13]/90 backdrop-blur border-t border-[#1b1d24]/60 flex flex-col overflow-hidden font-mono"
     >
+      {/* Integrated Joined Footer */}
+      <footer className="h-12 flex-shrink-0 flex flex-col items-center justify-center border-b border-[#1b1d24]/40 bg-[#0c0e13]/10 py-1.5 px-4 text-center text-[#7d8590] text-[10px] leading-relaxed relative z-10">
+        <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>
+        <div className="mt-0.5 flex items-center justify-center gap-1.5 flex-wrap">
+          <span>Developed with ❤️ by <span className={`${theme === 'light' ? 'text-[#1e1b4b]' : 'text-white'} font-bold`}>Harshith</span> for the</span>
+          <span className={`${theme === 'light' ? 'text-[#1e1b4b] hover:text-red-500' : 'text-white hover:text-red-500'} transition-colors cursor-pointer flex items-center gap-0.5 font-bold`}>
+            Vibe2Ship Hackathon <Heart className="fill-red-500 stroke-red-500 inline-block shrink-0" size={11} />
+          </span>
+        </div>
+      </footer>
+
       {/* Header bar (always visible) */}
       <div className="h-8 min-h-[32px] px-4 border-b border-[#1b1d24]/50 select-none flex items-center w-full">
         <div className="max-w-6xl mx-auto w-full flex items-center justify-between">

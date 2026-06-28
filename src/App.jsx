@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   MapPin, Activity, PlusCircle, RefreshCw, 
   CheckCircle2, Send, Globe, Shield, X, 
-  Heart, Camera, AlertCircle, FileText, CloudSun, Layers
+  Camera, AlertCircle, FileText, CloudSun, Layers, Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeftPanel from './components/LeftPanel.jsx';
@@ -626,6 +626,23 @@ const [currentUser, setCurrentUser] = useState(null);
   const [isRiskForecastOpen, setIsRiskForecastOpen] = useState(false);
   const [selectedDetailedIncident, setSelectedDetailedIncident] = useState(null);
   
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light');
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.body.classList.toggle('light', theme === 'light');
+    document.body.classList.toggle('dark', theme === 'dark');
+    if (document.documentElement.style) {
+      document.documentElement.style.colorScheme = theme;
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+  
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isActiveAlertsOpen, setIsActiveAlertsOpen] = useState(false);
@@ -720,6 +737,7 @@ const [currentUser, setCurrentUser] = useState(null);
   const tempPlacementMarker = useRef(null);
   const hazardCirclesGroup = useRef(null);
   const wardPolygonsGroup = useRef(null);
+  const tileLayerRef = useRef(null);
 
   // Cleanup map placement marker if coordinates are reset
   useEffect(() => {
@@ -1627,10 +1645,14 @@ const [currentUser, setCurrentUser] = useState(null);
       attributionControl: false
     });
 
-    // Add CartoDB Dark Matter tile layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Add theme-aware CartoDB tile layer
+    const initTileUrl = theme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const tileLayer = L.tileLayer(initTileUrl, {
       maxZoom: 20
     }).addTo(map);
+    tileLayerRef.current = tileLayer;
 
     // Draw Thalassery Municipal Boundary calculated dynamically as dissolved union of all wards
     if (thalasseryBoundaryGeoJSON) {
@@ -1712,6 +1734,16 @@ const [currentUser, setCurrentUser] = useState(null);
       map.remove();
     };
   }, [thalasseryBoundaryGeoJSON]);
+
+  // Swaps map tile layer dynamically when theme changes
+  useEffect(() => {
+    if (mapInstance && tileLayerRef.current) {
+      const url = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      tileLayerRef.current.setUrl(url);
+    }
+  }, [theme, mapInstance]);
 
   // Sync ward polygons (boundaries) layer on Leaflet map with active sector highlights
   useEffect(() => {
@@ -2453,7 +2485,11 @@ Report Reference: #CF-${generatedRef}`;
     <div className="h-screen bg-[#08090c] text-[#e2e8f0] flex flex-col font-mono selection:bg-blue-600 selection:text-white relative overflow-hidden">
       
       {/* Background radial gradient matches Singapore dashboard style */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,17,21,0.4)_0%,rgba(7,8,10,0.8)_100%)] pointer-events-none z-0"></div>
+      <div className={`absolute inset-0 pointer-events-none z-0 ${
+        theme === 'light'
+          ? 'bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.7)_0%,rgba(224,231,255,0.4)_100%)]'
+          : 'bg-[radial-gradient(circle_at_center,rgba(15,17,21,0.4)_0%,rgba(7,8,10,0.8)_100%)]'
+      }`}></div>
 
       {/* HEADER NAVBAR (Matches Smart City Platform aesthetic with Glassmorphism) */}
       <header className="sticky top-0 z-40 w-full bg-[#0c0d12]/75 backdrop-blur-lg border-b border-[#1b1d24]/60 h-14 flex items-center justify-between px-4 sm:px-6 flex-none">
@@ -2506,6 +2542,15 @@ Report Reference: #CF-${generatedRef}`;
             <RefreshCw size={12} className={isRefreshing ? "animate-spin text-blue-400" : ""} />
           </button>
 
+          {/* Theme Toggle Button */}
+          <button 
+            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+            className="w-8 h-8 flex items-center justify-center border border-[#1b1d24] bg-[#16171d] text-[#7d8590] hover:text-white transition-all rounded hover:bg-[#1d1e26] cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun size={12} className="text-yellow-400" /> : <Moon size={12} className="text-indigo-400" />}
+          </button>
+
           {/* REPORT BUTTON */}
           <button
             onClick={() => {
@@ -2539,6 +2584,7 @@ Report Reference: #CF-${generatedRef}`;
           onActiveGridAlertsClick={() => setIsActiveAlertsOpen(true)}
           onAiDispatchQueueClick={() => setIsDispatchQueueOpen(true)}
           onRiskForecastClick={() => setIsRiskForecastOpen(true)}
+          theme={theme}
         />
 
         {/* Center column: Map & Stability */}
@@ -2647,8 +2693,8 @@ Report Reference: #CF-${generatedRef}`;
             {/* Sparkline chart (Color-coded from Good to Critical) */}
             <div className="h-8 w-full pt-0.5">
               <svg viewBox="0 0 400 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                <line x1="0" y1="10" x2="400" y2="10" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
-                <line x1="0" y1="30" x2="400" y2="30" stroke="#22242e" strokeWidth="0.5" strokeDasharray="2,4" />
+                <line x1="0" y1="10" x2="400" y2="10" stroke={theme === 'light' ? '#cbd5e1' : '#22242e'} strokeWidth="0.5" strokeDasharray="2,4" />
+                <line x1="0" y1="30" x2="400" y2="30" stroke={theme === 'light' ? '#cbd5e1' : '#22242e'} strokeWidth="0.5" strokeDasharray="2,4" />
                 <path 
                   d={sparklinePath} 
                   fill="none" 
@@ -2665,7 +2711,7 @@ Report Reference: #CF-${generatedRef}`;
                 <defs>
                   <linearGradient id="gradient-uptime-ctr" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#000000" />
+                    <stop offset="100%" stopColor="transparent" />
                   </linearGradient>
                   <linearGradient id="sparkline-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10b981" /> {/* Good - Green */}
@@ -2705,6 +2751,7 @@ Report Reference: #CF-${generatedRef}`;
           incidents={mappedIncidents} 
           wardens={mappedWardens} 
           onAgentLog={onAgentLog} 
+          theme={theme}
         />
 
     </div>
@@ -3753,25 +3800,8 @@ Report Reference: #CF-${generatedRef}`;
         )}
       </AnimatePresence>
 
-      {/* FOOTER */}
-      <footer 
-        style={{ height: '48px' }} 
-        className="flex-shrink-0 flex flex-col items-center justify-center border-t border-[#1b1d24]/60 bg-[#0c0d12]/80 backdrop-blur-md py-2 px-4 text-center text-[#666] font-mono text-[10px] leading-relaxed relative z-10"
-      >
-        <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>
-        <div className="mt-1 flex items-center justify-center gap-1.5 flex-wrap">
-          <span>Developed with ❤️ by <span className="text-white font-bold">Harshith</span> for the</span>
-          <span className="text-white hover:text-red-500 transition-colors cursor-pointer flex items-center gap-0.5 font-bold">
-            Vibe2Ship Hackathon <Heart className="fill-red-500 stroke-red-500 inline-block shrink-0" size={11} />
-          </span>
-        </div>
-      </footer>
-
-      {/* Spacer to reserve room for the ConsoleDrawer */}
-      <div className="h-8 flex-shrink-0" />
-
-      {/* Floating collapsible AI Agent Console Drawer */}
-      <ConsoleDrawer logs={consoleLogs} />
+      {/* Floating collapsible AI Agent Console Drawer with integrated footer */}
+      <ConsoleDrawer logs={consoleLogs} theme={theme} />
 
     </div>
   );
@@ -3948,7 +3978,7 @@ function ActiveGridAlertsWorkspace({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8">
       <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
         
         {/* Header */}
@@ -4304,7 +4334,7 @@ function AiDispatchQueueWorkspace({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8">
       <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
         
         {/* Header */}
@@ -4427,7 +4457,8 @@ function WardHotspotsWorkspace({
   thalasseryBoundaryGeoJSON,
   incidents,
   onAgentLog,
-  triageAgent
+  triageAgent,
+  theme
 }) {
   const [modalMapInstance, setModalMapInstance] = useState(null);
   const modalMapRef = useRef(null);
@@ -4507,7 +4538,10 @@ function WardHotspotsWorkspace({
         attributionControl: false
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      const tileUrl = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, {
         maxZoom: 20
       }).addTo(map);
 
@@ -4618,6 +4652,20 @@ function WardHotspotsWorkspace({
     });
   }, [modalMapInstance, localWardRisks, hoveredWardNo, clickedWardNo]);
 
+  // Sync map tiles with theme
+  useEffect(() => {
+    if (modalMapInstance) {
+      modalMapInstance.eachLayer(layer => {
+        if (layer instanceof L.TileLayer) {
+          const url = theme === 'dark'
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+          layer.setUrl(url);
+        }
+      });
+    }
+  }, [theme, modalMapInstance]);
+
   if (!isOpen) return null;
 
   const getRiskColor = (level) => {
@@ -4642,7 +4690,7 @@ function WardHotspotsWorkspace({
   const riskArray = Object.values(localWardRisks);
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8">
       <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
         
         {/* Header */}

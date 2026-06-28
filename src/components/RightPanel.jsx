@@ -34,7 +34,8 @@ const SEED_WARDENS = [
 
 export default function RightPanel({
   wardens,
-  onAgentLog
+  onAgentLog,
+  theme
 }) {
   // --- SECTION 1: Weather Fetching & Precipitation Chart ---
   const [weather, setWeather] = useState(null);
@@ -163,7 +164,7 @@ export default function RightPanel({
                 <div className="flex-1 min-h-[120px] w-full relative">
                   <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
                     {/* Baseline grid marker */}
-                    <line x1="0" y1="60" x2="240" y2="60" stroke="#1b1d24" strokeWidth="0.8" />
+                    <line x1="0" y1="60" x2="240" y2="60" stroke={theme === 'light' ? '#cbd5e1' : '#1b1d24'} strokeWidth="0.8" />
 
                     {/* SVG Bar items */}
                     {(() => {
@@ -196,7 +197,7 @@ export default function RightPanel({
                             height={h}
                             fill={color}
                             fillOpacity={isCurrentHour ? "1.0" : "0.75"}
-                            stroke={isCurrentHour ? "white" : "none"}
+                            stroke={isCurrentHour ? (theme === 'light' ? '#0f172a' : 'white') : 'none'}
                             strokeWidth={isCurrentHour ? "1" : "0"}
                             strokeOpacity={isCurrentHour ? "0.9" : "0"}
                             rx="0.5"

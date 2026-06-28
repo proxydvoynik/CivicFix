@@ -10,7 +10,8 @@ export default function LeftPanel({
   incidents = [],
   onActiveGridAlertsClick,
   onAiDispatchQueueClick,
-  onRiskForecastClick
+  onRiskForecastClick,
+  theme
 }) {
   // --- Section 1 States & Computations ---
   const [animateOffset, setAnimateOffset] = useState(600);
@@ -54,7 +55,7 @@ export default function LeftPanel({
   // Radar Geometry Settings (viewBox 0 0 200 200)
   const cx = 100;
   const cy = 100;
-  const maxRadius = 70;
+  const maxRadius = 58;
 
   // Calculate coordinates for vertices
   const getVertexCoordinates = (index, scorePercentage) => {
@@ -79,7 +80,7 @@ export default function LeftPanel({
         key={`grid-${scale}`}
         points={points}
         fill="none"
-        stroke="#2a2d38"
+        stroke={theme === 'light' ? '#cbd5e1' : '#2a2d38'}
         strokeWidth="0.8"
       />
     );
@@ -97,7 +98,7 @@ export default function LeftPanel({
     ];
     return Array.from({ length: 6 }).map((_, i) => {
       const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 6;
-      const radius = 80; // Comfortable distance outside 100% outer ring
+      const radius = 68; // Comfortable distance outside 100% outer ring
       const x = cx + radius * Math.cos(angle);
       const y = cy + radius * Math.sin(angle);
       return { x, y, ...positions[i] };
@@ -118,7 +119,7 @@ export default function LeftPanel({
       
       <div className="flex-1 flex flex-col gap-4 px-3 md:px-4 pb-3 overflow-hidden">
         {/* SECTION 1: Environmental Health Radar Chart */}
-        <CardShell className="flex-1 flex flex-col min-h-0 justify-between py-6">
+        <CardShell className="flex-1 flex flex-col min-h-0 justify-between py-6 px-6">
           {/* Header Block & Overall Score Badge */}
           <div className="flex justify-between items-start flex-none">
             <div className="flex flex-col">
@@ -152,7 +153,7 @@ export default function LeftPanel({
                     y1={cy}
                     x2={x}
                     y2={y}
-                    stroke="#1b1d24"
+                    stroke={theme === 'light' ? '#e2e8f0' : '#1b1d24'}
                     strokeWidth="1.2"
                   />
                 );
@@ -174,7 +175,7 @@ export default function LeftPanel({
               ))}
 
               {/* Center HUD Circle & Text */}
-              <circle cx={cx} cy={cy} r="18" fill="#121318" stroke="#1b1d24" strokeWidth="1" />
+              <circle cx={cx} cy={cy} r="18" fill={theme === 'light' ? '#f1f5f9' : '#121318'} stroke={theme === 'light' ? '#cbd5e1' : '#1b1d24'} strokeWidth="1" />
               <text
                 x={cx}
                 y={cy - 2}
@@ -187,7 +188,8 @@ export default function LeftPanel({
                 x={cx}
                 y={cy + 5}
                 textAnchor="middle"
-                className="fill-white text-[5.5px] font-bold tracking-wider"
+                fill={theme === 'light' ? '#0f172a' : '#ffffff'}
+                className="text-[5.5px] font-bold tracking-wider"
               >
                 HEALTH
               </text>
@@ -216,7 +218,7 @@ export default function LeftPanel({
                     cx={coord.x}
                     cy={coord.y}
                     r="2.5"
-                    fill="#121318"
+                    fill={theme === 'light' ? '#ffffff' : '#121318'}
                     stroke={radarColor}
                     strokeWidth="1.5"
                     className="transition-all duration-300"
