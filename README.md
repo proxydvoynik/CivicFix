@@ -83,6 +83,16 @@ CivicFix uses a balanced, high-density layout with a dark, premium matte charcoa
 - **Dynamic Map Tile Swapping**: Re-fetches Leaflet tile layers instantly at runtime using `.setUrl()`, toggling between CartoDB Dark Matter (dark) and CartoDB Voyager light tiles across all 4 Leaflet map instances.
 - **Accent Contrast Control**: Automatically scales high-contrast color mapping for cyan/amber/emerald/red indicators and buttons to preserve solid-colored badge contrast while maintaining clean button readability.
 
+### 8. Premium Motion System & Visual Redesign
+We revamped the user experience and interface transitions using custom Framer Motion animations and CSS keyframes, recreating the visual style of premium libraries (like Magic UI) manually:
+- **Staggered Panel Entrances**: Panels and containers slide and fade into view sequentially on load using custom staggered spring animations.
+- **Blur-Fade Reveals**: Recreated the Magic UI Blur-Fade entry effect, animating elements from `opacity: 0, scale: 0.985, filter: blur(6px)` to sharp focus.
+- **NumberTicker Counters**: Smooth spring-based integer and decimal counts for KPIs (Warden Karma points, weather stats, and stability indexes).
+- **SVG Border Beams**: High-priority cards (like active dispatches) feature moving gradient borders animated via SVG `strokeDashoffset` keyframes.
+- **Infinite Scrolling Marquee**: Rebuilt the live ticker using a double-content infinite loop container running at 60fps with pauses on hover.
+- **View Transition Theme Toggling**: Seamless circular clip-path expansion ripple when switching between dark and light modes, combined with rotating sun/moon button animations.
+- **Tactical Dot-Grid Canvas**: Applied a subtle grid texture backdrop (`.bg-grid-dots`) that shifts cleanly between light mode and dark mode.
+
 ---
 
 ## 🤖 How AI Acts Autonomously (Agentic Depth)
