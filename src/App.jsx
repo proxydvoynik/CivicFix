@@ -2731,13 +2731,12 @@ Report Reference: #CF-${generatedRef}`;
 
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
       <motion.div 
-        style={{ height: 'calc(100vh - 172px)' }} 
         variants={dashboardContainerVariants}
         initial="hidden"
         animate="show"
-        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr_380px] gap-3 p-3 md:p-4 bg-grid-dots"
+        className="flex-1 overflow-y-auto lg:overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] xl:grid-cols-[340px_1fr_340px] 2xl:grid-cols-[380px_1fr_380px] gap-3 p-3 md:p-4 bg-grid-dots"
       >
-        <motion.div variants={panelVariants} className="h-full min-h-0">
+        <motion.div variants={panelVariants} className="h-[600px] lg:h-full min-h-0 order-2 lg:order-1">
           <LeftPanel
             incidents={mappedIncidents}
             onActiveGridAlertsClick={() => setIsActiveAlertsOpen(true)}
@@ -2748,7 +2747,7 @@ Report Reference: #CF-${generatedRef}`;
         </motion.div>
 
         {/* Center column: Map & Stability */}
-        <motion.div variants={panelVariants} className="flex flex-col gap-3 h-full overflow-hidden">
+        <motion.div variants={panelVariants} className="flex flex-col gap-3 h-[500px] lg:h-full overflow-hidden order-1 lg:order-2">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
           <section className={`flex-1 min-h-0 border backdrop-blur-xl p-4 flex flex-col gap-2.5 rounded-xl relative overflow-hidden transition-all duration-300 ${
@@ -2961,7 +2960,7 @@ Report Reference: #CF-${generatedRef}`;
 
         </motion.div>
 
-        <motion.div variants={panelVariants} className="h-full min-h-0">
+        <motion.div variants={panelVariants} className="h-[600px] lg:h-full min-h-0 order-3">
           <RightPanel 
             incidents={mappedIncidents} 
             wardens={mappedWardens} 
@@ -4237,7 +4236,7 @@ function ActiveGridAlertsWorkspace({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-4 sm:p-6 md:p-8"
         >
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 15 }}
@@ -4634,7 +4633,7 @@ function AiDispatchQueueWorkspace({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-4 sm:p-6 md:p-8"
         >
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 15 }}
@@ -5009,7 +5008,7 @@ function WardHotspotsWorkspace({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-4 sm:p-6 md:p-8"
         >
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 15 }}
