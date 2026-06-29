@@ -329,31 +329,39 @@ export function getMapMarkers(incidents) {
     
     let pingBg = 'bg-amber-400';
     let bgClass;
+    let colorHex;
     let showPing = true;
 
     if (inc.status === 'resolved' || inc.status === 'resolved_verified') {
       bgClass = 'bg-emerald-500';
+      colorHex = '#10b981';
       showPing = false;
     } else if (inc.status === 'resolved_pending_verification') {
       pingBg = 'bg-purple-400 animate-pulse';
       bgClass = 'bg-purple-500';
+      colorHex = '#a855f7';
     } else if (inc.status === 'dispatched') {
       pingBg = 'bg-blue-400';
       bgClass = 'bg-blue-500';
+      colorHex = '#3b82f6';
     } else if (inc.status === 'escalated') {
       pingBg = 'bg-red-500 animate-pulse';
       bgClass = 'bg-red-600';
+      colorHex = '#dc2626';
     } else {
       // open/other, color by severity
       if (inc.severity === 'critical') {
         pingBg = 'bg-red-400';
         bgClass = 'bg-red-500';
+        colorHex = '#ef4444';
       } else if (inc.severity === 'warning') {
         pingBg = 'bg-amber-400';
         bgClass = 'bg-amber-500';
+        colorHex = '#f59e0b';
       } else {
         pingBg = 'bg-slate-400';
         bgClass = 'bg-slate-500';
+        colorHex = '#64748b';
         showPing = false;
       }
     }
@@ -362,6 +370,7 @@ export function getMapMarkers(incidents) {
       ...inc,
       pingBg,
       bgClass,
+      colorHex,
       showPing
     };
   }).filter(Boolean);
