@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import CardShell from './CardShell.jsx';
+import NumberTicker from './ui/NumberTicker.jsx';
 
 // Seed Wardens for fallbacks
 const SEED_WARDENS = [
@@ -189,19 +190,25 @@ export default function RightPanel({
                     theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-cyan-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-cyan-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                   }`}>
                     <span className="text-[8px] text-gray-500 block font-bold tracking-wider">WIND</span>
-                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{weatherStats.wind} km/h</span>
+                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                      <NumberTicker value={weatherStats.wind} /> km/h
+                    </span>
                   </div>
                   <div className={`border p-2 rounded-lg transition-colors duration-300 ${
                     theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-amber-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-amber-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                   }`}>
                     <span className="text-[8px] text-gray-500 block font-bold tracking-wider">HUMIDITY</span>
-                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{weatherStats.humidity}%</span>
+                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                      <NumberTicker value={weatherStats.humidity} />%
+                    </span>
                   </div>
                   <div className={`border p-2 rounded-lg transition-colors duration-300 ${
                     theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-emerald-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-emerald-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                   }`}>
                     <span className="text-[8px] text-gray-500 block font-bold tracking-wider">PRESSURE</span>
-                    <span className={`text-xs font-bold mt-0.5 block truncate transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{weatherStats.pressure} hPa</span>
+                    <span className={`text-xs font-bold mt-0.5 block truncate transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                      <NumberTicker value={weatherStats.pressure} /> hPa
+                    </span>
                   </div>
                 </div>
 
@@ -315,53 +322,55 @@ export default function RightPanel({
 
             <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-around py-1 space-y-2">
               {topWardens.map((item, idx) => {
-                // Calculate a relative karma progress percentage
-                const highestKarma = topWardens[0]?.karma || 600;
-                const barPercent = Math.min(100, Math.max(10, (item.karma / highestKarma) * 100));
-                
-                return (
-                  <motion.div 
-                    initial={{ x: 20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.4 + (idx * 0.1), type: "spring" }}
-                    whileHover={{ scale: 1.02 }}
-                    key={idx} 
-                    className={`group flex flex-col gap-1.5 p-2.5 rounded-lg border transition-all duration-300 cursor-pointer ${
-                      theme === 'light'
-                        ? 'border-slate-100 bg-slate-50/60 hover:border-blue-500/30 hover:bg-white shadow-[0_2px_4px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_12px_rgba(59,130,246,0.08)]'
-                        : 'border-[#1e2333]/30 bg-[#07080a]/40 hover:border-[#2b354c]/60 hover:bg-[#0c1018]/50 shadow-[0_2px_4px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className={`text-sm shrink-0 w-6 h-6 flex items-center justify-center rounded-md border text-xs font-bold transition-colors duration-300 ${
-                          theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#10131d] border-[#1e2333]/65'
-                        }`}>
-                          {rankIcons[idx] || (idx + 1)}
-                        </span>
-                        <div className="flex flex-col min-w-0">
-                          <span className={`text-[11px] font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{item.name}</span>
-                          <span className="text-[8px] font-mono text-gray-500 tracking-wider mt-0.5 uppercase truncate">{item.role}</span>
+                  // Calculate a relative karma progress percentage
+                  const highestKarma = topWardens[0]?.karma || 600;
+                  const barPercent = Math.min(100, Math.max(10, (item.karma / highestKarma) * 100));
+                  
+                  return (
+                    <motion.div 
+                      initial={{ x: 20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.4 + (idx * 0.1), type: "spring", stiffness: 300, damping: 24 }}
+                      whileHover={{ scale: 1.02 }}
+                      key={item.id || idx} 
+                      className={`group flex flex-col gap-1.5 p-2.5 rounded-lg border transition-all duration-300 cursor-pointer ${
+                        theme === 'light'
+                          ? 'border-slate-100 bg-slate-50/60 hover:border-blue-500/30 hover:bg-white shadow-[0_2px_4px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_12px_rgba(59,130,246,0.08)]'
+                          : 'border-[#1e2333]/30 bg-[#07080a]/40 hover:border-[#2b354c]/60 hover:bg-[#0c1018]/50 shadow-[0_2px_4px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`text-sm shrink-0 w-6 h-6 flex items-center justify-center rounded-md border text-xs font-bold transition-colors duration-300 ${
+                            theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#10131d] border-[#1e2333]/65'
+                          }`}>
+                            {rankIcons[idx] || (idx + 1)}
+                          </span>
+                          <div className="flex flex-col min-w-0">
+                            <span className={`text-[11px] font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{item.name}</span>
+                            <span className="text-[8px] font-mono text-gray-500 tracking-wider mt-0.5 uppercase truncate">{item.role}</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-mono font-bold text-cyan-500">
+                            <NumberTicker value={item.karma} />
+                          </span>
+                          <span className="text-[7.5px] font-mono text-gray-500 block uppercase tracking-wider">KP</span>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-mono font-bold text-cyan-500">{item.karma}</span>
-                        <span className="text-[7.5px] font-mono text-gray-500 block uppercase tracking-wider">KP</span>
+                      
+                      {/* Progress karma bar */}
+                      <div className={`w-full h-1 rounded-full overflow-hidden transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100' : 'bg-[#121622]'}`}>
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${barPercent}%` }}
+                          transition={{ delay: 0.6 + (idx * 0.1), duration: 1, ease: "easeOut" }}
+                          className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" 
+                        />
                       </div>
-                    </div>
-                    
-                    {/* Progress karma bar */}
-                    <div className={`w-full h-1 rounded-full overflow-hidden transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100' : 'bg-[#121622]'}`}>
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${barPercent}%` }}
-                        transition={{ delay: 0.6 + (idx * 0.1), duration: 1, ease: "easeOut" }}
-                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" 
-                      />
-                    </div>
-                  </motion.div>
-                );
-              })}
+                    </motion.div>
+                  );
+                })}
             </div>
           </CardShell>
         </motion.div>

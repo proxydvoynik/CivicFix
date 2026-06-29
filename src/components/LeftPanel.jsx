@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import CardShell from './CardShell.jsx';
+import NumberTicker from './ui/NumberTicker.jsx';
 import { 
   WARD_ZONES, 
   ZONE_MAPPING, 
@@ -140,10 +141,6 @@ export default function LeftPanel({
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        @keyframes pulse-soft {
-          0%, 100% { opacity: 0.25; transform: scale(1); }
-          50% { opacity: 0.45; transform: scale(1.05); }
-        }
         .radar-grid-bg {
           background-image: radial-gradient(circle, rgba(0,245,212,0.03) 1px, transparent 1px);
           background-size: 8px 8px;
@@ -183,7 +180,7 @@ export default function LeftPanel({
                       ? 'bg-red-50 text-red-600 border-red-200 shadow-sm'
                       : 'bg-red-950/30 text-red-400 border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.15)]')
               }`}>
-                {averageScore.toFixed(1)}% {averageScore >= 85 ? 'STABLE' : 'DEGRADED'}
+                <NumberTicker value={averageScore} decimals={1} />% {averageScore >= 85 ? 'STABLE' : 'DEGRADED'}
               </motion.span>
             </div>
 
@@ -306,13 +303,27 @@ export default function LeftPanel({
                       <circle
                         cx={coord.x}
                         cy={coord.y}
-                        r="4.5"
+                        r="3"
                         fill="none"
                         stroke={radarColor}
                         strokeWidth="1"
-                        className="opacity-40"
-                        style={{ animation: 'pulse-soft 2s infinite' }}
-                      />
+                        pointerEvents="none"
+                      >
+                        <animate
+                          attributeName="r"
+                          values="3;7"
+                          dur="2s"
+                          begin={`${idx * 0.12}s`}
+                          repeatCount="indefinite"
+                        />
+                        <animate
+                          attributeName="stroke-opacity"
+                          values="0.65;0"
+                          dur="2s"
+                          begin={`${idx * 0.12}s`}
+                          repeatCount="indefinite"
+                        />
+                      </circle>
                       <circle
                         key={`node-${idx}`}
                         cx={coord.x}

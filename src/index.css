@@ -415,3 +415,41 @@ html[data-magicui-theme-vt="active"]::view-transition-group(root) {
   animation-duration: var(--magicui-theme-toggle-vt-duration);
 }
 
+/* Recreated Border Beam Animation (SVG border crawl) */
+@keyframes border-beam {
+  100% {
+    stroke-dashoffset: -600;
+  }
+}
+.animate-border-beam {
+  animation: border-beam 8s linear infinite;
+}
+
+/* High-performance Infinite Scrolling Marquee */
+@keyframes marquee-infinite {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+.animate-marquee-scroller {
+  display: flex;
+  width: max-content;
+  animation: marquee-infinite var(--marquee-duration, 50s) linear infinite;
+}
+.animate-marquee-scroller:hover {
+  animation-play-state: paused;
+}
+
+/* Premium Command Center Dotted/Grid Canvas Textures */
+.bg-grid-dots {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+.dark .bg-grid-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+

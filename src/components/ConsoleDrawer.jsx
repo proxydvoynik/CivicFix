@@ -100,18 +100,25 @@ export default function ConsoleDrawer({ logs = [], theme }) {
               &gt;&gt; Console idle. Awaiting operations feed...
             </div>
           ) : (
-            displayedLogs.map((log, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2 }}
-                key={idx} 
-                className="flex items-start text-[10px] sm:text-xs leading-relaxed font-mono"
-              >
-                <span className={`mr-2.5 select-none font-bold transition-colors duration-300 mt-0.5 ${theme === 'light' ? 'text-blue-600' : 'text-[#00f5d4]'}`}>&gt;&gt;</span>
-                <span className={`whitespace-pre-wrap break-all transition-colors duration-300 ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>{formatLog(log)}</span>
-              </motion.div>
-            ))
+            <AnimatePresence mode="popLayout">
+              {displayedLogs.map((log, idx) => {
+                const logKey = log.id || `${log.timestamp || idx}-${typeof log === 'string' ? log.substring(0, 30) : JSON.stringify(log).substring(0, 30)}`;
+                return (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                    key={logKey} 
+                    className="flex items-start text-[10px] sm:text-xs leading-relaxed font-mono"
+                  >
+                    <span className={`mr-2.5 select-none font-bold transition-colors duration-300 mt-0.5 ${theme === 'light' ? 'text-blue-600' : 'text-[#00f5d4]'}`}>&gt;&gt;</span>
+                    <span className={`whitespace-pre-wrap break-all transition-colors duration-300 ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>{formatLog(log)}</span>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           )}
         </div>
       </div>

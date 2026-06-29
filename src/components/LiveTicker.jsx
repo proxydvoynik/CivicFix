@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Info, CheckCircle } from 'lucide-react';
 
@@ -11,7 +11,12 @@ const zoneShortNames = {
   "Thiruvangad–Overbury's Heritage Quarter": "Heritage Quarter"
 };
 
+/**
+ * LiveTicker - High-performance infinite scrolling marquee listing operations status.
+ */
 export default function LiveTicker({ incidents = [], floodRisk = false, theme }) {
+  const firstTickerRunRef = useRef(null);
+  const [marqueeDuration, setMarqueeDuration] = useState(50);
   // Filter active (open or escalated) incidents
   const activeIncidents = useMemo(() => {
     return incidents.filter(i => i.status === "open" || i.status === "escalated");
@@ -30,7 +35,7 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
   }, [activeIncidents]);
 
   // Map and assemble ticker messages
-  const tickerMessage = useMemo(() => {
+  const tickerItems = useMemo(() => {
     const messages = activeIncidents.map(i => {
       const shortName = zoneShortNames[i.zone] || i.zone || "Unknown Zone";
       const typeStr = i.type ? i.type.toUpperCase() : "CIVIC ISSUE";
@@ -45,16 +50,34 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
       messages.push("✓ ALL SYSTEMS STABLE — Thalassery Municipality operational. No active incidents.");
     }
 
-    return messages.join("  •  ");
+    return messages;
   }, [activeIncidents, floodRisk]);
-
-  // Calculate scrolling duration based on length of messages
-  const duration = useMemo(() => {
-    return `${Math.max(20, tickerMessage.length * 0.08)}s`;
-  }, [tickerMessage]);
 
   const isLight = theme === 'light';
   const Icon = badgeInfo.icon;
+  
+  // Format joint string with separator
+  const tickerText = tickerItems.join("   •   ");
+
+  // Base duration on rendered width so added incidents do not increase pixel speed.
+  useEffect(() => {
+    const tickerRun = firstTickerRunRef.current;
+    if (!tickerRun) return undefined;
+
+    const updateDuration = () => {
+      const travelDistance = tickerRun.getBoundingClientRect().width + 48;
+      setMarqueeDuration(Math.max(50, travelDistance / 24));
+    };
+
+    updateDuration();
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateDuration)
+      : null;
+    resizeObserver?.observe(tickerRun);
+    document.fonts?.ready.then(updateDuration);
+
+    return () => resizeObserver?.disconnect();
+  }, [tickerText]);
 
   return (
     <div 
@@ -65,30 +88,6 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
       }`}
       title="Hover to pause"
     >
-      <style>{`
-        @keyframes ticker-scroll {
-          0% { transform: translate3d(0, 0, 0); }
-          100% { transform: translate3d(-100%, 0, 0); }
-        }
-        .animate-ticker-wrapper {
-          position: relative;
-          overflow: hidden;
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-        }
-        .animate-ticker-content {
-          padding-left: 100%;
-          display: inline-block;
-          white-space: nowrap;
-          animation: ticker-scroll var(--ticker-duration, 25s) linear infinite;
-        }
-        .animate-ticker-content:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
-
       {/* Subtle tactical corner hazard warning block */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors duration-300 ${isLight ? 'bg-amber-400' : 'bg-amber-500'}`}></div>
 
@@ -107,15 +106,24 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
         </motion.div>
       </AnimatePresence>
 
-      {/* Scrolling text area */}
-      <div className="animate-ticker-wrapper mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)">
-        <div 
-          style={{ '--ticker-duration': duration }}
-          className={`animate-ticker-content font-mono text-[11px] tracking-wide transition-colors duration-300 ${
-            isLight ? 'text-slate-800 font-bold' : 'text-[#e2e8f0]'
-          }`}
+      {/* Infinite Scrolling Ticker (Using CSS Translate3D Marquee) */}
+      <div className="flex-1 overflow-hidden h-full flex items-center relative [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]">
+        <div
+          className="animate-marquee-scroller flex items-center gap-12 py-1"
+          style={{ '--marquee-duration': `${marqueeDuration}s` }}
         >
-          {tickerMessage}
+          {/* First run */}
+          <div ref={firstTickerRunRef} className={`flex items-center gap-12 shrink-0 whitespace-nowrap text-[11px] font-mono tracking-wide ${
+            isLight ? 'text-slate-800 font-bold' : 'text-[#e2e8f0]'
+          }`}>
+            <span>{tickerText}</span>
+          </div>
+          {/* Second duplicate run for seamless loop */}
+          <div className={`flex items-center gap-12 shrink-0 whitespace-nowrap text-[11px] font-mono tracking-wide ${
+            isLight ? 'text-slate-800 font-bold' : 'text-[#e2e8f0]'
+          }`}>
+            <span>{tickerText}</span>
+          </div>
         </div>
       </div>
     </div>

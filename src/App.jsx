@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeftPanel from './components/LeftPanel.jsx';
+import NumberTicker from './components/ui/NumberTicker.jsx';
 import * as turf from '@turf/turf';
 
 // Live Integration Imports
@@ -607,6 +608,31 @@ const getEscalationReason = (incident, floodRisk) => {
     return "Under review due to significant community upvotes.";
   }
   return "Queued for routine inspection.";
+};
+
+const dashboardContainerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.15
+    }
+  }
+};
+
+const panelVariants = {
+  hidden: { opacity: 0, scale: 0.985, filter: "blur(6px)" },
+  show: { 
+    opacity: 1, 
+    scale: 1, 
+    filter: "blur(0px)",
+    transition: { 
+      type: "spring", 
+      stiffness: 100, 
+      damping: 18 
+    } 
+  }
 };
 
 function App() {
@@ -2585,10 +2611,10 @@ Report Reference: #CF-${generatedRef}`;
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300 ${
               theme === 'light'
-                ? 'border-blue-200 bg-blue-50 text-blue-600'
-                : 'border-blue-500/30 bg-blue-950/20 text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                ? 'border-blue-200 bg-blue-50'
+                : 'border-blue-500/30 bg-blue-950/20 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
             }`}>
-              <Activity size={16} />
+              <img src="/civicfix-logo.png" alt="CivicFix Logo" className="w-6 h-6 object-contain" />
             </div>
             <div className="flex flex-col">
               <span className={`font-black text-sm tracking-wider uppercase font-sans transition-colors duration-300 ${
@@ -2600,18 +2626,6 @@ Report Reference: #CF-${generatedRef}`;
           
           <span className={`hidden md:inline font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-200' : 'text-gray-700'}`}>|</span>
 
-          {/* Real-time System Status Indicator */}
-          <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-mono font-bold transition-colors duration-300 ${
-            theme === 'light'
-              ? 'bg-slate-100 border border-slate-200/80 text-slate-500'
-              : 'bg-[#0a0c10] border border-[#1e2333]/80 text-gray-400'
-          }`}>
-            <span>NET:</span>
-            <span className="text-emerald-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-              ACTIVE_ONLINE
-            </span>
-          </div>
         </div>
 
         {/* Right Actions: Weather/Location info & Report button */}
@@ -2634,7 +2648,7 @@ Report Reference: #CF-${generatedRef}`;
               </span>
               <span className={`font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-200' : 'text-gray-700'}`}>|</span>
               <span className="text-cyan-500 font-bold">
-                {currentUserWarden.karma} KP
+                <NumberTicker value={currentUserWarden.karma} /> KP
               </span>
             </div>
           )}
@@ -2654,7 +2668,7 @@ Report Reference: #CF-${generatedRef}`;
               theme === 'light' ? 'text-amber-600' : 'text-amber-400'
             }`}>
               <CloudSun size={11} />
-              {currentTemp}, {currentTime || "11:00 PM"}
+              <NumberTicker value={parseFloat(currentTemp) || 28} />°C, {currentTime || "11:00 PM"}
             </span>
           </div>
 
@@ -2716,20 +2730,25 @@ Report Reference: #CF-${generatedRef}`;
       <LiveTicker incidents={mappedIncidents} floodRisk={floodRisk} theme={theme} />
 
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
-      <div 
+      <motion.div 
         style={{ height: 'calc(100vh - 172px)' }} 
-        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr_380px] gap-3 p-3 md:p-4"
+        variants={dashboardContainerVariants}
+        initial="hidden"
+        animate="show"
+        className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr_380px] gap-3 p-3 md:p-4 bg-grid-dots"
       >
-        <LeftPanel
-          incidents={mappedIncidents}
-          onActiveGridAlertsClick={() => setIsActiveAlertsOpen(true)}
-          onAiDispatchQueueClick={() => setIsDispatchQueueOpen(true)}
-          onRiskForecastClick={() => setIsRiskForecastOpen(true)}
-          theme={theme}
-        />
+        <motion.div variants={panelVariants} className="h-full min-h-0">
+          <LeftPanel
+            incidents={mappedIncidents}
+            onActiveGridAlertsClick={() => setIsActiveAlertsOpen(true)}
+            onAiDispatchQueueClick={() => setIsDispatchQueueOpen(true)}
+            onRiskForecastClick={() => setIsRiskForecastOpen(true)}
+            theme={theme}
+          />
+        </motion.div>
 
         {/* Center column: Map & Stability */}
-        <div className="flex flex-col gap-3 h-full overflow-hidden">
+        <motion.div variants={panelVariants} className="flex flex-col gap-3 h-full overflow-hidden">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
           <section className={`flex-1 min-h-0 border backdrop-blur-xl p-4 flex flex-col gap-2.5 rounded-xl relative overflow-hidden transition-all duration-300 ${
@@ -2940,16 +2959,18 @@ Report Reference: #CF-${generatedRef}`;
             </div>
           </section>
 
-        </div>
+        </motion.div>
 
-        <RightPanel 
-          incidents={mappedIncidents} 
-          wardens={mappedWardens} 
-          onAgentLog={onAgentLog} 
-          theme={theme}
-        />
+        <motion.div variants={panelVariants} className="h-full min-h-0">
+          <RightPanel 
+            incidents={mappedIncidents} 
+            wardens={mappedWardens} 
+            onAgentLog={onAgentLog} 
+            theme={theme}
+          />
+        </motion.div>
 
-    </div>
+    </motion.div>
 
       {/* CIVIC ALIAS SELECTION MODAL (Center-aligned popup) */}
       <AnimatePresence>
@@ -4309,32 +4330,38 @@ function ActiveGridAlertsWorkspace({
                           modalMapInstance.setView([incident.lat, incident.lng], 15);
                         }
                       }}
-                      className="cursor-pointer border border-[#1b1d24]/60 bg-[#16171d]/30 hover:bg-[#1d1e26]/40 p-3.5 rounded-lg flex flex-col gap-2 transition-all hover:border-blue-500/20"
+                      className={`cursor-pointer border p-3.5 rounded-lg flex flex-col gap-2 transition-all ${
+                        theme === 'light'
+                          ? 'border-slate-200 bg-white hover:bg-blue-50/40 hover:border-blue-300 shadow-sm'
+                          : 'border-[#1b1d24]/60 bg-[#16171d]/30 hover:bg-[#1d1e26]/40 hover:border-blue-500/20'
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] font-bold border px-1.5 py-0.2 rounded uppercase ${catInfo.bg}`}>
                             {catInfo.label}
                           </span>
-                          <span className="text-[10px] font-mono text-[#9ca3af] font-semibold">
+                          <span className={`text-[10px] font-mono font-semibold ${theme === 'light' ? 'text-slate-700' : 'text-[#9ca3af]'}`}>
                             CF-{incident.id.toString().substring(0, 4)}
                           </span>
                         </div>
-                        <span className="text-[10px] text-[#9ca3af] font-mono font-medium">
+                        <span className={`text-[10px] font-mono font-medium ${theme === 'light' ? 'text-slate-600' : 'text-[#9ca3af]'}`}>
                           {incident.timeAgo || "Just now"}
                         </span>
                       </div>
 
-                      <p className="text-xs text-[#d1d5db] leading-relaxed line-clamp-2">
+                      <p className={`text-xs leading-relaxed line-clamp-2 font-medium ${theme === 'light' ? 'text-slate-900' : 'text-[#d1d5db]'}`}>
                         {incident.description || incident.details}
                       </p>
 
-                      <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-[#1b1d24]/30">
+                      <div className={`flex items-center justify-between mt-1 pt-1.5 border-t ${theme === 'light' ? 'border-slate-200' : 'border-[#1b1d24]/30'}`}>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] bg-[#101115] border border-[#1b1d24]/70 px-1.5 py-0.2 text-[#7d8590] rounded font-bold">
+                          <span className={`text-[10px] border px-1.5 py-0.2 rounded font-bold ${
+                            theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700' : 'bg-[#101115] border-[#1b1d24]/70 text-[#7d8590]'
+                          }`}>
                             Ward {incident.ward}
                           </span>
-                          <span className="text-[10px] text-[#9ca3af] flex items-center gap-0.5">
+                          <span className={`text-[10px] flex items-center gap-0.5 font-medium ${theme === 'light' ? 'text-slate-700' : 'text-[#9ca3af]'}`}>
                             🛡 {incident.verifications || 0} verified
                           </span>
                         </div>
@@ -4342,7 +4369,7 @@ function ActiveGridAlertsWorkspace({
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={(e) => { e.stopPropagation(); onUpvote(incident.id); }}
-                            className="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white px-2 py-0.5 rounded border border-blue-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                            className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-600 hover:text-white' : 'bg-blue-600/10 border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}
                           >
                             ↑ Upvote ({incident.votes || 0})
                           </button>
@@ -4356,14 +4383,14 @@ function ActiveGridAlertsWorkspace({
                                 onAgentLog && onAgentLog(`>> Auto-escalated CF-${incident.id}: community threshold reached`);
                               }
                             }}
-                            className="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white px-2 py-0.5 rounded border border-emerald-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                            className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'bg-emerald-600/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-600 hover:text-white'}`}
                           >
                             ✓ Verify
                           </button>
                           {incident.status === 'escalated' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onViewLetter && onViewLetter(incident); }}
-                              className="bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white px-2 py-0.5 rounded border border-purple-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer"
+                              className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-600 hover:text-white' : 'bg-purple-600/10 border-purple-500/20 text-purple-400 hover:bg-purple-600 hover:text-white'}`}
                             >
                               ✉ Dispatch
                             </button>
@@ -4371,7 +4398,7 @@ function ActiveGridAlertsWorkspace({
                           {(incident.status !== 'resolved' && incident.status !== 'resolved_verified' && incident.status !== 'resolved_pending_verification') && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onResolveClick && onResolveClick(incident); }}
-                              className="bg-amber-600/10 hover:bg-amber-600 text-amber-400 hover:text-white px-2 py-0.5 rounded border border-amber-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer font-bold"
+                              className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-600 hover:text-white' : 'bg-amber-600/10 border-amber-500/20 text-amber-400 hover:bg-amber-600 hover:text-white'}`}
                             >
                               ⚙ Resolve
                             </button>
