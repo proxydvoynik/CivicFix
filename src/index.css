@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root, [data-theme="dark"] {
     --background: 240 10% 4%;
     --foreground: 210 20% 98%;
     --card: 230 16% 8%;
@@ -26,6 +26,54 @@
     --input: 230 15% 13%;
     --ring: 217 91% 60%;
     --radius: 0.5rem;
+
+    /* Custom Theme Variables */
+    --bg-theme: #08090c;
+    --text-theme: #e2e8f0;
+    --header-bg: rgba(7, 9, 13, 0.85);
+    --header-border: rgba(30, 35, 51, 0.7);
+    --header-text: #ffffff;
+    --panel-subtext: #9ca3af;
+    --badge-bg: #0a0c10;
+    --badge-border: rgba(30, 35, 51, 0.8);
+    --badge-text: #9ca3af;
+    --gradient-start: #0f1115;
+    --gradient-end: #07080a;
+  }
+
+  [data-theme="light"] {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+
+    /* Custom Theme Variables */
+    --bg-theme: #faf9f6; /* warm off-white */
+    --text-theme: #334155; /* warm gray slate-700 */
+    --header-bg: rgba(250, 249, 246, 0.9);
+    --header-border: rgba(226, 232, 240, 0.8);
+    --header-text: #1e293b; /* warm gray slate-800 */
+    --panel-subtext: #475569; /* slate-600 */
+    --badge-bg: #f1f5f9;
+    --badge-border: rgba(226, 232, 240, 0.8);
+    --badge-text: #475569;
+    --gradient-start: #ffffff;
+    --gradient-end: #f5f5f4; /* warm stone */
   }
 }
 
@@ -34,12 +82,14 @@
     @apply border-border;
   }
   body {
-    @apply bg-[#08090c] text-foreground;
+    background-color: var(--bg-theme);
+    color: var(--foreground);
     font-family: 'JetBrains Mono', monospace;
     font-feature-settings: "rlig" 1, "calt" 1;
     background-image: 
-      radial-gradient(circle at center, #0f1115 0%, #07080a 100%);
+      radial-gradient(circle at center, var(--gradient-start) 0%, var(--gradient-end) 100%);
     background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -344,3 +394,24 @@ body.light .custom-ward-tooltip {
   border: 1px solid #cbd5e1 !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
 }
+
+/* Custom View Transition for Premium Theme Toggle Ripple */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Scoped to AnimatedThemeToggler — sets animation-duration dynamically during a theme toggle. */
+html[data-magicui-theme-vt="active"]::view-transition-group(root) {
+  animation-duration: var(--magicui-theme-toggle-vt-duration);
+}
+

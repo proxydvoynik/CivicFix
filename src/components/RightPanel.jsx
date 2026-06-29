@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import CardShell from './CardShell.jsx';
-
-
 
 // Seed Wardens for fallbacks
 const SEED_WARDENS = [
@@ -31,6 +30,22 @@ const SEED_WARDENS = [
   { id: "seed_nikhil_v", name: "Nikhil V.", role: "Waste Tracker", karma: 385 },
   { id: "seed_sneha_k", name: "Sneha K.", role: "Street Watcher", karma: 300 }
 ];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.3
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export default function RightPanel({
   wardens,
@@ -109,168 +124,248 @@ export default function RightPanel({
   const rankIcons = ["🏆", "🥈", "🥉"];
 
   return (
-    <aside className="w-full h-full overflow-hidden flex flex-col pt-3 md:pt-4 font-mono text-[#e2e8f0]">
+    <aside className={`w-full h-full overflow-hidden flex flex-col pt-3 md:pt-4 font-mono transition-colors duration-300 ${
+      theme === 'light' ? 'text-slate-700' : 'text-[#e2e8f0]'
+    }`}>
       
-      <div className="flex flex-col gap-4 px-3 md:px-4 pb-3 flex-1 overflow-hidden">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="flex flex-col gap-4 px-3 md:px-4 pb-3 flex-1 overflow-hidden"
+      >
         {/* SECTION 1: Precipitation & Hazards */}
-        <CardShell className="flex-1 flex flex-col gap-4 min-h-0 justify-between py-6">
-          <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2 flex-none">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Precipitation & Hazards</h3>
-            {!loading && !error && (
-              <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-                LIVE RADAR
-              </span>
-            )}
-          </div>
-
-          {loading ? (
-            /* Skeleton Loader */
-            <div className="flex flex-col gap-4 animate-pulse py-2 flex-1 justify-center">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
-                <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
-                <div className="h-10 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded"></div>
+        <motion.div variants={itemVariants} className="flex-[1.1] flex flex-col min-h-0">
+          <CardShell theme={theme} className="flex-1 flex flex-col gap-3 min-h-0 justify-between py-5">
+            <div className={`flex items-center justify-between border-b pb-2 flex-none transition-colors duration-300 ${
+              theme === 'light' ? 'border-slate-100' : 'border-[#1e2333]/60'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"></span>
+                <h3 className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${
+                  theme === 'light' ? 'text-slate-800' : 'text-gray-200'
+                }`}>Precipitation & Hazards</h3>
               </div>
-              <div className="h-24 bg-[#1b1d24]/50 border border-[#2a2d38]/50 rounded w-full"></div>
+              {!loading && !error && (
+                <motion.span 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-widest transition-colors duration-300 ${
+                  theme === 'light' 
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200/50' 
+                    : 'bg-emerald-950/20 text-emerald-400 border-emerald-500/20'
+                }`}>
+                  LIVE RADAR
+                </motion.span>
+              )}
             </div>
-          ) : error ? (
-            /* Error State */
-            <div className="py-4 text-center flex-1 flex items-center justify-center">
-              <span className="text-xs text-gray-500 font-bold">Weather data unavailable</span>
-            </div>
-          ) : (
-            /* Loaded Weather UI */
-            <div className="flex-1 flex flex-col justify-between min-h-0">
-              {/* Stat chips row */}
-              <div className="grid grid-cols-3 gap-2.5 text-center flex-none">
-                <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                  <span className="text-[10px] text-[#9ca3af] block font-bold">WIND</span>
-                  <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.wind} km/h</span>
+
+            {loading ? (
+              /* Skeleton Loader */
+              <div className="flex flex-col gap-4 animate-pulse py-2 flex-1 justify-center">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className={`h-10 border rounded transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-[#1b1d24]/50 border-[#2a2d38]/50'}`}></div>
+                  <div className={`h-10 border rounded transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-[#1b1d24]/50 border-[#2a2d38]/50'}`}></div>
+                  <div className={`h-10 border rounded transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-[#1b1d24]/50 border-[#2a2d38]/50'}`}></div>
                 </div>
-                <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                  <span className="text-[10px] text-[#9ca3af] block font-bold">HUMIDITY</span>
-                  <span className="text-sm font-bold text-white mt-0.5 block">{weatherStats.humidity}%</span>
-                </div>
-                <div className="border border-[#1b1d24] p-3 bg-[#16171d]/60 backdrop-blur-sm rounded-lg hover:border-cyan-500/10 transition-colors">
-                  <span className="text-[10px] text-[#9ca3af] block font-bold">PRESSURE</span>
-                  <span className="text-sm font-bold text-white mt-0.5 block truncate">{weatherStats.pressure} hPa</span>
-                </div>
+                <div className={`h-24 border rounded w-full transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-[#1b1d24]/50 border-[#2a2d38]/50'}`}></div>
               </div>
-
-              {/* Precipitation Bar chart */}
-              <div className="flex flex-col gap-2 min-h-0 justify-center flex-1 mt-4">
-                <span className="text-[10px] text-[#9ca3af] uppercase font-bold">Forecast Rain Level</span>
-                <div className="flex-1 min-h-[120px] w-full relative">
-                  <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
-                    {/* Baseline grid marker */}
-                    <line x1="0" y1="60" x2="240" y2="60" stroke={theme === 'light' ? '#cbd5e1' : '#1b1d24'} strokeWidth="0.8" />
-
-                    {/* SVG Bar items */}
-                    {(() => {
-                      const barWidth = 7;
-                      const gap = 2.5;
-                      const startX = 8;
-                      const precipValues = weatherStats.precipArray;
-                      const maxVal = Math.max(...precipValues, 1);
-                      const scale = 55 / maxVal;
-
-                      return precipValues.map((val, idx) => {
-                        const h = val === 0 ? 2 : val * scale;
-                        const y = 60 - h;
-                        const x = startX + idx * (barWidth + gap);
-
-                        // Bar coloring thresholds
-                        let color = "#22c55e"; // == 0mm
-                        if (val > 0 && val <= 5) color = "#eab308"; // 0-5mm
-                        else if (val > 5 && val <= 15) color = "#f97316"; // 5-15mm
-                        else if (val > 15) color = "#ef4444"; // > 15mm
-
-                        const isCurrentHour = idx === currentHourIndex;
-
-                        return (
-                          <rect
-                            key={`precip-bar-${idx}`}
-                            x={x}
-                            y={y}
-                            width={barWidth}
-                            height={h}
-                            fill={color}
-                            fillOpacity={isCurrentHour ? "1.0" : "0.75"}
-                            stroke={isCurrentHour ? (theme === 'light' ? '#0f172a' : 'white') : 'none'}
-                            strokeWidth={isCurrentHour ? "1" : "0"}
-                            strokeOpacity={isCurrentHour ? "0.9" : "0"}
-                            rx="0.5"
-                            className="hover:fill-opacity-100 transition-all cursor-pointer"
-                          >
-                            <title>{`${idx}:00 - ${val}mm rain`}</title>
-                          </rect>
-                        );
-                      });
-                    })()}
-
-                    {/* X-axis labels aligned with points */}
-                    {(() => {
-                      const barWidth = 7;
-                      const gap = 2.5;
-                      const startX = 8;
-                      const hours = [0, 6, 12, 18];
-                      return hours.map(hour => {
-                        const x = startX + hour * (barWidth + gap) + barWidth / 2;
-                        const label = hour < 10 ? `0${hour}:00` : `${hour}:00`;
-                        return (
-                          <text
-                            key={`axis-lbl-${hour}`}
-                            x={x}
-                            y="74"
-                            textAnchor="middle"
-                            className="fill-[#6b7280] text-[8px] font-mono font-medium"
-                          >
-                            {label}
-                          </text>
-                        );
-                      });
-                    })()}
-                  </svg>
-                </div>
+            ) : error ? (
+              /* Error State */
+              <div className="py-4 text-center flex-1 flex items-center justify-center">
+                <span className="text-xs text-gray-500 font-bold">Weather data unavailable</span>
               </div>
-            </div>
-          )}
-        </CardShell>
-
-        {/* SECTION 2: Volunteer Karma Board */}
-        <CardShell className="flex-1 flex flex-col gap-3 min-h-0 justify-between py-6">
-          <div className="flex items-center justify-between border-b border-[#1b1d24] pb-2 flex-none">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-300">Volunteer Karma Board</h3>
-            <span className="text-[10px] bg-cyan-500/10 text-[#00f5d4] px-2 py-0.5 rounded border border-[#00f5d4]/20 font-bold leading-none uppercase">
-              TOP WARDENS
-            </span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-around py-4">
-            {topWardens.map((item, idx) => (
-              <div 
-                key={idx} 
-                className={`flex items-center justify-between py-4 ${
-                  idx !== topWardens.length - 1 ? 'border-b border-[#1b1d24]/40' : ''
-                }`}
+            ) : (
+              /* Loaded Weather UI */
+              <motion.div 
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex-1 flex flex-col justify-between min-h-0"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <span className="text-base shrink-0">{rankIcons[idx]}</span>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-white truncate">{item.name}</span>
-                    <span className="text-xs font-mono text-[#9ca3af] mt-0.5 truncate">{item.role}</span>
+                {/* Stat chips row */}
+                <div className="grid grid-cols-3 gap-2 text-center flex-none">
+                  <div className={`border p-2 rounded-lg transition-colors duration-300 ${
+                    theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-cyan-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-cyan-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
+                  }`}>
+                    <span className="text-[8px] text-gray-500 block font-bold tracking-wider">WIND</span>
+                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{weatherStats.wind} km/h</span>
+                  </div>
+                  <div className={`border p-2 rounded-lg transition-colors duration-300 ${
+                    theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-amber-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-amber-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
+                  }`}>
+                    <span className="text-[8px] text-gray-500 block font-bold tracking-wider">HUMIDITY</span>
+                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{weatherStats.humidity}%</span>
+                  </div>
+                  <div className={`border p-2 rounded-lg transition-colors duration-300 ${
+                    theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-emerald-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-emerald-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
+                  }`}>
+                    <span className="text-[8px] text-gray-500 block font-bold tracking-wider">PRESSURE</span>
+                    <span className={`text-xs font-bold mt-0.5 block truncate transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{weatherStats.pressure} hPa</span>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="text-sm font-mono font-bold text-cyan-400">{item.karma}</span>
-                  <span className="text-[10px] font-mono text-[#7d8590] block mt-0.5">karma</span>
+
+                {/* Precipitation Bar chart */}
+                <div className="flex flex-col gap-1.5 min-h-0 justify-center flex-1 mt-3">
+                  <div className="flex items-center justify-between text-[8px] text-gray-500 uppercase font-bold tracking-widest flex-none">
+                    <span>Precipitation Forecast</span>
+                    <span className="text-cyan-500">24H CYCLE</span>
+                  </div>
+                  <div className={`flex-1 min-h-[105px] w-full relative rounded-lg border p-2 overflow-hidden transition-colors duration-300 ${
+                    theme === 'light' ? 'bg-slate-50/50 border-slate-200/80 shadow-[inset_0_2px_8px_rgba(0,0,0,0.02)]' : 'bg-[#07080a]/45 border-[#1e2333]/40 shadow-[inset_0_2px_10px_rgba(0,0,0,0.1)]'
+                  }`}>
+                    <svg viewBox="0 0 240 80" className="w-full h-full overflow-visible">
+                      {/* Baseline grid marker */}
+                      <line x1="0" y1="60" x2="240" y2="60" stroke={theme === 'light' ? '#cbd5e1' : '#1e2433'} strokeWidth="0.8" />
+                      <line x1="0" y1="30" x2="240" y2="30" stroke={theme === 'light' ? '#f1f5f9' : '#141720'} strokeWidth="0.5" strokeDasharray="3 3" />
+
+                      {/* SVG Bar items */}
+                      {(() => {
+                        const barWidth = 6.5;
+                        const gap = 3;
+                        const startX = 6;
+                        const precipValues = weatherStats.precipArray;
+                        const maxVal = Math.max(...precipValues, 1);
+                        const scale = 50 / maxVal;
+
+                        return precipValues.map((val, idx) => {
+                          const h = val === 0 ? 1.5 : val * scale;
+                          const y = 60 - h;
+                          const x = startX + idx * (barWidth + gap);
+
+                          // Bar coloring thresholds
+                          let color = "#10b981"; // green
+                          if (val > 0 && val <= 5) color = "#eab308"; // yellow
+                          else if (val > 5 && val <= 15) color = "#f97316"; // orange
+                          else if (val > 15) color = "#ef4444"; // red
+
+                          const isCurrentHour = idx === currentHourIndex;
+
+                          return (
+                            <motion.rect
+                              initial={{ height: 0, y: 60 }}
+                              animate={{ height: h, y: y }}
+                              transition={{ type: "spring", delay: 0.3 + (idx * 0.02), stiffness: 300, damping: 20 }}
+                              key={`precip-bar-${idx}`}
+                              x={x}
+                              width={barWidth}
+                              fill={color}
+                              fillOpacity={isCurrentHour ? "1.0" : "0.55"}
+                              stroke={isCurrentHour ? (theme === 'light' ? '#0f172a' : '#00f5d4') : 'none'}
+                              strokeWidth={isCurrentHour ? "1" : "0"}
+                              rx="1"
+                              className="hover:fill-opacity-100 transition-all cursor-pointer"
+                            >
+                              <title>{`${idx}:00 - ${val}mm rain`}</title>
+                            </motion.rect>
+                          );
+                        });
+                      })()}
+
+                      {/* X-axis labels */}
+                      {(() => {
+                        const barWidth = 6.5;
+                        const gap = 3;
+                        const startX = 6;
+                        const hours = [0, 6, 12, 18, 23];
+                        return hours.map(hour => {
+                          const x = startX + hour * (barWidth + gap) + barWidth / 2;
+                          const label = hour < 10 ? `0${hour}:00` : `${hour}:00`;
+                          return (
+                            <text
+                              key={`axis-lbl-${hour}`}
+                              x={x}
+                              y="72"
+                              textAnchor="middle"
+                              className="fill-gray-500 text-[6.5px] font-mono font-bold"
+                            >
+                              {label}
+                            </text>
+                          );
+                        });
+                      })()}
+                    </svg>
+                  </div>
                 </div>
+              </motion.div>
+            )}
+          </CardShell>
+        </motion.div>
+
+        {/* SECTION 2: Volunteer Karma Board */}
+        <motion.div variants={itemVariants} className="flex-1 flex flex-col min-h-0">
+          <CardShell theme={theme} className="flex-1 flex flex-col gap-3 min-h-0 justify-between py-5">
+            <div className={`flex items-center justify-between border-b pb-2 flex-none transition-colors duration-300 ${
+              theme === 'light' ? 'border-slate-100' : 'border-[#1e2333]/60'
+            }`}>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                <h3 className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${
+                  theme === 'light' ? 'text-slate-800' : 'text-gray-200'
+                }`}>Volunteer Karma Board</h3>
               </div>
-            ))}
-          </div>
-        </CardShell>
-      </div>
+              <span className={`text-[8px] px-2 py-0.5 rounded-md border font-bold leading-none uppercase tracking-wider transition-colors duration-300 ${
+                theme === 'light' 
+                  ? 'bg-cyan-50 text-cyan-600 border-cyan-200/50' 
+                  : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+              }`}>
+                LEADERBOARD
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 flex flex-col justify-around py-1 space-y-2">
+              {topWardens.map((item, idx) => {
+                // Calculate a relative karma progress percentage
+                const highestKarma = topWardens[0]?.karma || 600;
+                const barPercent = Math.min(100, Math.max(10, (item.karma / highestKarma) * 100));
+                
+                return (
+                  <motion.div 
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 + (idx * 0.1), type: "spring" }}
+                    whileHover={{ scale: 1.02 }}
+                    key={idx} 
+                    className={`group flex flex-col gap-1.5 p-2.5 rounded-lg border transition-all duration-300 cursor-pointer ${
+                      theme === 'light'
+                        ? 'border-slate-100 bg-slate-50/60 hover:border-blue-500/30 hover:bg-white shadow-[0_2px_4px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_12px_rgba(59,130,246,0.08)]'
+                        : 'border-[#1e2333]/30 bg-[#07080a]/40 hover:border-[#2b354c]/60 hover:bg-[#0c1018]/50 shadow-[0_2px_4px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`text-sm shrink-0 w-6 h-6 flex items-center justify-center rounded-md border text-xs font-bold transition-colors duration-300 ${
+                          theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#10131d] border-[#1e2333]/65'
+                        }`}>
+                          {rankIcons[idx] || (idx + 1)}
+                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className={`text-[11px] font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{item.name}</span>
+                          <span className="text-[8px] font-mono text-gray-500 tracking-wider mt-0.5 uppercase truncate">{item.role}</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-mono font-bold text-cyan-500">{item.karma}</span>
+                        <span className="text-[7.5px] font-mono text-gray-500 block uppercase tracking-wider">KP</span>
+                      </div>
+                    </div>
+                    
+                    {/* Progress karma bar */}
+                    <div className={`w-full h-1 rounded-full overflow-hidden transition-colors duration-300 ${theme === 'light' ? 'bg-slate-100' : 'bg-[#121622]'}`}>
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${barPercent}%` }}
+                        transition={{ delay: 0.6 + (idx * 0.1), duration: 1, ease: "easeOut" }}
+                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" 
+                      />
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </CardShell>
+        </motion.div>
+      </motion.div>
     </aside>
   );
 }

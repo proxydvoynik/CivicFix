@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { 
   MapPin, Activity, PlusCircle, RefreshCw, 
   CheckCircle2, Send, Globe, Shield, X, 
-  Camera, AlertCircle, FileText, CloudSun, Layers, Sun, Moon
+  Camera, AlertCircle, FileText, CloudSun, Layers, Sun, Moon, Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LeftPanel from './components/LeftPanel.jsx';
@@ -635,6 +636,7 @@ const [currentUser, setCurrentUser] = useState(null);
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
     document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
     document.body.classList.toggle('light', theme === 'light');
     document.body.classList.toggle('dark', theme === 'dark');
     if (document.documentElement.style) {
@@ -642,6 +644,64 @@ const [currentUser, setCurrentUser] = useState(null);
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  const handleThemeToggle = (event) => {
+    if (!document.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+      return;
+    }
+
+    const x = event?.clientX ?? window.innerWidth / 2;
+    const y = event?.clientY ?? window.innerHeight / 2;
+    const maxRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    const clipPath = [
+      `circle(0px at ${x}px ${y}px)`,
+      `circle(${maxRadius}px at ${x}px ${y}px)`,
+    ];
+
+    const root = document.documentElement;
+    root.dataset.magicuiThemeVt = "active";
+    root.style.setProperty("--magicui-theme-toggle-vt-duration", "500ms");
+    root.style.setProperty("--magicui-theme-vt-clip-from", clipPath[0]);
+
+    const cleanup = () => {
+      delete root.dataset.magicuiThemeVt;
+      root.style.removeProperty("--magicui-theme-toggle-vt-duration");
+      root.style.removeProperty("--magicui-theme-vt-clip-from");
+    };
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+      });
+    });
+
+    if (transition && typeof transition.finished?.finally === "function") {
+      transition.finished.finally(cleanup);
+    } else {
+      cleanup();
+    }
+
+    if (transition && transition.ready) {
+      transition.ready.then(() => {
+        document.documentElement.animate(
+          {
+            clipPath,
+          },
+          {
+            duration: 500,
+            easing: "ease-in-out",
+            fill: "forwards",
+            pseudoElement: "::view-transition-new(root)",
+          }
+        );
+      });
+    }
+  };
   
   const [selectedZone, setSelectedZone] = useState("All");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -994,7 +1054,7 @@ const [currentUser, setCurrentUser] = useState(null);
         localStorage.setItem('civicfix_mock_karma', nextKarma.toString());
       }
     }
-  }, [currentUser, isFirebaseConfigured]);
+  }, [currentUser]);
 
   // Upvote/Downvote report
   const handleVote = useCallback(async (id, docId) => {
@@ -1031,7 +1091,7 @@ const [currentUser, setCurrentUser] = useState(null);
       setReports(prev => prev.map(r => r.id === id ? { ...r, votes: nextVotesCount, upvotedBy: nextUpvotedBy } : r));
       await incrementUserKarma(2);
     }
-  }, [reports, isFirebaseConfigured, incrementUserKarma, currentUser]);
+  }, [reports, incrementUserKarma, currentUser]);
 
   // Verify issue locally (Gamification Verification loop)
   const handleVerify = useCallback(async (id, docId) => {
@@ -1080,7 +1140,7 @@ const [currentUser, setCurrentUser] = useState(null);
       }));
       await incrementUserKarma(5);
     }
-  }, [reports, isFirebaseConfigured, incrementUserKarma]);
+  }, [reports, incrementUserKarma]);
 
   const onUpvote = useCallback((id) => {
     const report = reports.find(r => r.id?.toString() === id.toString() || r.docId === id);
@@ -1232,7 +1292,7 @@ const [currentUser, setCurrentUser] = useState(null);
     }
 
     return () => unsubscribeAuth();
-  }, [isFirebaseConfigured]);
+  }, []);
 
   // Real-time Wardens Subscription & Idempotent Seeding
   useEffect(() => {
@@ -1317,7 +1377,7 @@ const [currentUser, setCurrentUser] = useState(null);
     });
 
     return () => unsubscribe();
-  }, [isFirebaseConfigured, currentUser]);
+  }, [currentUser]);
 
   // Detected resolution state change tracking effect
   const prevReportsRef = useRef([]);
@@ -1347,7 +1407,7 @@ const [currentUser, setCurrentUser] = useState(null);
       });
     }
     prevReportsRef.current = reports;
-  }, [reports, currentUser, isFirebaseConfigured, incrementUserKarma]);
+  }, [reports, currentUser, incrementUserKarma]);
 
   // Agent logging handler
   const logAgentActivity = useCallback(async ({ reportId = null, wardId = null, agentType, decision, confidence, reason, recommendedAction }) => {
@@ -1378,7 +1438,7 @@ const [currentUser, setCurrentUser] = useState(null);
       },
       ...prev
     ]);
-  }, [isFirebaseConfigured]);
+  }, []);
 
   // Ward Risk Forecasting effect
   useEffect(() => {
@@ -1648,7 +1708,7 @@ const [currentUser, setCurrentUser] = useState(null);
     // Add theme-aware CartoDB tile layer
     const initTileUrl = theme === 'dark'
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
     const tileLayer = L.tileLayer(initTileUrl, {
       maxZoom: 20
     }).addTo(map);
@@ -1733,15 +1793,32 @@ const [currentUser, setCurrentUser] = useState(null);
     return () => {
       map.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thalasseryBoundaryGeoJSON]);
 
   // Swaps map tile layer dynamically when theme changes
   useEffect(() => {
-    if (mapInstance && tileLayerRef.current) {
+    if (mapInstance) {
       const url = theme === 'dark'
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-      tileLayerRef.current.setUrl(url);
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      mapInstance.eachLayer(layer => {
+        if (typeof layer.setUrl === 'function') {
+          layer.setUrl(url);
+        }
+      });
+
+      // Force Leaflet map redraw and bounds recalculation after view transition finishes (500ms duration)
+      const timer = setTimeout(() => {
+        mapInstance.eachLayer(layer => {
+          if (typeof layer.setUrl === 'function') {
+            layer.redraw();
+          }
+        });
+        mapInstance.invalidateSize();
+      }, 550);
+      return () => clearTimeout(timer);
     }
   }, [theme, mapInstance]);
 
@@ -2482,7 +2559,9 @@ Report Reference: #CF-${generatedRef}`;
 
 
   return (
-    <div className="h-screen bg-[#08090c] text-[#e2e8f0] flex flex-col font-mono selection:bg-blue-600 selection:text-white relative overflow-hidden">
+    <div className={`h-screen bg-transparent flex flex-col font-mono selection:bg-blue-600 selection:text-white relative overflow-hidden transition-colors duration-300 ${
+      theme === 'light' ? 'text-slate-700' : 'text-[#e2e8f0]'
+    }`}>
       
       {/* Background radial gradient matches Singapore dashboard style */}
       <div className={`absolute inset-0 pointer-events-none z-0 ${
@@ -2492,41 +2571,88 @@ Report Reference: #CF-${generatedRef}`;
       }`}></div>
 
       {/* HEADER NAVBAR (Matches Smart City Platform aesthetic with Glassmorphism) */}
-      <header className="sticky top-0 z-40 w-full bg-[#0c0d12]/75 backdrop-blur-lg border-b border-[#1b1d24]/60 h-14 flex items-center justify-between px-4 sm:px-6 flex-none">
+      <header className={`sticky top-0 z-40 w-full backdrop-blur-xl h-14 flex items-center justify-between px-4 sm:px-6 flex-none relative transition-all duration-300 ${
+        theme === 'light'
+          ? 'bg-white/80 border-b border-slate-200/85 shadow-sm'
+          : 'bg-[#07090d]/85 border-b border-[#1e2333]/70 shadow-[0_2px_24px_rgba(0,0,0,0.4)]'
+      }`}>
         
-        {/* Left Side: Brand Logo */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded border border-blue-500/10 bg-blue-950/10 text-blue-400">
-            <Activity size={18} />
+        {/* Decorative thin neon-accent top border */}
+        <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-blue-500/10 via-cyan-400/60 to-amber-500/10"></div>
+
+        {/* Left Side: Brand Logo & Command Status */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300 ${
+              theme === 'light'
+                ? 'border-blue-200 bg-blue-50 text-blue-600'
+                : 'border-blue-500/30 bg-blue-950/20 text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+            }`}>
+              <Activity size={16} />
+            </div>
+            <div className="flex flex-col">
+              <span className={`font-black text-sm tracking-wider uppercase font-sans transition-colors duration-300 ${
+                theme === 'light' ? 'text-slate-800' : 'text-white'
+              }`}>CivicFix</span>
+              <span className="text-[8px] text-gray-500 uppercase tracking-widest font-bold font-mono mt-0.5">Thalassery Ops Center</span>
+            </div>
           </div>
-          <span className="font-semibold text-sm tracking-tight text-white">CivicFix</span>
+          
+          <span className={`hidden md:inline font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-200' : 'text-gray-700'}`}>|</span>
+
+          {/* Real-time System Status Indicator */}
+          <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-mono font-bold transition-colors duration-300 ${
+            theme === 'light'
+              ? 'bg-slate-100 border border-slate-200/80 text-slate-500'
+              : 'bg-[#0a0c10] border border-[#1e2333]/80 text-gray-400'
+          }`}>
+            <span>NET:</span>
+            <span className="text-emerald-500 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
+              ACTIVE_ONLINE
+            </span>
+          </div>
         </div>
 
         {/* Right Actions: Weather/Location info & Report button */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 md:gap-4">
           
+
+
           {/* Volunteer Status Badge */}
           {currentUserWarden && (
-            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7d8590] bg-[#16171d] border border-[#1b1d24] px-3 py-1 rounded">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-              <span className="text-white font-bold truncate max-w-[70px] sm:max-w-[120px]">
+            <div className={`hidden sm:flex items-center gap-2 text-[10px] font-mono px-3 py-1.5 rounded-lg shadow-sm transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-slate-100 border border-slate-200/80 text-slate-500'
+                : 'bg-[#0a0c10] border border-[#1e2333]/80 text-gray-400'
+            }`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00f5d4] animate-pulse shadow-[0_0_8px_#00f5d4]"></span>
+              <span className={`font-bold truncate max-w-[70px] sm:max-w-[120px] uppercase transition-colors duration-300 ${
+                theme === 'light' ? 'text-slate-800' : 'text-white'
+              }`}>
                 {currentUserWarden.name}
               </span>
-              <span className="text-[#3b4453] font-bold">|</span>
-              <span className="text-cyan-400 font-bold">
+              <span className={`font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-200' : 'text-gray-700'}`}>|</span>
+              <span className="text-cyan-500 font-bold">
                 {currentUserWarden.karma} KP
               </span>
             </div>
           )}
           
-          {/* Location & Weather details (Metric conversion to Celsius) */}
-          <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-mono text-[#7d8590] bg-[#16171d] border border-[#1b1d24] px-3 py-1 rounded">
-            <span className="flex items-center gap-1 text-white">
-              <MapPin size={10} className="text-blue-400" />
+          {/* Location & Weather details */}
+          <div className={`hidden sm:flex items-center gap-2.5 text-[10px] font-mono px-3 py-1.5 rounded-lg shadow-sm transition-colors duration-300 ${
+            theme === 'light'
+              ? 'bg-slate-100 border border-slate-200/80 text-slate-500'
+              : 'bg-[#0a0c10] border border-[#1e2333]/80 text-gray-400'
+          }`}>
+            <span className={`flex items-center gap-1 transition-colors duration-300 ${theme === 'light' ? 'text-slate-700' : 'text-white'}`}>
+              <MapPin size={10} className="text-blue-500" />
               Thalassery, IN
             </span>
-            <span className="text-[#3b4453] font-bold">|</span>
-            <span className="flex items-center gap-1 text-amber-400">
+            <span className={`font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-200' : 'text-gray-700'}`}>|</span>
+            <span className={`flex items-center gap-1 uppercase font-bold transition-colors duration-300 ${
+              theme === 'light' ? 'text-amber-600' : 'text-amber-400'
+            }`}>
               <CloudSun size={11} />
               {currentTemp}, {currentTime || "11:00 PM"}
             </span>
@@ -2536,19 +2662,34 @@ Report Reference: #CF-${generatedRef}`;
           <button 
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="w-8 h-8 flex items-center justify-center border border-[#1b1d24] bg-[#16171d] text-[#7d8590] hover:text-white transition-all rounded hover:bg-[#1d1e26]"
+            className={`w-8 h-8 flex items-center justify-center border transition-all rounded-lg cursor-pointer disabled:opacity-50 ${
+              theme === 'light'
+                ? 'border-slate-200 bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200/80'
+                : 'border-[#1e2333]/85 bg-[#0a0c10] text-gray-400 hover:text-white hover:bg-[#121622]'
+            }`}
             aria-label="Refresh data"
           >
-            <RefreshCw size={12} className={isRefreshing ? "animate-spin text-blue-400" : ""} />
+            <RefreshCw size={12} className={isRefreshing ? "animate-spin text-blue-500" : ""} />
           </button>
 
           {/* Theme Toggle Button */}
           <button 
-            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-            className="w-8 h-8 flex items-center justify-center border border-[#1b1d24] bg-[#16171d] text-[#7d8590] hover:text-white transition-all rounded hover:bg-[#1d1e26] cursor-pointer"
+            onClick={handleThemeToggle}
+            className={`w-8 h-8 flex items-center justify-center border transition-all rounded-lg cursor-pointer ${
+              theme === 'light'
+                ? 'border-slate-200 bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200/80'
+                : 'border-[#1e2333]/85 bg-[#0a0c10] text-gray-400 hover:text-white hover:bg-[#121622]'
+            }`}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={12} className="text-yellow-400" /> : <Moon size={12} className="text-indigo-400" />}
+            <motion.div
+              key={theme}
+              initial={{ rotate: -90, scale: 0.7, opacity: 0 }}
+              animate={{ rotate: 0, scale: 1, opacity: 1 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+            >
+              {theme === 'dark' ? <Sun size={12} className="text-yellow-400" /> : <Moon size={12} className="text-indigo-400" />}
+            </motion.div>
           </button>
 
           {/* REPORT BUTTON */}
@@ -2563,7 +2704,7 @@ Report Reference: #CF-${generatedRef}`;
               setLocationError(null);
               setIsReportModalOpen(true);
             }}
-            className="h-8.5 px-3.5 flex items-center gap-1.5 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-semibold font-mono tracking-wider uppercase border border-blue-400/20 shadow-[0_0_12px_rgba(37,99,235,0.25)] transition-all hover:scale-[1.02]"
+            className="h-8.5 px-3.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[10px] font-bold font-mono tracking-widest uppercase border border-blue-400/20 shadow-[0_4px_16px_rgba(37,99,235,0.3)] transition-all hover:scale-[1.03] cursor-pointer text-white"
           >
             <PlusCircle size={12} />
             <span>Report Issue</span>
@@ -2572,11 +2713,11 @@ Report Reference: #CF-${generatedRef}`;
       </header>
 
       {/* DYNAMIC LIVE SCROLLING TICKER */}
-      <LiveTicker incidents={mappedIncidents} floodRisk={floodRisk} />
+      <LiveTicker incidents={mappedIncidents} floodRisk={floodRisk} theme={theme} />
 
       {/* MAIN CONTAINER WITH SIDEBAR & CONTENT */}
       <div 
-        style={{ height: 'calc(100vh - 56px - 34px - 48px - 32px)' }} 
+        style={{ height: 'calc(100vh - 172px)' }} 
         className="flex-shrink-0 overflow-hidden relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr_380px] gap-3 p-3 md:p-4"
       >
         <LeftPanel
@@ -2591,29 +2732,55 @@ Report Reference: #CF-${generatedRef}`;
         <div className="flex flex-col gap-3 h-full overflow-hidden">
 
           {/* INTERACTIVE LIVE TACTICAL MAP (with Glassmorphism) */}
-          <section className="flex-1 min-h-0 border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-2 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] relative overflow-hidden">
+          <section className={`flex-1 min-h-0 border backdrop-blur-xl p-4 flex flex-col gap-2.5 rounded-xl relative overflow-hidden transition-all duration-300 ${
+            theme === 'light'
+              ? 'border-slate-200/80 bg-gradient-to-b from-white/90 to-slate-50/90 shadow-[0_12px_40px_rgba(0,0,0,0.08)]'
+              : 'border-[#1e2333]/70 bg-gradient-to-b from-[#0e111a]/90 to-[#07090d]/98 shadow-[0_12px_40px_rgba(0,0,0,0.55)]'
+          }`}>
+            {/* Corner Brackets */}
+            <div className={`absolute top-0 left-0 w-2.5 h-2.5 border-t border-l rounded-tl-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+            <div className={`absolute top-0 right-0 w-2.5 h-2.5 border-t border-r rounded-tr-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+            <div className={`absolute bottom-0 left-0 w-2.5 h-2.5 border-b border-l rounded-bl-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+            <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-b border-r rounded-br-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
             
             {/* Map Header details */}
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-2">
+            <div className={`flex items-center justify-between border-b pb-2.5 transition-colors duration-300 ${theme === 'light' ? 'border-slate-200' : 'border-[#1e2333]/50'}`}>
               <div className="flex items-center gap-2">
-                <Globe className="text-blue-400" size={15} />
-                <h3 className="text-base font-bold text-white tracking-wide">Interactive Tactical Map (Thalassery Town)</h3>
+                <Globe className="text-blue-400" size={14} />
+                <h3 className={`text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Interactive Tactical Map (Thalassery Town)</h3>
               </div>
-              <span className="text-[10px] bg-blue-950/30 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-bold leading-none">LIVE OSM</span>
+              <span className={`text-[8px] px-2 py-0.5 rounded-md border font-bold leading-none tracking-widest uppercase transition-colors duration-300 ${
+                theme === 'light' 
+                  ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                  : 'bg-blue-950/40 text-blue-400 border-blue-500/30'
+              }`}>LIVE OSM</span>
             </div>
 
             {/* Interactive Leaflet Map Container */}
-            <div className="flex-1 w-full h-full min-h-0 relative z-0 rounded border border-[#1b1d24]/60">
-              <div ref={mapRef} className="w-full h-full min-h-0 rounded bg-[#090b10]"></div>
+            <div className={`flex-1 w-full h-full min-h-0 relative z-0 rounded-lg border overflow-hidden transition-colors duration-300 ${
+              theme === 'light' 
+                ? 'border-slate-200/80 shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)] bg-slate-100' 
+                : 'border-[#1e2333]/80 shadow-inner bg-[#07080d]'
+            }`}>
+              <div 
+                ref={mapRef} 
+                className="w-full h-full min-h-0 leaflet-container"
+                style={{ background: 'transparent' }}
+              ></div>
 
               {/* FLOATING ACTION OVERLAY ON MAP FOR TACTICAL CONTROLS */}
-              <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
+              <div className="absolute top-2.5 left-2.5 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
                 {selectedZone !== "All" && (
-                  <div className="flex items-center gap-1.5 bg-blue-950/90 backdrop-blur-sm border border-blue-500/40 text-blue-400 font-bold px-2 py-1 rounded text-[10px] font-mono shadow-xl">
+                  <div className={`flex items-center gap-2 backdrop-blur-md border font-bold px-2.5 py-1 rounded-md text-[9px] font-mono transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'bg-white/95 border-blue-200 text-blue-600 shadow-[0_4px_16px_rgba(0,0,0,0.1)]'
+                      : 'bg-[#090b0e]/95 border-blue-500/40 text-blue-400 shadow-[0_4px_16px_rgba(0,0,0,0.5)]'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${theme === 'light' ? 'bg-blue-500' : 'bg-blue-400'}`}></span>
                     <span>SECTOR: {selectedZone.toUpperCase()}</span>
                     <button 
                       onClick={() => setSelectedZone("All")} 
-                      className="hover:text-white font-bold text-xs pl-0.5"
+                      className={`font-bold text-xs pl-1 cursor-pointer transition-colors duration-300 ${theme === 'light' ? 'hover:text-blue-800' : 'hover:text-white'}`}
                       title="Clear sector focus filter"
                     >
                       ×
@@ -2624,55 +2791,73 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* MAP VIEW CONTROL ROW (Directly integrated below Map viewport - 3-column control grid) */}
-            <div className="grid grid-cols-3 gap-2 mt-1.5 flex-none font-mono">
+            <div className="grid grid-cols-3 gap-2 mt-1 flex-none font-mono">
               <button 
                 onClick={() => { setSelectedZone("All"); setShowHazardHeatmap(false); handleMapFocus(11.7490, 75.4891, 13); }}
-                className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
+                className={`backdrop-blur-md border p-2.5 text-left rounded-xl flex items-center gap-3 transition-all duration-300 hover:scale-[1.01] cursor-pointer ${
                   selectedZone === "All" && !showHazardHeatmap
-                    ? "border-blue-500/40 bg-blue-950/20 text-white shadow-[0_0_10px_rgba(59,130,246,0.15)]" 
-                    : "border-[#1b1d24]/40 bg-[#16171d]/60 text-[#7d8590] hover:text-white hover:border-blue-500/50"
+                    ? (theme === 'light' ? "border-blue-300 bg-blue-50 shadow-[0_4px_16px_rgba(59,130,246,0.15)] text-slate-800" : "border-blue-500/40 bg-blue-950/20 text-white shadow-[0_4px_16px_rgba(59,130,246,0.15)]") 
+                    : (theme === 'light' ? "border-slate-200 bg-white/80 text-slate-500 hover:text-slate-800 hover:border-blue-300" : "border-[#1e2333]/80 bg-[#090b0e]/80 text-gray-400 hover:text-white hover:border-blue-500/40")
                 }`}
               >
-                <div className="w-6 h-6 rounded-full bg-[#1e2029]/80 flex items-center justify-center">
-                  <Globe size={13} className="text-blue-400" />
+                <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                  theme === 'light' ? 'bg-blue-100 border-blue-200' : 'bg-[#141824] border-[#1e2333]'
+                }`}>
+                  <Globe size={13} className={`animate-pulse ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white leading-tight">Town Overview</span>
-                  <span className="text-[10px] text-[#8e8e8f] leading-tight">Reset map focus</span>
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-[11px] font-bold leading-none transition-colors duration-300 ${
+                    (selectedZone === "All" && !showHazardHeatmap) ? (theme === 'light' ? 'text-slate-800' : 'text-white') : (theme === 'light' ? 'text-slate-700' : 'text-white')
+                  }`}>Town Overview</span>
+                  <span className={`text-[8px] leading-none mt-1 truncate transition-colors duration-300 ${
+                    theme === 'light' ? 'text-slate-500' : 'text-gray-500'
+                  }`}>Reset map focus</span>
                 </div>
               </button>
 
               <button 
                 onClick={() => setShowHazardHeatmap(!showHazardHeatmap)}
-                className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
+                className={`backdrop-blur-md border p-2.5 text-left rounded-xl flex items-center gap-3 transition-all duration-300 hover:scale-[1.01] cursor-pointer ${
                   showHazardHeatmap 
-                    ? "border-amber-500/40 bg-amber-950/20 text-white shadow-[0_0_10px_rgba(245,158,11,0.15)]" 
-                    : "border-[#1b1d24]/40 bg-[#16171d]/60 text-[#7d8590] hover:text-white hover:border-blue-500/50"
+                    ? (theme === 'light' ? "border-amber-300 bg-amber-50 shadow-[0_4px_16px_rgba(245,158,11,0.15)] text-slate-800" : "border-amber-500/40 bg-amber-950/20 text-white shadow-[0_4px_16px_rgba(245,158,11,0.15)]")
+                    : (theme === 'light' ? "border-slate-200 bg-white/80 text-slate-500 hover:text-slate-800 hover:border-amber-300" : "border-[#1e2333]/80 bg-[#090b0e]/80 text-gray-400 hover:text-white hover:border-amber-500/40")
                 }`}
               >
-                <div className="w-6 h-6 rounded-full bg-[#1e2029]/80 flex items-center justify-center">
-                  <AlertCircle size={13} className="text-amber-400" />
+                <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                  theme === 'light' ? 'bg-amber-100 border-amber-200' : 'bg-[#241a14] border-[#1e2333]'
+                }`}>
+                  <AlertCircle size={13} className={`animate-pulse ${theme === 'light' ? 'text-amber-600' : 'text-amber-400'}`} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white leading-tight">Hazard Heatmap</span>
-                  <span className="text-[10px] text-[#8e8e8f] leading-tight">Toggle flood overlay</span>
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-[11px] font-bold leading-none transition-colors duration-300 ${
+                    showHazardHeatmap ? (theme === 'light' ? 'text-slate-800' : 'text-white') : (theme === 'light' ? 'text-slate-700' : 'text-white')
+                  }`}>Hazard Heatmap</span>
+                  <span className={`text-[8px] leading-none mt-1 truncate transition-colors duration-300 ${
+                    theme === 'light' ? 'text-slate-500' : 'text-gray-500'
+                  }`}>Toggle flood overlay</span>
                 </div>
               </button>
 
               <button 
                 onClick={() => setShowWardBorders(!showWardBorders)}
-                className={`backdrop-blur-sm border px-3 py-2 text-left rounded flex items-center gap-2 transition-colors ${
+                className={`backdrop-blur-md border p-2.5 text-left rounded-xl flex items-center gap-3 transition-all duration-300 hover:scale-[1.01] cursor-pointer ${
                   showWardBorders 
-                    ? "border-emerald-500/40 bg-emerald-950/20 text-white shadow-[0_0_10px_rgba(16,185,129,0.15)]" 
-                    : "border-[#1b1d24]/40 bg-[#16171d]/60 text-[#7d8590] hover:text-white hover:border-blue-500/50"
+                    ? (theme === 'light' ? "border-emerald-300 bg-emerald-50 shadow-[0_4px_16px_rgba(16,185,129,0.15)] text-slate-800" : "border-emerald-500/40 bg-emerald-950/20 text-white shadow-[0_4px_16px_rgba(16,185,129,0.15)]")
+                    : (theme === 'light' ? "border-slate-200 bg-white/80 text-slate-500 hover:text-slate-800 hover:border-emerald-300" : "border-[#1e2333]/80 bg-[#090b0e]/80 text-gray-400 hover:text-white hover:border-emerald-500/40")
                 }`}
               >
-                <div className="w-6 h-6 rounded-full bg-[#1e2029]/80 flex items-center justify-center">
-                  <Layers size={13} className={showWardBorders ? "text-emerald-400" : "text-[#7d8590]"} />
+                <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                  theme === 'light' ? 'bg-emerald-100 border-emerald-200' : 'bg-[#14241b] border-[#1e2333]'
+                }`}>
+                  <Layers size={13} className={`animate-pulse ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white leading-tight">Ward Borders</span>
-                  <span className="text-[10px] text-[#8e8e8f] leading-tight">
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-[11px] font-bold leading-none transition-colors duration-300 ${
+                    showWardBorders ? (theme === 'light' ? 'text-slate-800' : 'text-white') : (theme === 'light' ? 'text-slate-700' : 'text-white')
+                  }`}>Ward Borders</span>
+                  <span className={`text-[8px] leading-none mt-1 truncate transition-colors duration-300 ${
+                    theme === 'light' ? 'text-slate-500' : 'text-gray-500'
+                  }`}>
                     {showWardBorders ? "Borders visible" : "Borders hidden"}
                   </span>
                 </div>
@@ -2681,20 +2866,30 @@ Report Reference: #CF-${generatedRef}`;
           </section>
 
           {/* CIVIC STABILITY HEALTH & SPARKLINE GRAPH (Bottom Center with Glassmorphism) */}
-          <section className="h-[160px] flex-shrink-0 overflow-hidden border border-[#1b1d24]/50 bg-[#121318]/70 backdrop-blur-md p-3 flex flex-col gap-1.5 rounded shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-            <div className="flex items-center justify-between border-b border-[#1b1d24]/50 pb-1">
+          <section className={`h-[160px] flex-shrink-0 overflow-hidden border backdrop-blur-xl p-4 flex flex-col gap-1.5 rounded-xl relative transition-all duration-300 ${
+            theme === 'light' 
+              ? 'border-slate-200/80 bg-gradient-to-b from-white/90 to-slate-50/90 shadow-[0_12px_40px_rgba(0,0,0,0.08)]' 
+              : 'border-[#1e2333]/70 bg-gradient-to-b from-[#0e111a]/90 to-[#07090d]/98 shadow-[0_12px_40px_rgba(0,0,0,0.55)]'
+          }`}>
+            {/* Corner Brackets */}
+            <div className={`absolute top-0 left-0 w-2.5 h-2.5 border-t border-l rounded-tl-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+            <div className={`absolute top-0 right-0 w-2.5 h-2.5 border-t border-r rounded-tr-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+            <div className={`absolute bottom-0 left-0 w-2.5 h-2.5 border-b border-l rounded-bl-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+            <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-b border-r rounded-br-sm pointer-events-none transition-colors duration-300 ${theme === 'light' ? 'border-blue-400/40' : 'border-blue-500/25'}`}></div>
+
+            <div className={`flex items-center justify-between border-b pb-1.5 transition-colors duration-300 ${theme === 'light' ? 'border-slate-200' : 'border-[#1e2333]/50'}`}>
               <div className="flex items-center gap-2">
-                <Activity className="text-blue-400" size={15} />
-                <h3 className="text-base font-bold text-white tracking-wide">Civic Stability Health</h3>
+                <Activity className={`animate-pulse ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} size={14} />
+                <h3 className={`text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Civic Stability Health</h3>
               </div>
-              <span className="text-xs text-[#9ca3af] uppercase">90-Day Trend</span>
+              <span className={`text-[8px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>90-Day Trend</span>
             </div>
 
             {/* Sparkline chart (Color-coded from Good to Critical) */}
-            <div className="h-8 w-full pt-0.5">
+            <div className="h-8 w-full pt-0.5 relative">
               <svg viewBox="0 0 400 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                <line x1="0" y1="10" x2="400" y2="10" stroke={theme === 'light' ? '#cbd5e1' : '#22242e'} strokeWidth="0.5" strokeDasharray="2,4" />
-                <line x1="0" y1="30" x2="400" y2="30" stroke={theme === 'light' ? '#cbd5e1' : '#22242e'} strokeWidth="0.5" strokeDasharray="2,4" />
+                <line x1="0" y1="10" x2="400" y2="10" stroke={theme === 'light' ? '#cbd5e1' : '#1e2433'} strokeWidth="0.5" strokeDasharray="2,4" />
+                <line x1="0" y1="30" x2="400" y2="30" stroke={theme === 'light' ? '#cbd5e1' : '#1e2433'} strokeWidth="0.5" strokeDasharray="2,4" />
                 <path 
                   d={sparklinePath} 
                   fill="none" 
@@ -2723,7 +2918,7 @@ Report Reference: #CF-${generatedRef}`;
             </div>
 
             {/* Outages minute bars (Color-coded heights: Green, Yellow, Red) */}
-            <div className="flex items-end gap-[3px] h-8 pt-1 border-t border-[#1b1d24]/50" role="img">
+            <div className={`flex items-end gap-[3px] h-8 pt-1 border-t transition-colors duration-300 ${theme === 'light' ? 'border-slate-200' : 'border-[#1e2333]/50'}`} role="img">
               {stabilityBuckets.map((b, i) => {
                 const maxActive = Math.max(...stabilityBuckets.map(bucket => bucket.activeCount), 5);
                 const heightPercentage = Math.max(8, (b.activeCount / maxActive) * 100);
@@ -2734,12 +2929,12 @@ Report Reference: #CF-${generatedRef}`;
 
                 return (
                   <div key={i} className="flex-1 h-full min-w-[2px] rounded-t-[1px]" style={{ height: `${heightPercentage}%` }}>
-                    <div className={`w-full h-full ${bg} opacity-80 hover:opacity-100`} title={`Active count: ${b.activeCount}, Stability: ${b.stability}%`}></div>
+                    <div className={`w-full h-full ${bg} opacity-80 hover:opacity-100 transition-all duration-300 hover:scale-y-110`} title={`Active count: ${b.activeCount}, Stability: ${b.stability}%`}></div>
                   </div>
                 );
               })}
             </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-[#7d8590]">
+            <div className={`flex items-center justify-between text-[8px] font-mono font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
               <span>30 MIN AGO</span>
               <span>NOW</span>
             </div>
@@ -2813,6 +3008,7 @@ Report Reference: #CF-${generatedRef}`;
         onAgentLog={onAgentLog}
         thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
         onOpenIncidentDetails={setSelectedDetailedIncident}
+        theme={theme}
       />
 
       <AiDispatchQueueWorkspace
@@ -2821,6 +3017,7 @@ Report Reference: #CF-${generatedRef}`;
         incidents={mappedIncidents}
         thalasseryBoundaryGeoJSON={thalasseryBoundaryGeoJSON}
         onOpenIncidentDetails={setSelectedDetailedIncident}
+        theme={theme}
       />
 
       <WardHotspotsWorkspace
@@ -2833,18 +3030,20 @@ Report Reference: #CF-${generatedRef}`;
         triageAgent={triageAgent}
       />
 
-      {selectedDetailedIncident && (
-        <IssueDetailsModal
-          incident={selectedDetailedIncident}
-          onClose={() => setSelectedDetailedIncident(null)}
-          onUpvote={handleVote}
-          onVerify={onVerify}
-          onResolveClick={handleResolveClick}
-          onAuditClick={handleAuditClick}
-          onViewLetter={onViewLetter}
-          currentUserWarden={currentUserWarden}
-        />
-      )}
+      <AnimatePresence>
+        {selectedDetailedIncident && (
+          <IssueDetailsModal
+            incident={selectedDetailedIncident}
+            onClose={() => setSelectedDetailedIncident(null)}
+            onUpvote={handleVote}
+            onVerify={onVerify}
+            onResolveClick={handleResolveClick}
+            onAuditClick={handleAuditClick}
+            onViewLetter={onViewLetter}
+            currentUserWarden={currentUserWarden}
+          />
+        )}
+      </AnimatePresence>
 
       {/* OVERLAY MODAL FOR REPORTING (center-aligned popup) */}
       <AnimatePresence>
@@ -3800,7 +3999,20 @@ Report Reference: #CF-${generatedRef}`;
         )}
       </AnimatePresence>
 
-      {/* Floating collapsible AI Agent Console Drawer with integrated footer */}
+      {/* Footer */}
+      <footer className={`h-11 flex-shrink-0 flex flex-col items-center justify-center border-t py-1 px-4 text-center text-[9px] leading-relaxed relative z-10 font-bold uppercase tracking-widest transition-colors duration-300 ${
+        theme === 'light' ? 'border-slate-200/50 bg-slate-50/70 text-slate-500' : 'border-[#1e2333]/30 bg-[#07090d]/50 text-gray-500'
+      }`}>
+        <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>
+        <div className={`mt-0.5 flex items-center justify-center gap-1 flex-wrap transition-colors duration-300 ${theme === 'light' ? 'text-slate-400' : 'text-gray-400'}`}>
+          <span>Developed with ❤️ by <span className={`${theme === 'light' ? 'text-[#1e1b4b]' : 'text-white'} font-bold`}>Harshith</span> for the</span>
+          <span className={`${theme === 'light' ? 'text-[#1e1b4b] hover:text-red-500' : 'text-white hover:text-red-500'} transition-colors cursor-pointer flex items-center gap-0.5 font-bold`}>
+            Vibe2Ship Hackathon <Heart className="fill-red-500 stroke-red-500 inline-block shrink-0" size={10} />
+          </span>
+        </div>
+      </footer>
+
+      {/* Floating collapsible AI Agent Console Drawer */}
       <ConsoleDrawer logs={consoleLogs} theme={theme} />
 
     </div>
@@ -3819,7 +4031,8 @@ function ActiveGridAlertsWorkspace({
   onAutoEscalate,
   onAgentLog,
   thalasseryBoundaryGeoJSON,
-  onOpenIncidentDetails
+  onOpenIncidentDetails,
+  theme
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -3851,7 +4064,10 @@ function ActiveGridAlertsWorkspace({
         attributionControl: false
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      const tileUrl = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, {
         maxZoom: 20
       }).addTo(map);
 
@@ -3934,6 +4150,7 @@ function ActiveGridAlertsWorkspace({
       }
       setModalMapInstance(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, thalasseryBoundaryGeoJSON]);
 
   // Sync ward overlay markers
@@ -3973,13 +4190,41 @@ function ActiveGridAlertsWorkspace({
         }
       });
     });
-  }, [filtered, modalMapInstance]);
+  }, [filtered, modalMapInstance, onOpenIncidentDetails]);
 
-  if (!isOpen) return null;
+  // Sync map tiles with theme
+  useEffect(() => {
+    if (modalMapInstance) {
+      const url = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      modalMapInstance.eachLayer(layer => {
+        if (typeof layer.setUrl === 'function') {
+          layer.setUrl(url);
+          layer.redraw();
+        }
+      });
+      modalMapInstance.invalidateSize();
+    }
+  }, [theme, modalMapInstance]);
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8">
-      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]"
+          >
         
         {/* Header */}
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
@@ -4156,8 +4401,10 @@ function ActiveGridAlertsWorkspace({
 
         </div>
 
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -4166,7 +4413,8 @@ function AiDispatchQueueWorkspace({
   onClose,
   incidents,
   thalasseryBoundaryGeoJSON,
-  onOpenIncidentDetails
+  onOpenIncidentDetails,
+  theme
 }) {
   const [modalMapInstance, setModalMapInstance] = useState(null);
   const modalMapRef = useRef(null);
@@ -4207,7 +4455,10 @@ function AiDispatchQueueWorkspace({
         attributionControl: false
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      const tileUrl = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      L.tileLayer(tileUrl, {
         maxZoom: 20
       }).addTo(map);
 
@@ -4290,6 +4541,7 @@ function AiDispatchQueueWorkspace({
       }
       setModalMapInstance(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, thalasseryBoundaryGeoJSON]);
 
   // Sync ward overlay markers
@@ -4329,13 +4581,41 @@ function AiDispatchQueueWorkspace({
         }
       });
     });
-  }, [dispatchQueue, modalMapInstance]);
+  }, [dispatchQueue, modalMapInstance, onOpenIncidentDetails]);
 
-  if (!isOpen) return null;
+  // Sync map tiles with theme
+  useEffect(() => {
+    if (modalMapInstance) {
+      const url = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      modalMapInstance.eachLayer(layer => {
+        if (typeof layer.setUrl === 'function') {
+          layer.setUrl(url);
+          layer.redraw();
+        }
+      });
+      modalMapInstance.invalidateSize();
+    }
+  }, [theme, modalMapInstance]);
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8">
-      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]"
+          >
         
         {/* Header */}
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
@@ -4445,8 +4725,10 @@ function AiDispatchQueueWorkspace({
 
         </div>
 
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -4540,7 +4822,7 @@ function WardHotspotsWorkspace({
 
       const tileUrl = theme === 'dark'
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
       L.tileLayer(tileUrl, {
         maxZoom: 20
       }).addTo(map);
@@ -4576,6 +4858,7 @@ function WardHotspotsWorkspace({
       }
       setModalMapInstance(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, thalasseryBoundaryGeoJSON]);
 
   // Sync ward overlay polygons & highlights
@@ -4655,14 +4938,17 @@ function WardHotspotsWorkspace({
   // Sync map tiles with theme
   useEffect(() => {
     if (modalMapInstance) {
+      const url = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
       modalMapInstance.eachLayer(layer => {
-        if (layer instanceof L.TileLayer) {
-          const url = theme === 'dark'
-            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-            : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+        if (typeof layer.setUrl === 'function') {
           layer.setUrl(url);
+          layer.redraw();
         }
       });
+      modalMapInstance.invalidateSize();
     }
   }, [theme, modalMapInstance]);
 
@@ -4690,8 +4976,21 @@ function WardHotspotsWorkspace({
   const riskArray = Object.values(localWardRisks);
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8">
-      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 15 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="bg-[#101115] border border-[#1b1d24]/60 w-full h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]"
+          >
         
         {/* Header */}
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
@@ -4821,8 +5120,11 @@ function WardHotspotsWorkspace({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -4860,8 +5162,19 @@ function IssueDetailsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-      <div className="bg-[#101115] border border-[#1b1d24]/60 w-full max-w-4xl h-[80vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className="bg-[#101115] border border-[#1b1d24]/60 w-full max-w-4xl h-[80vh] rounded-lg shadow-2xl flex flex-col overflow-hidden font-mono text-[#e2e8f0]"
+      >
         
         {/* Header */}
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
@@ -5035,8 +5348,8 @@ function IssueDetailsModal({
 
         </div>
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
