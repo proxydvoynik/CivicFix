@@ -2504,8 +2504,8 @@ Report Reference: #CF-${generatedRef}`;
           if (distKm < 0.25) { // 250 meters
             nearbyCandidates.push(c);
           }
-        } catch {
-          // ignore coordinate format exceptions
+        } catch (err) {
+          console.warn("Failed to calculate distance for duplicity check:", err);
         }
       }
     });
