@@ -2,7 +2,7 @@
 
 **CivicFix** is a premium, AI-driven hyperlocal incident command center dashboard tailored specifically for **Thalassery Town** (Kannur, Kerala, India). Styled as a modern, high-density operations interface, CivicFix empowers local citizens and municipal wardens to report, cross-verify, and track infrastructure issues (potholes, drainage blockages, broken streetlights, safety hazards, and waste accumulation) in real-time. It leverages advanced AI orchestration to bridge the gap between citizens and municipal authorities.
 
-*Developed with ❤️ for the Vibe2Ship Hackathon.*
+*Developed by Harshith for the Vibe2Ship Hackathon.*
 
 ---
 
