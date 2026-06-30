@@ -84,10 +84,23 @@ export default function RightPanel({
           }
         }
       } catch (err) {
-        console.error("Open-Meteo fetch failed:", err);
+        console.error("Open-Meteo fetch failed. Loading mock weather fallback:", err);
         if (active) {
-          setError(true);
+          // Provide realistic offline fallback weather data
+          const fallbackData = {
+            current_weather: { windspeed: 14, temperature: 28 },
+            hourly: {
+              precipitation: Array.from({ length: 24 }).map((_, i) => (i >= 12 && i <= 16) ? 7.2 : 0),
+              relativehumidity_2m: Array(24).fill(82),
+              surface_pressure: Array(24).fill(1009)
+            }
+          };
+          setWeather(fallbackData);
           setLoading(false);
+          setError(false);
+          if (onAgentLog) {
+            onAgentLog(`>> Weather sync: 14 km/h wind, 7.2mm peak rain forecast (Offline Fallback)`);
+          }
         }
       }
     };

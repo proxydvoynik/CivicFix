@@ -11,10 +11,9 @@ import NumberTicker from './components/ui/NumberTicker.jsx';
 import * as turf from '@turf/turf';
 
 // Live Integration Imports
-import { db, auth, storage, isFirebaseConfigured } from './lib/firebase.js';
+import { db, auth, isFirebaseConfigured } from './lib/firebase.js';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini.js';
 import { CivicFixTriageAgent } from './lib/triageAgent.js';
 
@@ -646,7 +645,6 @@ const [currentUser, setCurrentUser] = useState(null);
   const [triageSuggestion, setTriageSuggestion] = useState(null);
   const [activeResolveIncident, setActiveResolveIncident] = useState(null);
   const [resolveImage, setResolveImage] = useState(null);
-  const [rawResolveImageFile, setRawResolveImageFile] = useState(null);
   const [resolveNotes, setResolveNotes] = useState("");
   const [activeAuditIncident, setActiveAuditIncident] = useState(null);
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
@@ -840,7 +838,6 @@ const [currentUser, setCurrentUser] = useState(null);
 
   // Gemini & Upload States
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [rawImageFile, setRawImageFile] = useState(null);
   const [verifiedConfidence, setVerifiedConfidence] = useState(97.4);
   const [verifiedDetails, setVerifiedDetails] = useState("");
   const [aiDraftedLetter, setAiDraftedLetter] = useState("");
@@ -1017,8 +1014,9 @@ const [currentUser, setCurrentUser] = useState(null);
 
   const mappedWardens = useMemo(() => {
     return wardensList.map(w => ({
+      ...w,
       name: w.name,
-      role: w.role || getRoleFromKarma(w.karma || 0),
+      role: getRoleFromKarma(w.karma || 0),
       karma: w.karma || 0
     }));
   }, [wardensList]);
@@ -1562,20 +1560,9 @@ const [currentUser, setCurrentUser] = useState(null);
       // Update report status to resolved_pending_verification (or open if rejected by AI)
       const nextStatus = agentResult.decision === 'appears_resolved' ? 'resolved_pending_verification' : 'open';
 
-      let finalResolveImageUrl = resolveImage;
-      if (isFirebaseConfigured && rawResolveImageFile && storage) {
-        try {
-          const fileRef = ref(storage, `resolutions/${Date.now()}_${rawResolveImageFile.name}`);
-          await uploadBytes(fileRef, rawResolveImageFile);
-          finalResolveImageUrl = await getDownloadURL(fileRef);
-        } catch (err) {
-          console.error("Resolution image upload failed:", err);
-        }
-      }
-
       const updateData = {
         status: nextStatus,
-        resolutionProofImage: finalResolveImageUrl,
+        resolutionProofImage: resolveImage,
         resolutionAuditDecision: agentResult.decision,
         resolutionAuditReason: agentResult.reason,
         resolutionNotes: resolveNotes
@@ -1601,7 +1588,6 @@ const [currentUser, setCurrentUser] = useState(null);
     } finally {
       setIsAgentProcessing(false);
       setResolveImage(null);
-      setRawResolveImageFile(null);
       setResolveNotes("");
     }
   };
@@ -2205,7 +2191,14 @@ Report Reference: #CF-${generatedRef}`
     const file = e.target.files[0];
     if (!file) return;
 
-    setRawImageFile(file);
+    // Check file size (1MB = 1048576 bytes)
+    if (file.size > 1048576) {
+      alert("Please upload an image smaller than 1MB to avoid database size limits.");
+      // Clear the file input if needed
+      e.target.value = '';
+      return;
+    }
+
     setIsImageVerifying(true);
     
     const reader = new FileReader();
@@ -2470,19 +2463,6 @@ This is to notify the Thalassery Municipality regarding ${formType} at ${formDet
 Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`;
 
-    let finalImageUrl = uploadedImage;
-    if (isFirebaseConfigured && rawImageFile && storage) {
-      setIsSubmitting(true);
-      try {
-        const fileRef = ref(storage, `reports/${Date.now()}_${rawImageFile.name}`);
-        await uploadBytes(fileRef, rawImageFile);
-        finalImageUrl = await getDownloadURL(fileRef);
-      } catch (err) {
-        console.error("Image upload failed:", err);
-      }
-      setIsSubmitting(false);
-    }
-
     const newReport = {
       id: Date.now(),
       type: formType,
@@ -2498,7 +2478,7 @@ Report Reference: #CF-${generatedRef}`;
       verifications: imageVerified ? 1 : 0,
       user: "You (Volunteer)",
       streetViewStatus: imageVerified ? "verified" : "unverified",
-      image: finalImageUrl,
+      image: uploadedImage,
       letterDrafted: draftLetter,
       lat: formLat,
       lng: formLng,
@@ -2599,7 +2579,6 @@ Report Reference: #CF-${generatedRef}`;
     setFormDetails("");
     setFormDescription("");
     setUploadedImage(null);
-    setRawImageFile(null);
     setImageVerified(false);
     setVerifiedDetails("");
     setAiDraftedLetter("");
@@ -3937,7 +3916,7 @@ Report Reference: #CF-${generatedRef}`;
                         <img src={resolveImage} className="w-full h-full object-cover rounded" alt="Proof" />
                         <button 
                           type="button"
-                          onClick={() => { setResolveImage(null); setRawResolveImageFile(null); }}
+                          onClick={() => setResolveImage(null)}
                           className="absolute top-1 right-1 bg-black/85 text-white p-1 rounded-full hover:bg-black"
                         >
                           <X size={12} />
@@ -3953,7 +3932,11 @@ Report Reference: #CF-${generatedRef}`;
                           onChange={(e) => {
                             const file = e.target.files[0];
                             if (file) {
-                              setRawResolveImageFile(file);
+                              if (file.size > 1048576) {
+                                alert("Please upload an image smaller than 1MB to avoid database size limits.");
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = (ev) => setResolveImage(ev.target.result);
                               reader.readAsDataURL(file);
