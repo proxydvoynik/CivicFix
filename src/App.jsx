@@ -4038,12 +4038,9 @@ Report Reference: #CF-${generatedRef}`;
       <footer className={`h-[76px] pb-8 flex-shrink-0 flex flex-col items-center justify-center border-t py-1 px-4 text-center text-[11px] leading-relaxed relative z-10 font-bold uppercase tracking-widest transition-colors duration-300 ${
         theme === 'light' ? 'border-slate-200/50 bg-slate-50/70 text-slate-500' : 'border-[#1e2333]/30 bg-[#07090d]/50 text-gray-500'
       }`}>
-        <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>
+        <div>CivicFix v0.4.0 • Thalassery Municipal Command Center</div>
         <div className={`mt-0.5 flex items-center justify-center gap-1 flex-wrap transition-colors duration-300 ${theme === 'light' ? 'text-slate-400' : 'text-gray-400'}`}>
-          <span>Developed with ❤️ by <span className={`${theme === 'light' ? 'text-[#1e1b4b]' : 'text-white'} font-bold`}>Harshith</span> for the</span>
-          <span className={`${theme === 'light' ? 'text-[#1e1b4b] hover:text-red-500' : 'text-white hover:text-red-500'} transition-colors cursor-pointer flex items-center gap-0.5 font-bold`}>
-            Vibe2Ship Hackathon <Heart className="fill-red-500 stroke-red-500 inline-block shrink-0" size={10} />
-          </span>
+          <span>Developed by <span className={`${theme === 'light' ? 'text-[#1e1b4b]' : 'text-white'} font-bold`}>Harshith Saveesh</span> • Vibe2Ship 2026</span>
         </div>
       </footer>
 
