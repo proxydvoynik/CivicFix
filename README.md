@@ -11,15 +11,15 @@
 Below are visual layouts and walkthrough placeholders demonstrating the high-density tactical dashboard in action.
 
 ### 🖥️ Tactical Dashboard Interface
-<img width="1919" height="909" alt="Tactical Dashboard Screenshot" src="https://github.com/user-attachments/assets/a8e413de-4ac3-41c1-bdc4-b6b6c7bb2307" />
+<img width="1917" height="909" alt="Screenshot 2026-06-30 155642" src="https://github.com/user-attachments/assets/0676d6a5-65b2-46b5-acb5-1f46272758b2" />
 *Figure 1: Full tactical dashboard containing the 3-column layouts, dark-mode leaflet map, and live data charts.*
 
 ### 📍 Geocoding & Incident Auto-Fill Modal
-<img width="1919" height="907" alt="Report Modal Screenshot" src="https://github.com/user-attachments/assets/37c643d9-42db-4950-a7a4-c493d2c48139" />
+<img width="952" height="907" alt="Screenshot 2026-06-30 160943" src="https://github.com/user-attachments/assets/e2dbb65a-3318-4263-a715-e5cfe525df30" />
 *Figure 2: Frosted reporting modal showing GPS location-lock and dynamic ward boundary auto-fill.*
 
 ### 🔍 Citizen Evidence Verification Panel
-<img width="1919" height="909" alt="Evidence Verification Screenshot" src="https://github.com/user-attachments/assets/c8878e1f-6128-4c59-bf7c-1410e2dfde45" />
+<img width="966" height="780" alt="image" src="https://github.com/user-attachments/assets/771836ab-9348-48eb-bd2e-48c23fbd5b21" />
 *Figure 3: Centered evidence panel displaying citizen-submitted photo evidence along with EXIF photo metadata.*
 
 ---
