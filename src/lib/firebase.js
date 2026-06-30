@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,12 +19,14 @@ const isFirebaseConfigured = !!(
 
 let db = null;
 let auth = null;
+let storage = null;
 
 if (isFirebaseConfigured) {
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     auth = getAuth(app);
+    storage = getStorage(app);
     console.log('Firebase initialized successfully.');
   } catch (error) {
     console.error('Firebase initialization failed:', error);
@@ -32,4 +35,4 @@ if (isFirebaseConfigured) {
   console.log('Firebase environment variables missing or default. Running with local mock fallback.');
 }
 
-export { db, auth, isFirebaseConfigured };
+export { db, auth, storage, isFirebaseConfigured };

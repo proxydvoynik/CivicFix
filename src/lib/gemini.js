@@ -27,10 +27,11 @@ You are CiviFix AI, a civic monitoring assistant for Thalassery Municipality, Ke
 Analyze the attached image which is reported as a "${issueType}" at "${locationDetails}" in the ward "${zone}".
 
 Please perform the following steps:
-1. Verify if the image shows a valid public infrastructure or environmental issue matching the reported category "${issueType}" (like road potholes, flooding/waterlogging, garbage piles, open drainage, or broken streetlights). Set isValid to true only if a civic issue or damage is visible in the image. Set isValid to false if the image shows a clean, undamaged, or well-maintained area (e.g. a clear road with no potholes or signs of damage), or if it is completely unrelated (such as an indoor room, portraits of people, document text, or abstract graphics).
-2. Determine the severity level. Use one of these three: "low", "warning", or "critical". For example, deep potholes or heavy waterlogging is critical. If isValid is false, default to "low".
-3. Provide a concise, clear description of the observed civic issue (under 2 sentences) in monospace-friendly wording. If isValid is false, describe why the validation failed (e.g. "The image displays a well-maintained, clear road with no visible damage.").
-4. Draft a formal grievance letter addressed to the appropriate authority in Thalassery (e.g. Municipal Commissioner, PWD Engineer, or Health Inspector). The letter must follow standard Indian official correspondence style, include the reference ID in #CF-XXXX format (generate a random 4-digit number), and state the category and location. Use Celsius for temperatures and metric units (cm, meter) for any dimensions if relevant. If isValid is false, keep letterDraft as an empty string ("").
+1. Verify if the image shows a valid public infrastructure or environmental issue (like road potholes, flooding/waterlogging, garbage piles, open drainage, or broken streetlights). Set isValid to true only if a civic issue or damage is visible in the image. Set isValid to false if the image shows a clean, undamaged, or well-maintained area (e.g. a clear road with no potholes or signs of damage), or if it is completely unrelated (such as an indoor room, portraits of people, document text, or abstract graphics).
+2. Classify which of the following categories best describes the issue seen in the photo: "Pothole", "Drainage", "Waste", "Streetlight", "Safety", "Other". Return this in detectedCategory.
+3. Determine the severity level. Use one of these three: "low", "warning", or "critical". For example, deep potholes or heavy waterlogging is critical. If isValid is false, default to "low".
+4. Provide a concise, clear description of the observed civic issue (under 2 sentences) in monospace-friendly wording. If isValid is false, describe why the validation failed (e.g. "The image displays a well-maintained, clear road with no visible damage.").
+5. Draft a formal grievance letter addressed to the appropriate authority in Thalassery (e.g. Municipal Commissioner, PWD Engineer, or Health Inspector). The letter must follow standard Indian official correspondence style, include the reference ID in #CF-XXXX format (generate a random 4-digit number), and state the category and location. Use Celsius for temperatures and metric units (cm, meter) for any dimensions if relevant. If isValid is false, keep letterDraft as an empty string ("").
 `;
 
   try {
@@ -51,11 +52,12 @@ Please perform the following steps:
           type: 'OBJECT',
           properties: {
             isValid: { type: 'BOOLEAN' },
+            detectedCategory: { type: 'STRING', enum: ['Pothole', 'Drainage', 'Waste', 'Streetlight', 'Safety', 'Other'] },
             severity: { type: 'STRING', enum: ['low', 'warning', 'critical'] },
             description: { type: 'STRING' },
             letterDraft: { type: 'STRING' }
           },
-          required: ['isValid', 'severity', 'description', 'letterDraft']
+          required: ['isValid', 'detectedCategory', 'severity', 'description', 'letterDraft']
         }
       }
     });

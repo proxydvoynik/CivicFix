@@ -11,9 +11,10 @@ import NumberTicker from './components/ui/NumberTicker.jsx';
 import * as turf from '@turf/turf';
 
 // Live Integration Imports
-import { db, auth, isFirebaseConfigured } from './lib/firebase.js';
+import { db, auth, storage, isFirebaseConfigured } from './lib/firebase.js';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, increment, getDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { analyzeIssueImage, isGeminiConfigured } from './lib/gemini.js';
 import { CivicFixTriageAgent } from './lib/triageAgent.js';
 
@@ -645,6 +646,7 @@ const [currentUser, setCurrentUser] = useState(null);
   const [triageSuggestion, setTriageSuggestion] = useState(null);
   const [activeResolveIncident, setActiveResolveIncident] = useState(null);
   const [resolveImage, setResolveImage] = useState(null);
+  const [rawResolveImageFile, setRawResolveImageFile] = useState(null);
   const [resolveNotes, setResolveNotes] = useState("");
   const [activeAuditIncident, setActiveAuditIncident] = useState(null);
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
@@ -757,6 +759,7 @@ const [currentUser, setCurrentUser] = useState(null);
   const [lastInferredWardNo, setLastInferredWardNo] = useState("");
   const [formLat, setFormLat] = useState(0);
   const [formLng, setFormLng] = useState(0);
+  const [suggestedCategory, setSuggestedCategory] = useState(null);
 
   const thalasseryBoundaryGeoJSON = useMemo(() => {
     try {
@@ -837,6 +840,7 @@ const [currentUser, setCurrentUser] = useState(null);
 
   // Gemini & Upload States
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [rawImageFile, setRawImageFile] = useState(null);
   const [verifiedConfidence, setVerifiedConfidence] = useState(97.4);
   const [verifiedDetails, setVerifiedDetails] = useState("");
   const [aiDraftedLetter, setAiDraftedLetter] = useState("");
@@ -1558,9 +1562,20 @@ const [currentUser, setCurrentUser] = useState(null);
       // Update report status to resolved_pending_verification (or open if rejected by AI)
       const nextStatus = agentResult.decision === 'appears_resolved' ? 'resolved_pending_verification' : 'open';
 
+      let finalResolveImageUrl = resolveImage;
+      if (isFirebaseConfigured && rawResolveImageFile && storage) {
+        try {
+          const fileRef = ref(storage, `resolutions/${Date.now()}_${rawResolveImageFile.name}`);
+          await uploadBytes(fileRef, rawResolveImageFile);
+          finalResolveImageUrl = await getDownloadURL(fileRef);
+        } catch (err) {
+          console.error("Resolution image upload failed:", err);
+        }
+      }
+
       const updateData = {
         status: nextStatus,
-        resolutionProofImage: resolveImage,
+        resolutionProofImage: finalResolveImageUrl,
         resolutionAuditDecision: agentResult.decision,
         resolutionAuditReason: agentResult.reason,
         resolutionNotes: resolveNotes
@@ -1585,6 +1600,9 @@ const [currentUser, setCurrentUser] = useState(null);
       alert("Audit process failed: " + err.message);
     } finally {
       setIsAgentProcessing(false);
+      setResolveImage(null);
+      setRawResolveImageFile(null);
+      setResolveNotes("");
     }
   };
 
@@ -2187,6 +2205,7 @@ Report Reference: #CF-${generatedRef}`
     const file = e.target.files[0];
     if (!file) return;
 
+    setRawImageFile(file);
     setIsImageVerifying(true);
     
     const reader = new FileReader();
@@ -2208,10 +2227,23 @@ Report Reference: #CF-${generatedRef}`
             setVerifiedConfidence(Math.floor(90 + Math.random() * 9));
             setVerifiedDetails(result.description);
             setAiDraftedLetter(result.letterDraft);
+            
+            // Check detected category matching
+            const detected = result.detectedCategory;
+            if (detected) {
+              if (detected.toLowerCase() !== formType.toLowerCase()) {
+                setSuggestedCategory(detected);
+              } else {
+                setSuggestedCategory(null);
+              }
+            } else {
+              setSuggestedCategory(null);
+            }
+
             setAiLogs(prev => [...prev, { 
               id: `log-upload-${Date.now()}-${Math.random()}`, 
               type: "success", 
-              text: `Gemini Vision: Photo verified as valid ${formType}. Drafted municipal letter.` 
+              text: `Gemini Vision: Photo verified as valid ${result.detectedCategory || formType}. Drafted municipal letter.` 
             }]);
           } else {
             setImageVerified(false);
@@ -2261,6 +2293,7 @@ Please initiate inspections.
 
 Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`);
+      setSuggestedCategory(null);
       setAiLogs(prev => [...prev, { 
         id: `log-upload-${Date.now()}-${Math.random()}`, 
         type: "success", 
@@ -2437,6 +2470,19 @@ This is to notify the Thalassery Municipality regarding ${formType} at ${formDet
 Coordinates: Lat ${formLat.toFixed(5)}, Lng ${formLng.toFixed(5)}
 Report Reference: #CF-${generatedRef}`;
 
+    let finalImageUrl = uploadedImage;
+    if (isFirebaseConfigured && rawImageFile && storage) {
+      setIsSubmitting(true);
+      try {
+        const fileRef = ref(storage, `reports/${Date.now()}_${rawImageFile.name}`);
+        await uploadBytes(fileRef, rawImageFile);
+        finalImageUrl = await getDownloadURL(fileRef);
+      } catch (err) {
+        console.error("Image upload failed:", err);
+      }
+      setIsSubmitting(false);
+    }
+
     const newReport = {
       id: Date.now(),
       type: formType,
@@ -2452,7 +2498,7 @@ Report Reference: #CF-${generatedRef}`;
       verifications: imageVerified ? 1 : 0,
       user: "You (Volunteer)",
       streetViewStatus: imageVerified ? "verified" : "unverified",
-      image: uploadedImage,
+      image: finalImageUrl,
       letterDrafted: draftLetter,
       lat: formLat,
       lng: formLng,
@@ -2553,6 +2599,7 @@ Report Reference: #CF-${generatedRef}`;
     setFormDetails("");
     setFormDescription("");
     setUploadedImage(null);
+    setRawImageFile(null);
     setImageVerified(false);
     setVerifiedDetails("");
     setAiDraftedLetter("");
@@ -2702,6 +2749,7 @@ Report Reference: #CF-${generatedRef}`;
               setLastInferredWardNo("");
               setLocationSource(null);
               setLocationError(null);
+              setSuggestedCategory(null);
               setIsReportModalOpen(true);
             }}
             className="h-8.5 px-3.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[10px] font-bold font-mono tracking-widest uppercase border border-blue-400/20 shadow-[0_4px_16px_rgba(37,99,235,0.3)] transition-all hover:scale-[1.03] cursor-pointer text-white"
@@ -3092,17 +3140,41 @@ Report Reference: #CF-${generatedRef}`;
                   </label>
                   <select
                     value={formType}
-                    onChange={(e) => setFormType(e.target.value)}
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      setFormType(selectedVal);
+                      if (suggestedCategory && suggestedCategory.toLowerCase() === selectedVal.toLowerCase()) {
+                        setSuggestedCategory(null);
+                      }
+                    }}
                     className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
                   >
                     <option value="Pothole">Pothole</option>
                     <option value="Drainage">Drainage</option>
-                    <option value="Water Leakage">Water Leakage</option>
-                    <option value="Streetlight">Streetlight</option>
                     <option value="Waste">Waste</option>
-                    <option value="Obstruction">Obstruction</option>
+                    <option value="Streetlight">Streetlight</option>
+                    <option value="Safety">Safety / Hazard</option>
                     <option value="Other">Other</option>
                   </select>
+
+                  {suggestedCategory && (
+                    <div className="mt-1 bg-amber-500/10 border border-amber-500/20 rounded p-2.5 flex flex-col gap-1.5 animate-pulse">
+                      <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-bold">
+                        <AlertCircle size={12} className="shrink-0" />
+                        <span>AI Suggestion: Photo matches "{suggestedCategory}" category.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormType(suggestedCategory);
+                          setSuggestedCategory(null);
+                        }}
+                        className="text-[9px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 rounded py-1 px-2 cursor-pointer transition-all self-start"
+                      >
+                        Change to {suggestedCategory}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Ward / Sector Selector */}
@@ -3865,7 +3937,7 @@ Report Reference: #CF-${generatedRef}`;
                         <img src={resolveImage} className="w-full h-full object-cover rounded" alt="Proof" />
                         <button 
                           type="button"
-                          onClick={() => setResolveImage(null)}
+                          onClick={() => { setResolveImage(null); setRawResolveImageFile(null); }}
                           className="absolute top-1 right-1 bg-black/85 text-white p-1 rounded-full hover:bg-black"
                         >
                           <X size={12} />
@@ -3881,6 +3953,7 @@ Report Reference: #CF-${generatedRef}`;
                           onChange={(e) => {
                             const file = e.target.files[0];
                             if (file) {
+                              setRawResolveImageFile(file);
                               const reader = new FileReader();
                               reader.onload = (ev) => setResolveImage(ev.target.result);
                               reader.readAsDataURL(file);
