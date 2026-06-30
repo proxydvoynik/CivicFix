@@ -1,6 +1,6 @@
 # CivicFix: Hyperlocal Civic Command Center
 
-**CivicFix** is a premium, AI-driven hyperlocal incident command center dashboard tailored specifically for **Thalassery Town** (Kerala, India). Styled as a modern, high-density tactical interface, CivicFix empowers local citizens to report, cross-verify, and track infrastructure issues (potholes, waterlogging, broken lights, waste) in real-time, leveraging AI automation to bridge the gap between citizens and municipal authorities.
+**CivicFix** is a premium, AI-driven hyperlocal incident command center dashboard tailored specifically for **Thalassery Town** (Kannur, Kerala, India). Styled as a modern, high-density operations interface, CivicFix empowers local citizens and municipal wardens to report, cross-verify, and track infrastructure issues (potholes, drainage blockages, broken streetlights, safety hazards, and waste accumulation) in real-time. It leverages advanced AI orchestration to bridge the gap between citizens and municipal authorities.
 
 *Developed with ❤️ for the Vibe2Ship Hackathon.*
 
@@ -11,17 +11,14 @@
 Below are visual layouts and walkthrough placeholders demonstrating the high-density tactical dashboard in action.
 
 ### 🖥️ Tactical Dashboard Interface
-<!-- Add dashboard view screenshot here -->
 <img width="1919" height="909" alt="Tactical Dashboard Screenshot" src="https://github.com/user-attachments/assets/a8e413de-4ac3-41c1-bdc4-b6b6c7bb2307" />
 *Figure 1: Full tactical dashboard containing the 3-column layouts, dark-mode leaflet map, and live data charts.*
 
 ### 📍 Geocoding & Incident Auto-Fill Modal
-<!-- Add modal view screenshot here -->
 <img width="1919" height="907" alt="Report Modal Screenshot" src="https://github.com/user-attachments/assets/37c643d9-42db-4950-a7a4-c493d2c48139" />
 *Figure 2: Frosted reporting modal showing GPS location-lock and dynamic ward boundary auto-fill.*
 
 ### 🔍 Citizen Evidence Verification Panel
-<!-- Add Evidence View screenshot here -->
 <img width="1919" height="909" alt="Evidence Verification Screenshot" src="https://github.com/user-attachments/assets/c8878e1f-6128-4c59-bf7c-1410e2dfde45" />
 *Figure 3: Centered evidence panel displaying citizen-submitted photo evidence along with EXIF photo metadata.*
 
@@ -65,42 +62,61 @@ CivicFix uses a balanced, high-density layout with a dark, premium matte charcoa
 - **Citizen Evidence Verification**: Side-by-side comparative panel analyzing baseline archive imagery against mobile EXIF data uploads to verify infrastructure damage.
 - **Report Neighborhood Issue Modal**: Frosted overlay popup with categories, location selectors, coordinates feedback displays, and live photo validations.
 - **Lightweight Duplicate Detection & Merge Suggestion**: Autonomously compares categories and calculates spatial distance using Turf.js to identify active duplicate reports under 250 meters, suggesting merges before a new ticket is logged.
-- **Warden Consensus & Point System**: Calibrated for Thalassery's population density:
-  - Warden Consensus dispatch requires `15` warden approvals.
-  - Automated escalation requires `15` community verifications.
-  - Community review status requires `100` user upvotes.
-  - Context-aware priority scoring dynamically calculated using verifications and upvotes.
 
-### 6. Interactive Overlay Modals
-- **Grievance Notice Draftsman**: Automatically composes formal legal notice letters directed to the Thalassery Municipal Commissioner.
-- **Citizen Evidence Verification**: Side-by-side comparative panel analyzing baseline archive imagery against mobile EXIF data uploads to verify infrastructure damage.
-- **Report Neighborhood Issue Modal**: Frosted overlay popup with categories, location selectors, coordinates feedback displays, and live photo validations.
-- **Lightweight Duplicate Detection & Merge Suggestion**: Autonomously compares categories and calculates spatial distance using Turf.js to identify active duplicate reports under 150 meters, suggesting merges before a new ticket is logged.
+---
 
-### 7. Global Light Mode Theme System
-- **Theme Toggle Switcher**: Interactive Sun/Moon toggle button placed in the top header navbar to switch themes dynamically.
-- **Premium Frosted Mint & Indigo Theme**: Built a highly curated, non-generic light mode theme utilizing a radial minty-indigo gradient backdrop (`#f0fdfa` $\rightarrow$ `#f5f3ff` $\rightarrow$ `#e0e7ff`), semi-transparent glassmorphic card overlays, translucent border accents, and high-density typography rendering rich charcoal-indigo text for maximum readability.
-- **Dynamic Map Tile Swapping**: Re-fetches Leaflet tile layers instantly at runtime using `.setUrl()`, toggling between CartoDB Dark Matter (dark) and CartoDB Voyager light tiles across all 4 Leaflet map instances.
-- **Accent Contrast Control**: Automatically scales high-contrast color mapping for cyan/amber/emerald/red indicators and buttons to preserve solid-colored badge contrast while maintaining clean button readability.
+## 🎨 Premium Motion System & Visual Redesign
 
-### 8. Premium Motion System & Visual Redesign
 We revamped the user experience and interface transitions using custom Framer Motion animations and CSS keyframes, recreating the visual style of premium libraries (like Magic UI) manually:
 - **Staggered Panel Entrances**: Panels and containers slide and fade into view sequentially on load using custom staggered spring animations.
 - **Blur-Fade Reveals**: Recreated the Magic UI Blur-Fade entry effect, animating elements from `opacity: 0, scale: 0.985, filter: blur(6px)` to sharp focus.
 - **NumberTicker Counters**: Smooth spring-based integer and decimal counts for KPIs (Warden Karma points, weather stats, and stability indexes).
-- **SVG Border Beams**: High-priority cards (like active dispatches) feature moving gradient borders animated via SVG `strokeDashoffset` keyframes.
+- **SVG Border Beams**: High-priority cards (like escalated dispatches or critical weather alerts) feature a glowing color gradient beam that crawls along their borders using keyframe-animated SVG stroke offsets.
 - **Infinite Scrolling Marquee**: Rebuilt the live ticker using a double-content infinite loop container running at 60fps with pauses on hover.
 - **View Transition Theme Toggling**: Seamless circular clip-path expansion ripple when switching between dark and light modes, combined with rotating sun/moon button animations.
 - **Tactical Dot-Grid Canvas**: Applied a subtle grid texture backdrop (`.bg-grid-dots`) that shifts cleanly between light mode and dark mode.
 
 ---
 
+## 🎖️ Warden Authentication & Dynamic Rank Progression
+
+Every active control panel operator is registered under a Warden Profile. The platform encourages warden accountability using a gamified role progression logic:
+
+### 1. Account Initialization & Role
+- **Anonymous Sign-In**: Automatically assigns each visitor a unique Firebase Auth profile.
+- **Profile Registration**: On first boot, users enter their display alias and are assigned the initial rank of **`Cadet Warden`** with `0` Karma Points (KP).
+
+### 2. Dynamic Promotion Thresholds
+Your role badge updates dynamically on your header and on the Volunteer Board depending on your current KP value:
+
+| Karma Points (KP) | Warden Role Badge | Description |
+| :--- | :--- | :--- |
+| **0 – 149** | `Cadet Warden` | Initial entry rank |
+| **150 – 349** | `Street Watcher` | Focuses on streetlights and signs |
+| **350 – 399** | `Waste Tracker` | Coordinates waste cleaning dispatches |
+| **400 – 499** | `Pothole Ranger` | Audits road repair work |
+| **500+** | `Thalassery Warden` | Highest rank; full administrative authority |
+
+### 3. Karma Points (KP) Reward Matrix
+Wardens earn points to rank up by completing community validation tasks:
+- **Submit a Civic Report**: `+10 KP`
+- **Upvote an Active Incident**: `+2 KP`
+- **Submit a Community Verification**: `+5 KP`
+- **Audit and Verify a Resolution Proof**: `+25 KP`
+
+---
+
 ## 🤖 How AI Acts Autonomously (Agentic Depth)
+
 CivicFix utilizes an autonomous agentic pipeline to monitor and triage reports without manual human intervention:
-- **Autonomous Validation**: When a user submits an issue with a photo, the Gemini AI agent reviews the image autonomously to check if the visual elements match the reported category (e.g., confirming a pothole or waste dump exists in the image).
+- **Autonomous Image Category Validation**: When a photo is uploaded, Gemini 2.5 Flash analyzes its pixels and returns a `detectedCategory`. If it differs from the user's current choice, the form displays a helpful suggestion alert box with a single-click **"Change Category"** button.
+- **Placeholder Substitution Engine**: If a user uploads a photo before entering coordinates or details, Gemini drafts the grievance notice with placeholder strings (`"Unknown Location"`, `"Unknown Ward"`). On submission, the frontend dynamically replaces these strings with the user's finalized text inputs before saving to Firestore.
 - **Auto-Escalation Triage**: The system tracks volunteer verifications and community upvotes. If an issue passes the 15-verification or 100-upvote thresholds, the AI agent autonomously escalates the report's severity to "critical" and status to "escalated", updating the tactical priority score.
 - **Intelligent Duplicity Filtering**: The system autonomously computes spatial distance (using Turf.js) and category checks on newly reported issues to detect duplicates, suggesting merges before a ticket is created.
+- **Closed-Loop Resolution Audits**: When maintenance teams upload repair proof photos, Gemini Vision audits the pixels to check if the issue is resolved (`appears_resolved` vs `insufficient_evidence`) before allowing wardens to close the ticket.
 - **Autonomous Legal Drafting**: The AI agent drafts context-aware grievance letters to the Municipal Commissioner, automatically pre-populating geo-coordinates, reference numbers, and localized ward details.
+
+---
 
 ## 📈 Impact & Outcomes (Problem Solving & Impact)
 CivicFix directly solves the hyper-local community hero challenge through measurable, high-trust civic mechanics:
@@ -192,11 +208,11 @@ Make sure you have [Node.js](https://nodejs.org/) installed.
    *Note: If no keys are configured, CivicFix automatically falls back to full local simulation mode.*
 
 ### Running Locally
-To launch the Vite hot-reloading development server:
+To launch the Vite development server:
 ```bash
 npm run dev
 ```
-Open **[http://localhost:5173/](http://localhost:5173/)** (or the fallback port indicated in the terminal, e.g. `5174`) in your browser.
+Open **[http://localhost:5173/](http://localhost:5173/)** in your browser.
 
 ### Compiling Production Build
 To create a minimized, optimized production build:
