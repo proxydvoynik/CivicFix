@@ -41,19 +41,8 @@ import { WARD_POLYGONS } from './lib/ward_polygons.js';
 
 
 
-/*
-function usePrevious(value) {
-  const [current, setCurrent] = useState(value);
-  const [previous, setPrevious] = useState(null);
 
-  if (value !== current) {
-    setPrevious(current);
-    setCurrent(value);
-  }
 
-  return previous;
-}
-*/
 
 // Hardcoded Thalassery Town Community Wards/Zones
 const initialDistricts = [
@@ -65,7 +54,6 @@ const initialDistricts = [
   { name: "Chirakkara Hills", availability: 96.8, active: 3, resolved: 37, severity: "warning", lat: 11.752816, lng: 75.506582, sparkline: [97.5, 97.1, 96.9, 96.6, 96.8, 96.8] }
 ];
 
-// Mock Recent Issues Feed for Thalassery
 // Mock Recent Issues Feed for Thalassery
 const initialIssues = [
   { 
@@ -928,6 +916,10 @@ const [currentUser, setCurrentUser] = useState(null);
         image: r.image,
         streetViewStatus: r.streetViewStatus,
         hasImage: r.hasImage || !!r.image,
+        resolutionProofImage: r.resolutionProofImage,
+        resolutionAuditDecision: r.resolutionAuditDecision,
+        resolutionAuditReason: r.resolutionAuditReason,
+        resolutionNotes: r.resolutionNotes,
         
         // New functional fields
         severity: derivedSeverity,
@@ -943,26 +935,7 @@ const [currentUser, setCurrentUser] = useState(null);
     });
   }, [reports, floodRisk]);
 
-  // Compute scores for previousScores comparison
-  /*
-  const currentScores = useMemo(() => {
-    const scores = {};
-    Object.keys(WARD_ZONES).forEach(zoneName => {
-      const wardList = WARD_ZONES[zoneName];
-      const zoneIncidents = mappedIncidents.filter(inc => {
-        const wardStr = inc.ward?.toString();
-        return wardStr && wardList.includes(wardStr);
-      });
-      const resolvedCount = zoneIncidents.filter(inc => inc.status === 'resolved').length;
-      scores[zoneName] = zoneIncidents.length === 0 
-        ? 100 
-        : Math.round((resolvedCount / zoneIncidents.length) * 100);
-    });
-    return scores;
-  }, [mappedIncidents]);
-  */
 
-  // const previousScores = usePrevious(currentScores) || {};
 
   const [currentTime, setCurrentTime] = useState("");
   const [currentTemp, setCurrentTemp] = useState("28°C");
@@ -1093,7 +1066,7 @@ const [currentUser, setCurrentUser] = useState(null);
       return;
     }
     const userId = currentUser.uid;
-    const report = reports.find(r => r.id === id || r.docId === docId);
+    const report = reports.find(r => r.id?.toString() === id?.toString() || r.docId === docId);
     if (!report) return;
 
     const upvotedByList = report.upvotedBy || [];
@@ -1118,7 +1091,7 @@ const [currentUser, setCurrentUser] = useState(null);
         console.error("Error updating vote in Firestore:", error);
       }
     } else {
-      setReports(prev => prev.map(r => r.id === id ? { ...r, votes: nextVotesCount, upvotedBy: nextUpvotedBy } : r));
+      setReports(prev => prev.map(r => r.id?.toString() === id?.toString() ? { ...r, votes: nextVotesCount, upvotedBy: nextUpvotedBy } : r));
       await incrementUserKarma(2);
     }
   }, [reports, incrementUserKarma, currentUser]);
@@ -1152,7 +1125,7 @@ const [currentUser, setCurrentUser] = useState(null);
       }
     } else {
       setReports(prev => prev.map(r => {
-        if (r.id === id) {
+        if (r.id?.toString() === id?.toString()) {
           const nextVerifications = r.verifications + 1;
           const nextSeverity = nextVerifications >= 15 ? "critical" : r.severity;
           const nextStatus = nextVerifications >= 15 ? "escalated" : (r.status || "open");
@@ -1209,7 +1182,7 @@ const [currentUser, setCurrentUser] = useState(null);
         const reportRef = doc(db, 'reports', report.docId);
         updateDoc(reportRef, { dispatchApprovals: mockNames }).catch(e => console.error("Error setting mock approvals:", e));
       } else {
-        setReports(prev => prev.map(r => r.id === report.id ? { ...r, dispatchApprovals: mockNames } : r));
+        setReports(prev => prev.map(r => r.id?.toString() === report.id?.toString() ? { ...r, dispatchApprovals: mockNames } : r));
       }
     }
 
@@ -1231,7 +1204,7 @@ const [currentUser, setCurrentUser] = useState(null);
         console.error("Error auto-escalating Firestore report:", err);
       }
     } else {
-      setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'escalated', severity: 'critical' } : r));
+      setReports(prev => prev.map(r => r.id?.toString() === report.id?.toString() ? { ...r, status: 'escalated', severity: 'critical' } : r));
     }
   }, [reports]);
 
@@ -1431,7 +1404,7 @@ const [currentUser, setCurrentUser] = useState(null);
               resolutionKarmaAwarded: true
             }).catch(err => console.error("Error setting resolutionKarmaAwarded:", err));
           } else {
-            setReports(prev => prev.map(r => r.id === report.id ? { ...r, resolutionKarmaAwarded: true } : r));
+            setReports(prev => prev.map(r => r.id?.toString() === report.id?.toString() ? { ...r, resolutionKarmaAwarded: true } : r));
           }
         }
       });
@@ -1572,7 +1545,7 @@ const [currentUser, setCurrentUser] = useState(null);
         const reportRef = doc(db, 'reports', activeResolveIncident.docId);
         await updateDoc(reportRef, updateData);
       } else {
-        setReports(prev => prev.map(r => r.id === activeResolveIncident.id ? { ...r, ...updateData } : r));
+        setReports(prev => prev.map(r => r.id?.toString() === activeResolveIncident.id?.toString() ? { ...r, ...updateData } : r));
       }
 
       if (agentResult.decision === 'appears_resolved') {
@@ -1610,7 +1583,7 @@ const [currentUser, setCurrentUser] = useState(null);
         const reportRef = doc(db, 'reports', activeAuditIncident.docId);
         await updateDoc(reportRef, updateData);
       } else {
-        setReports(prev => prev.map(r => r.id === activeAuditIncident.id ? { ...r, ...updateData } : r));
+        setReports(prev => prev.map(r => r.id?.toString() === activeAuditIncident.id?.toString() ? { ...r, ...updateData } : r));
       }
 
       // Log decision
@@ -1912,7 +1885,7 @@ const [currentUser, setCurrentUser] = useState(null);
 
       polygon.bindTooltip(
         `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/><span style="color:${zoneColor}">${zone || "General"} Sector</span>`,
-        { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+        { direction: 'center', className: 'custom-ward-tooltip font-mono text-[12px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
       );
 
       polygon.on('click', (e) => {
@@ -1972,7 +1945,7 @@ const [currentUser, setCurrentUser] = useState(null);
       const marker = L.marker([d.lat, d.lng], { icon: wardIcon });
       marker.bindTooltip(`<strong>${d.name}</strong><br/>Uptime Status: ${d.availability}% stable`, {
         direction: 'top',
-        className: 'custom-tooltip font-mono text-[10px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-2 rounded shadow-2xl'
+        className: 'custom-tooltip font-mono text-[12px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-2 rounded shadow-2xl'
       });
 
       marker.on('click', () => {
@@ -2006,27 +1979,27 @@ const [currentUser, setCurrentUser] = useState(null);
       }).addTo(reportMarkersGroup.current);
 
       const popupDiv = document.createElement('div');
-      popupDiv.className = 'font-mono text-xs text-[#e2e8f0]';
+      popupDiv.className = 'font-mono text-sm text-[#e2e8f0]';
       popupDiv.style.minWidth = '220px';
       
       const badgeColor = issue.severity === 'critical' ? 'bg-red-950/40 text-red-400 border-red-500/20' : 'bg-amber-950/40 text-amber-400 border-amber-500/20';
 
       let actionButtonsHtml;
       if (issue.status === 'resolved') {
-        actionButtonsHtml = `<div class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider text-center py-1">✓ Issue Resolved</div>`;
+        actionButtonsHtml = `<div class="text-[12px] text-emerald-400 font-bold uppercase tracking-wider text-center py-1">✓ Issue Resolved</div>`;
       } else {
         const upvoteBtn = `
-          <button id="map-vote-btn-${issue.id}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+          <button id="map-vote-btn-${issue.id}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
             ▲ UPVOTE (${issue.upvotes})
           </button>
         `;
         const verifyBtn = `
-          <button id="map-verify-btn-${issue.id}" class="flex-1 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+          <button id="map-verify-btn-${issue.id}" class="flex-1 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[12px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
             VERIFY
           </button>
         `;
         const dispatchBtn = issue.status === 'escalated' ? `
-          <button id="map-dispatch-btn-${issue.id}" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
+          <button id="map-dispatch-btn-${issue.id}" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-[12px] font-bold py-1 px-2 rounded transition-colors text-center cursor-pointer">
             ✉ DISPATCH
           </button>
         ` : '';
@@ -2045,18 +2018,18 @@ const [currentUser, setCurrentUser] = useState(null);
       popupDiv.innerHTML = `
         <div class="border-b border-[#1b1d24]/60 pb-2 mb-2">
           <div class="flex justify-between items-center mb-1">
-            <span class="font-bold text-white text-sm">${issue.type}</span>
-            <span class="text-[8px] border px-1.5 py-0.5 rounded uppercase font-bold ${badgeColor}">
+            <span class="font-bold text-white text-base">${issue.type}</span>
+            <span class="text-[10px] border px-1.5 py-0.5 rounded uppercase font-bold ${badgeColor}">
               ${issue.severity}
             </span>
           </div>
-          <span class="text-[#7d8590] text-[9px] block">REF: #CF-${issue.id.toString().substring(0, 4)}</span>
+          <span class="text-[#7d8590] text-[11px] block">REF: #CF-${issue.id.toString().substring(0, 4)}</span>
         </div>
         <p class="mb-2 text-[#8f97a3] leading-relaxed">${issue.location}</p>
-        <div class="text-[10px] text-[#7d8590] mb-2.5">Community Verifications: <span class="text-white font-bold">${issue.verifications}</span></div>
+        <div class="text-[12px] text-[#7d8590] mb-2.5">Community Verifications: <span class="text-white font-bold">${issue.verifications}</span></div>
         <div class="flex flex-col gap-1.5 border-t border-[#1b1d24]/60 pt-2.5">
           ${actionButtonsHtml}
-          <button id="map-details-btn-${issue.id}" class="w-full bg-[#16171d] hover:bg-[#1f2129] border border-[#1b1d24] text-white hover:text-cyan-400 text-[10px] font-bold py-1.5 rounded transition-colors text-center cursor-pointer uppercase font-mono mt-0.5">
+          <button id="map-details-btn-${issue.id}" class="w-full bg-[#16171d] hover:bg-[#1f2129] border border-[#1b1d24] text-white hover:text-cyan-400 text-[12px] font-bold py-1.5 rounded transition-colors text-center cursor-pointer uppercase font-mono mt-0.5">
             🔍 Inspect Details
           </button>
         </div>
@@ -2629,10 +2602,10 @@ Report Reference: #CF-${generatedRef}`;
               <img src="/civicfix-logo.png" alt="CivicFix Logo" className="w-6 h-6 object-contain" />
             </div>
             <div className="flex flex-col">
-              <span className={`font-black text-sm tracking-wider uppercase font-sans transition-colors duration-300 ${
+              <span className={`font-black text-base tracking-wider uppercase font-sans transition-colors duration-300 ${
                 theme === 'light' ? 'text-slate-800' : 'text-white'
               }`}>CivicFix</span>
-              <span className="text-[8px] text-gray-500 uppercase tracking-widest font-bold font-mono mt-0.5">Thalassery Ops Center</span>
+              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold font-mono mt-0.5">Thalassery Ops Center</span>
             </div>
           </div>
           
@@ -2647,7 +2620,7 @@ Report Reference: #CF-${generatedRef}`;
 
           {/* Volunteer Status Badge */}
           {currentUserWarden && (
-            <div className={`hidden sm:flex items-center gap-2 text-[10px] font-mono px-3 py-1.5 rounded-lg shadow-sm transition-colors duration-300 ${
+            <div className={`hidden sm:flex items-center gap-2 text-[12px] font-mono px-3 py-1.5 rounded-lg shadow-sm transition-colors duration-300 ${
               theme === 'light'
                 ? 'bg-slate-100 border border-slate-200/80 text-slate-500'
                 : 'bg-[#0a0c10] border border-[#1e2333]/80 text-gray-400'
@@ -2666,7 +2639,7 @@ Report Reference: #CF-${generatedRef}`;
           )}
           
           {/* Location & Weather details */}
-          <div className={`hidden sm:flex items-center gap-2.5 text-[10px] font-mono px-3 py-1.5 rounded-lg shadow-sm transition-colors duration-300 ${
+          <div className={`hidden sm:flex items-center gap-2.5 text-[12px] font-mono px-3 py-1.5 rounded-lg shadow-sm transition-colors duration-300 ${
             theme === 'light'
               ? 'bg-slate-100 border border-slate-200/80 text-slate-500'
               : 'bg-[#0a0c10] border border-[#1e2333]/80 text-gray-400'
@@ -2731,7 +2704,7 @@ Report Reference: #CF-${generatedRef}`;
               setSuggestedCategory(null);
               setIsReportModalOpen(true);
             }}
-            className="h-8.5 px-3.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[10px] font-bold font-mono tracking-widest uppercase border border-blue-400/20 shadow-[0_4px_16px_rgba(37,99,235,0.3)] transition-all hover:scale-[1.03] cursor-pointer text-white"
+            className="h-8.5 px-3.5 flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[12px] font-bold font-mono tracking-widest uppercase border border-blue-400/20 shadow-[0_4px_16px_rgba(37,99,235,0.3)] transition-all hover:scale-[1.03] cursor-pointer text-white"
           >
             <PlusCircle size={12} />
             <span>Report Issue</span>
@@ -2778,9 +2751,9 @@ Report Reference: #CF-${generatedRef}`;
             <div className={`flex items-center justify-between border-b pb-2.5 transition-colors duration-300 ${theme === 'light' ? 'border-slate-200' : 'border-[#1e2333]/50'}`}>
               <div className="flex items-center gap-2">
                 <Globe className="text-blue-400" size={14} />
-                <h3 className={`text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Interactive Tactical Map (Thalassery Town)</h3>
+                <h3 className={`text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Interactive Tactical Map (Thalassery Town)</h3>
               </div>
-              <span className={`text-[8px] px-2 py-0.5 rounded-md border font-bold leading-none tracking-widest uppercase transition-colors duration-300 ${
+              <span className={`text-[10px] px-2 py-0.5 rounded-md border font-bold leading-none tracking-widest uppercase transition-colors duration-300 ${
                 theme === 'light' 
                   ? 'bg-blue-50 text-blue-600 border-blue-200' 
                   : 'bg-blue-950/40 text-blue-400 border-blue-500/30'
@@ -2802,7 +2775,7 @@ Report Reference: #CF-${generatedRef}`;
               {/* FLOATING ACTION OVERLAY ON MAP FOR TACTICAL CONTROLS */}
               <div className="absolute top-2.5 left-2.5 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
                 {selectedZone !== "All" && (
-                  <div className={`flex items-center gap-2 backdrop-blur-md border font-bold px-2.5 py-1 rounded-md text-[9px] font-mono transition-colors duration-300 ${
+                  <div className={`flex items-center gap-2 backdrop-blur-md border font-bold px-2.5 py-1 rounded-md text-[11px] font-mono transition-colors duration-300 ${
                     theme === 'light'
                       ? 'bg-white/95 border-blue-200 text-blue-600 shadow-[0_4px_16px_rgba(0,0,0,0.1)]'
                       : 'bg-[#090b0e]/95 border-blue-500/40 text-blue-400 shadow-[0_4px_16px_rgba(0,0,0,0.5)]'
@@ -2811,7 +2784,7 @@ Report Reference: #CF-${generatedRef}`;
                     <span>SECTOR: {selectedZone.toUpperCase()}</span>
                     <button 
                       onClick={() => setSelectedZone("All")} 
-                      className={`font-bold text-xs pl-1 cursor-pointer transition-colors duration-300 ${theme === 'light' ? 'hover:text-blue-800' : 'hover:text-white'}`}
+                      className={`font-bold text-sm pl-1 cursor-pointer transition-colors duration-300 ${theme === 'light' ? 'hover:text-blue-800' : 'hover:text-white'}`}
                       title="Clear sector focus filter"
                     >
                       ×
@@ -2837,10 +2810,10 @@ Report Reference: #CF-${generatedRef}`;
                   <Globe size={13} className={`animate-pulse ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className={`text-[11px] font-bold leading-none transition-colors duration-300 ${
+                  <span className={`text-[13px] font-bold leading-none transition-colors duration-300 ${
                     (selectedZone === "All" && !showHazardHeatmap) ? (theme === 'light' ? 'text-slate-800' : 'text-white') : (theme === 'light' ? 'text-slate-700' : 'text-white')
                   }`}>Town Overview</span>
-                  <span className={`text-[8px] leading-none mt-1 truncate transition-colors duration-300 ${
+                  <span className={`text-[10px] leading-none mt-1 truncate transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-500' : 'text-gray-500'
                   }`}>Reset map focus</span>
                 </div>
@@ -2860,10 +2833,10 @@ Report Reference: #CF-${generatedRef}`;
                   <AlertCircle size={13} className={`animate-pulse ${theme === 'light' ? 'text-amber-600' : 'text-amber-400'}`} />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className={`text-[11px] font-bold leading-none transition-colors duration-300 ${
+                  <span className={`text-[13px] font-bold leading-none transition-colors duration-300 ${
                     showHazardHeatmap ? (theme === 'light' ? 'text-slate-800' : 'text-white') : (theme === 'light' ? 'text-slate-700' : 'text-white')
                   }`}>Hazard Heatmap</span>
-                  <span className={`text-[8px] leading-none mt-1 truncate transition-colors duration-300 ${
+                  <span className={`text-[10px] leading-none mt-1 truncate transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-500' : 'text-gray-500'
                   }`}>Toggle flood overlay</span>
                 </div>
@@ -2883,10 +2856,10 @@ Report Reference: #CF-${generatedRef}`;
                   <Layers size={13} className={`animate-pulse ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className={`text-[11px] font-bold leading-none transition-colors duration-300 ${
+                  <span className={`text-[13px] font-bold leading-none transition-colors duration-300 ${
                     showWardBorders ? (theme === 'light' ? 'text-slate-800' : 'text-white') : (theme === 'light' ? 'text-slate-700' : 'text-white')
                   }`}>Ward Borders</span>
-                  <span className={`text-[8px] leading-none mt-1 truncate transition-colors duration-300 ${
+                  <span className={`text-[10px] leading-none mt-1 truncate transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-500' : 'text-gray-500'
                   }`}>
                     {showWardBorders ? "Borders visible" : "Borders hidden"}
@@ -2911,9 +2884,9 @@ Report Reference: #CF-${generatedRef}`;
             <div className={`flex items-center justify-between border-b pb-1.5 transition-colors duration-300 ${theme === 'light' ? 'border-slate-200' : 'border-[#1e2333]/50'}`}>
               <div className="flex items-center gap-2">
                 <Activity className={`animate-pulse ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} size={14} />
-                <h3 className={`text-xs font-bold uppercase tracking-widest transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Civic Stability Health</h3>
+                <h3 className={`text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Civic Stability Health</h3>
               </div>
-              <span className={`text-[8px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>90-Day Trend</span>
+              <span className={`text-[10px] uppercase tracking-wider font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>90-Day Trend</span>
             </div>
 
             {/* Sparkline chart (Color-coded from Good to Critical) */}
@@ -2965,7 +2938,7 @@ Report Reference: #CF-${generatedRef}`;
                 );
               })}
             </div>
-            <div className={`flex items-center justify-between text-[8px] font-mono font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
+            <div className={`flex items-center justify-between text-[10px] font-mono font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
               <span>30 MIN AGO</span>
               <span>NOW</span>
             </div>
@@ -2994,10 +2967,10 @@ Report Reference: #CF-${generatedRef}`;
               className="bg-[#101115] border border-[#1b1d24] w-full max-w-sm rounded p-6 shadow-2xl flex flex-col gap-4 font-mono text-[#e2e8f0]"
             >
               <div className="border-b border-[#1b1d24] pb-3">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">
                   Choose civic alias
                 </h3>
-                <p className="text-[10px] text-[#7d8590] mt-1 font-sans">
+                <p className="text-[12px] text-[#7d8590] mt-1 font-sans">
                   Set your volunteer name
                 </p>
               </div>
@@ -3010,14 +2983,14 @@ Report Reference: #CF-${generatedRef}`;
                     value={aliasInput}
                     onChange={(e) => setAliasInput(e.target.value)}
                     placeholder="Pick your command center name"
-                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
+                    className="bg-[#16171d] border border-[#1b1d24] text-sm px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
                     maxLength={20}
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full h-9 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-bold uppercase tracking-wider text-white transition-all shadow-[0_0_12px_rgba(37,99,235,0.2)] hover:scale-[1.01] cursor-pointer"
+                  className="w-full h-9 rounded bg-blue-600 hover:bg-blue-700 text-[12px] font-bold uppercase tracking-wider text-white transition-all shadow-[0_0_12px_rgba(37,99,235,0.2)] hover:scale-[1.01] cursor-pointer"
                 >
                   Authorize Identity
                 </button>
@@ -3097,7 +3070,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <PlusCircle className="text-blue-500 animate-pulse" size={16} />
-                  <h3 className="text-xs font-bold text-white font-sans uppercase tracking-wide">
+                  <h3 className="text-sm font-bold text-white font-sans uppercase tracking-wide">
                     Report Neighborhood Issue
                   </h3>
                 </div>
@@ -3114,7 +3087,7 @@ Report Reference: #CF-${generatedRef}`;
                 
                 {/* Issue Selection */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Issue Category
                   </label>
                   <select
@@ -3126,7 +3099,7 @@ Report Reference: #CF-${generatedRef}`;
                         setSuggestedCategory(null);
                       }
                     }}
-                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
+                    className="bg-[#16171d] border border-[#1b1d24] text-sm px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
                   >
                     <option value="Pothole">Pothole</option>
                     <option value="Drainage">Drainage</option>
@@ -3138,7 +3111,7 @@ Report Reference: #CF-${generatedRef}`;
 
                   {suggestedCategory && (
                     <div className="mt-1 bg-amber-500/10 border border-amber-500/20 rounded p-2.5 flex flex-col gap-1.5 animate-pulse">
-                      <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-bold">
+                      <div className="flex items-center gap-1.5 text-[12px] text-amber-400 font-bold">
                         <AlertCircle size={12} className="shrink-0" />
                         <span>AI Suggestion: Photo matches "{suggestedCategory}" category.</span>
                       </div>
@@ -3148,7 +3121,7 @@ Report Reference: #CF-${generatedRef}`;
                           setFormType(suggestedCategory);
                           setSuggestedCategory(null);
                         }}
-                        className="text-[9px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 rounded py-1 px-2 cursor-pointer transition-all self-start"
+                        className="text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 rounded py-1 px-2 cursor-pointer transition-all self-start"
                       >
                         Change to {suggestedCategory}
                       </button>
@@ -3159,11 +3132,11 @@ Report Reference: #CF-${generatedRef}`;
                 {/* Ward / Sector Selector */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                    <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                       Ward / Sector
                     </label>
                     {formWardNo !== "" && (
-                      <span className={`text-[8px] font-mono font-bold uppercase px-1 rounded ${
+                      <span className={`text-[10px] font-mono font-bold uppercase px-1 rounded ${
                         (lastInferredWardNo === formWardNo || (lastInferredWardNo !== "" && getZoneFromWard(lastInferredWardNo) === getZoneFromWard(formWardNo)))
                           ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/20' 
                           : 'bg-amber-950/40 text-amber-400 border border-amber-500/20'
@@ -3184,7 +3157,7 @@ Report Reference: #CF-${generatedRef}`;
                         setFormWardName(w.wardName);
                       }
                     }}
-                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded cursor-pointer"
+                    className="bg-[#16171d] border border-[#1b1d24] text-sm px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded cursor-pointer"
                   >
                     <option value="" disabled>Select a Ward...</option>
                     {CANONICAL_WARDS.map(w => (
@@ -3197,7 +3170,7 @@ Report Reference: #CF-${generatedRef}`;
 
                 {/* Landmark / exact place */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Landmark / exact place
                   </label>
                   <input
@@ -3206,13 +3179,13 @@ Report Reference: #CF-${generatedRef}`;
                     value={formDetails}
                     onChange={(e) => setFormDetails(e.target.value)}
                     placeholder="e.g. opposite court entrance gate, underpass lane..."
-                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
+                    className="bg-[#16171d] border border-[#1b1d24] text-sm px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded"
                   />
                 </div>
 
                 {/* Describe the issue */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Describe the issue
                   </label>
                   <textarea
@@ -3221,27 +3194,27 @@ Report Reference: #CF-${generatedRef}`;
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     placeholder="Please include safety details (e.g. depth of pothole, blocked traffic, visibility at night)..."
-                    className="bg-[#16171d] border border-[#1b1d24] text-xs px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded resize-none"
+                    className="bg-[#16171d] border border-[#1b1d24] text-sm px-3 py-2 text-white focus:outline-none focus:border-blue-500 rounded resize-none"
                   ></textarea>
                 </div>
 
                 {/* Photo Evidence */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Photo Evidence
                   </label>
                   
                   {imageVerified ? (
                     <div className="border border-emerald-500/30 bg-emerald-500/10 p-3 rounded flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-emerald-400">
+                        <div className="flex items-center gap-2 text-sm text-emerald-400">
                           <CheckCircle2 size={14} />
                           <span>Gemini verified structural damage details ({verifiedConfidence}%).</span>
                         </div>
                         <button 
                           type="button" 
                           onClick={() => { setImageVerified(false); setUploadedImage(null); setAiDraftedLetter(""); setVerifiedDetails(""); }}
-                          className="text-[9px] font-mono text-red-400 hover:underline font-bold"
+                          className="text-[11px] font-mono text-red-400 hover:underline font-bold"
                         >
                           Remove
                         </button>
@@ -3252,7 +3225,7 @@ Report Reference: #CF-${generatedRef}`;
                         </div>
                       )}
                       {verifiedDetails && (
-                        <div className="text-[10px] text-blue-200 bg-[#0e1014] border border-[#1b1d24]/50 p-2 rounded leading-relaxed">
+                        <div className="text-[12px] text-blue-200 bg-[#0e1014] border border-[#1b1d24]/50 p-2 rounded leading-relaxed">
                           <strong>AI Diagnosis:</strong> {verifiedDetails}
                         </div>
                       )}
@@ -3267,28 +3240,28 @@ Report Reference: #CF-${generatedRef}`;
                         className="hidden" 
                       />
                       {isImageVerifying ? (
-                        <div className="flex items-center gap-2 text-xs font-mono text-blue-400">
+                        <div className="flex items-center gap-2 text-sm font-mono text-blue-400">
                           <RefreshCw size={14} className="animate-spin" />
                           <span>Analyzing photo pixels...</span>
                         </div>
                       ) : (
                         <>
                           <Camera size={16} className="text-[#7d8590]" />
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider">
+                          <span className="text-[11px] font-mono font-bold uppercase tracking-wider">
                             Upload photo for AI analysis
                           </span>
                         </>
                       )}
                     </label>
                   )}
-                  <span className="text-[9px] text-[#7d8590] mt-0.5 font-sans leading-none">
+                  <span className="text-[11px] text-[#7d8590] mt-0.5 font-sans leading-none">
                     Optional, but improves AI categorization and verification
                   </span>
                 </div>
 
                 {/* Location Selection Method */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Incident Location
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -3296,7 +3269,7 @@ Report Reference: #CF-${generatedRef}`;
                       type="button"
                       disabled={isGeolocationLoading}
                       onClick={handleUseCurrentLocation}
-                      className="flex items-center justify-center gap-1.5 bg-[#16171d] hover:bg-[#1d1e26] border border-[#1b1d24] hover:border-blue-500/40 text-[10px] font-bold font-mono py-2 px-3 text-[#e2e8f0] rounded transition-all disabled:opacity-50 cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 bg-[#16171d] hover:bg-[#1d1e26] border border-[#1b1d24] hover:border-blue-500/40 text-[12px] font-bold font-mono py-2 px-3 text-[#e2e8f0] rounded transition-all disabled:opacity-50 cursor-pointer"
                     >
                       {isGeolocationLoading ? (
                         <>
@@ -3313,7 +3286,7 @@ Report Reference: #CF-${generatedRef}`;
                     <button
                       type="button"
                       onClick={handlePickFromMap}
-                      className="flex items-center justify-center gap-1.5 bg-[#16171d] hover:bg-[#1d1e26] border border-[#1b1d24] hover:border-blue-500/40 text-[10px] font-bold font-mono py-2 px-3 text-[#e2e8f0] rounded transition-all cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 bg-[#16171d] hover:bg-[#1d1e26] border border-[#1b1d24] hover:border-blue-500/40 text-[12px] font-bold font-mono py-2 px-3 text-[#e2e8f0] rounded transition-all cursor-pointer"
                     >
                       <MapPin size={11} className="text-blue-400" />
                       <span>Pick from map</span>
@@ -3323,10 +3296,10 @@ Report Reference: #CF-${generatedRef}`;
 
                 {/* Selected Map Coordinates */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Incident Coordinates
                   </label>
-                  <div className="bg-[#16171d]/60 border border-[#1b1d24] text-xs px-3 py-2 text-white rounded flex items-center justify-between">
+                  <div className="bg-[#16171d]/60 border border-[#1b1d24] text-sm px-3 py-2 text-white rounded flex items-center justify-between">
                     {formLat !== 0 ? (
                       <span className="font-mono text-blue-400">
                         Lat: {formLat.toFixed(5)} / Lng: {formLng.toFixed(5)}
@@ -3336,7 +3309,7 @@ Report Reference: #CF-${generatedRef}`;
                         Not specified (Required)
                       </span>
                     )}
-                    <span className="text-[9px] text-[#555] uppercase font-bold select-none">
+                    <span className="text-[11px] text-[#555] uppercase font-bold select-none">
                       {locationSource === 'map' ? 'Map Pinned' : (locationSource === 'gps' ? 'GPS Locked' : 'Pending')}
                     </span>
                   </div>
@@ -3344,7 +3317,7 @@ Report Reference: #CF-${generatedRef}`;
 
                 {/* Location Error Message */}
                 {locationError && (
-                  <div className="text-[10px] text-red-400 font-mono bg-red-950/20 border border-red-500/20 px-3 py-2 rounded leading-normal">
+                  <div className="text-[12px] text-red-400 font-mono bg-red-950/20 border border-red-500/20 px-3 py-2 rounded leading-normal">
                     ⚠️ {locationError}
                   </div>
                 )}
@@ -3354,14 +3327,14 @@ Report Reference: #CF-${generatedRef}`;
                   <button
                     type="button"
                     onClick={() => setIsReportModalOpen(false)}
-                    className="flex-1 bg-transparent hover:bg-[#16171d] border border-[#1b1d24] text-xs font-bold text-[#8e8e8f] hover:text-white py-2 rounded transition-colors"
+                    className="flex-1 bg-transparent hover:bg-[#16171d] border border-[#1b1d24] text-sm font-bold text-[#8e8e8f] hover:text-white py-2 rounded transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold font-mono py-2 rounded shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold font-mono py-2 rounded shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-colors flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
                       <>
@@ -3402,7 +3375,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-blue-400">
                   <FileText size={16} />
-                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Warden Dispatch Consensus</span>
+                  <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">Warden Dispatch Consensus</span>
                 </div>
                 <button 
                   onClick={() => setActiveLetter(null)}
@@ -3413,13 +3386,13 @@ Report Reference: #CF-${generatedRef}`;
               </div>
 
               {/* Letter Content Pane */}
-              <div className="flex-1 p-5 overflow-y-auto bg-black/20 font-mono text-xs text-blue-200/90 leading-relaxed whitespace-pre-wrap select-all selection:bg-blue-600">
+              <div className="flex-1 p-5 overflow-y-auto bg-black/20 font-mono text-sm text-blue-200/90 leading-relaxed whitespace-pre-wrap select-all selection:bg-blue-600">
                 {activeLetter.letterDrafted}
               </div>
 
               {/* Consensus Progress Bar & approved wardens list */}
               <div className="border-t border-[#1b1d24] bg-[#121318] p-4 space-y-2.5">
-                <div className="flex justify-between items-center text-[10px] font-mono">
+                <div className="flex justify-between items-center text-[12px] font-mono">
                   <span className="text-[#8e8e8f] uppercase font-bold">Warden Consensus Progress</span>
                   <span className="text-cyan-400 font-bold">
                     {(activeLetter.dispatchApprovals || []).length} / 15 Approvals
@@ -3435,7 +3408,7 @@ Report Reference: #CF-${generatedRef}`;
                 </div>
 
                 {/* Approved wardens list */}
-                <div className="text-[9px] font-mono text-[#666] leading-relaxed">
+                <div className="text-[11px] font-mono text-[#666] leading-relaxed">
                   <span className="text-white font-bold">Approved by:</span>{" "}
                   {(activeLetter.dispatchApprovals || []).length > 0 
                     ? (activeLetter.dispatchApprovals || []).join(", ") 
@@ -3445,11 +3418,11 @@ Report Reference: #CF-${generatedRef}`;
 
               {/* Action Bar */}
               <div className="border-t border-[#1b1d24] bg-[#121318] p-3.5 flex items-center justify-between gap-3">
-                <span className="text-[8px] font-mono text-[#555] uppercase">Consensus Verification Required</span>
+                <span className="text-[10px] font-mono text-[#555] uppercase">Consensus Verification Required</span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setActiveLetter(null)}
-                    className="border border-[#1b1d24] hover:bg-[#16171d] text-[#8e8e8f] hover:text-white px-3.5 py-1.5 rounded text-xs transition-colors font-mono"
+                    className="border border-[#1b1d24] hover:bg-[#16171d] text-[#8e8e8f] hover:text-white px-3.5 py-1.5 rounded text-sm transition-colors font-mono"
                   >
                     Close
                   </button>
@@ -3493,7 +3466,7 @@ Report Reference: #CF-${generatedRef}`;
                           console.error("Failed to update approvals in Firestore:", err);
                         }
                       } else {
-                        setReports(prev => prev.map(r => r.id === reportId ? { ...r, dispatchApprovals: nextApprovals, status: nextStatus } : r));
+                        setReports(prev => prev.map(r => r.id?.toString() === reportId?.toString() ? { ...r, dispatchApprovals: nextApprovals, status: nextStatus } : r));
                       }
 
                       if (nextStatus === 'dispatched') {
@@ -3505,7 +3478,7 @@ Report Reference: #CF-${generatedRef}`;
                       }
                     }}
                     disabled={(activeLetter.dispatchApprovals || []).includes(currentUserWarden ? currentUserWarden.name : "Anonymous Warden")}
-                    className={`px-4 py-1.5 rounded text-xs transition-colors font-mono font-bold ${(activeLetter.dispatchApprovals || []).includes(currentUserWarden ? currentUserWarden.name : "Anonymous Warden") ? 'bg-[#1b1d24] text-[#666] cursor-not-allowed border border-[#1b1d24]' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                    className={`px-4 py-1.5 rounded text-sm transition-colors font-mono font-bold ${(activeLetter.dispatchApprovals || []).includes(currentUserWarden ? currentUserWarden.name : "Anonymous Warden") ? 'bg-[#1b1d24] text-[#666] cursor-not-allowed border border-[#1b1d24]' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                   >
                     {(activeLetter.dispatchApprovals || []).includes(currentUserWarden ? currentUserWarden.name : "Anonymous Warden") ? 'Approved (Waiting)' : 'Approve Dispatch'}
                   </button>
@@ -3535,7 +3508,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Shield size={16} />
-                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Citizen Evidence Verification</span>
+                  <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">Citizen Evidence Verification</span>
                 </div>
                 <button 
                   onClick={() => setActiveStreetCheck(null)}
@@ -3549,7 +3522,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="p-5 space-y-4">
                 {/* Citizen Evidence / Live Simulation */}
                 <div className="border border-[#1b1d24] bg-[#16171d] p-3.5 rounded flex flex-col gap-2">
-                  <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">Reported Evidence (Today)</span>
+                  <span className="text-[11px] font-mono text-emerald-400 uppercase font-bold">Reported Evidence (Today)</span>
                   <div className="w-full h-48 bg-black/60 border border-[#1b1d24] rounded flex items-center justify-center relative overflow-hidden">
                     <div className="absolute inset-0 bg-red-500/5 pointer-events-none"></div>
                     {activeStreetCheck.image ? (
@@ -3642,18 +3615,18 @@ Report Reference: #CF-${generatedRef}`;
                         }
                       })()
                     )}
-                    <span className="absolute bottom-2 left-2 text-[8px] font-mono bg-black/80 px-1 py-0.5 rounded text-rose-400 border border-rose-500/20">
+                    <span className="absolute bottom-2 left-2 text-[10px] font-mono bg-black/80 px-1 py-0.5 rounded text-rose-400 border border-rose-500/20">
                       {activeStreetCheck.image ? "User Mobile EXIF Validated" : "Simulated Local Evidence"}
                     </span>
                   </div>
                 </div>
 
                 {/* EXIF Metadata & Geocoding Telemetry Table */}
-                <div className="border border-[#1b1d24] bg-[#0c0d10] rounded p-3 font-mono text-[10px] space-y-2">
-                  <div className="text-[9px] text-[#7d8590] uppercase font-bold tracking-wide border-b border-[#1b1d24] pb-1">
+                <div className="border border-[#1b1d24] bg-[#0c0d10] rounded p-3 font-mono text-[12px] space-y-2">
+                  <div className="text-[11px] text-[#7d8590] uppercase font-bold tracking-wide border-b border-[#1b1d24] pb-1">
                     EXIF Metadata Audit Logs
                   </div>
-                  <div className="grid grid-cols-2 gap-y-1.5 text-xs">
+                  <div className="grid grid-cols-2 gap-y-1.5 text-sm">
                     <div className="text-[#666]">Device Sensor:</div>
                     <div className="text-white text-right">{activeStreetCheck.image ? "Apple iPhone 15 Pro Max" : "Mobile Client Node (Validated)"}</div>
                     
@@ -3661,7 +3634,7 @@ Report Reference: #CF-${generatedRef}`;
                     <div className="text-emerald-400 text-right font-bold">100% Match (Thalassery Ward {activeStreetCheck.ward})</div>
                     
                     <div className="text-[#666]">Image Integrity Hash:</div>
-                    <div className="text-white text-right overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-bold">SHA-256: 8a7c2e01...e3b50c18</div>
+                    <div className="text-white text-right overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-bold">SHA-256: 8a7c2e01...e3b50c18</div>
                     
                     <div className="text-[#666]">Submission Timestamp:</div>
                     <div className="text-white text-right">{activeStreetCheck.timeAgo === "Just now" ? new Date().toLocaleTimeString() : "2026-06-27 (Audited)"}</div>
@@ -3672,8 +3645,8 @@ Report Reference: #CF-${generatedRef}`;
                 <div className="border border-emerald-500/25 bg-emerald-500/5 p-4 rounded flex items-start gap-3">
                   <CheckCircle2 className="text-emerald-400 mt-0.5 shrink-0" size={16} />
                   <div>
-                    <h4 className="text-xs font-bold text-white font-mono">Gemini Vision AI Analysis Verdict</h4>
-                    <p className="text-[11px] text-[#8e8e8f] mt-1 leading-relaxed font-mono">
+                    <h4 className="text-sm font-bold text-white font-mono">Gemini Vision AI Analysis Verdict</h4>
+                    <p className="text-[13px] text-[#8e8e8f] mt-1 leading-relaxed font-mono">
                       Location telemetry matched. Image analysis confirms reported {activeStreetCheck.type.toLowerCase()} matches local environmental hazard features. High confidence rating logged.
                     </p>
                   </div>
@@ -3684,7 +3657,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-t border-[#1b1d24] bg-[#121318] p-3.5 flex justify-end gap-2.5">
                 <button
                   onClick={() => setActiveStreetCheck(null)}
-                  className="bg-[#1b1d24] hover:bg-[#252831] text-[#8e8e8f] hover:text-white px-4 py-1.5 rounded text-xs transition-colors font-mono font-bold"
+                  className="bg-[#1b1d24] hover:bg-[#252831] text-[#8e8e8f] hover:text-white px-4 py-1.5 rounded text-sm transition-colors font-mono font-bold"
                 >
                   Cancel
                 </button>
@@ -3693,7 +3666,7 @@ Report Reference: #CF-${generatedRef}`;
                     handleVerify(activeStreetCheck.id, activeStreetCheck.docId);
                     setActiveStreetCheck(null);
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded text-xs transition-colors font-mono font-bold"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded text-sm transition-colors font-mono font-bold"
                 >
                   Confirm & Verify Report
                 </button>
@@ -3721,7 +3694,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-b border-[#1b1d24] pb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-amber-500">
                   <AlertCircle size={18} />
-                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Triage Agent Duplicate Warning</span>
+                  <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">Triage Agent Duplicate Warning</span>
                 </div>
                 <button 
                   onClick={() => setTriageSuggestion(null)}
@@ -3731,12 +3704,12 @@ Report Reference: #CF-${generatedRef}`;
                 </button>
               </div>
 
-              <div className="text-xs font-mono text-[#8e8e8f] space-y-2 leading-relaxed">
+              <div className="text-sm font-mono text-[#8e8e8f] space-y-2 leading-relaxed">
                 <p className="text-white font-bold">
                   Potential duplicate detected (confidence: {(triageSuggestion.confidence * 100).toFixed(0)}%)
                 </p>
-                <div className="bg-[#121318] p-3 rounded border border-[#1b1d24] space-y-1 text-[11px]">
-                  <div className="text-amber-400 font-bold uppercase text-[9px]">Decision: {triageSuggestion.decision}</div>
+                <div className="bg-[#121318] p-3 rounded border border-[#1b1d24] space-y-1 text-[13px]">
+                  <div className="text-amber-400 font-bold uppercase text-[11px]">Decision: {triageSuggestion.decision}</div>
                   <div><span className="text-[#555]">Existing Location:</span> {triageSuggestion.matchedReport.location}</div>
                   <div><span className="text-[#555]">Existing Description:</span> {triageSuggestion.matchedReport.details || triageSuggestion.matchedReport.description}</div>
                   <div><span className="text-[#555]">Reason:</span> {triageSuggestion.reason}</div>
@@ -3744,7 +3717,7 @@ Report Reference: #CF-${generatedRef}`;
                 </div>
               </div>
 
-              <div className="flex gap-2 justify-end border-t border-[#1b1d24] pt-3 text-xs font-mono">
+              <div className="flex gap-2 justify-end border-t border-[#1b1d24] pt-3 text-sm font-mono">
                 <button
                   type="button"
                   onClick={async () => {
@@ -3762,7 +3735,7 @@ Report Reference: #CF-${generatedRef}`;
                         console.error("Failed to merge report:", err);
                       }
                     } else {
-                      setReports(prev => prev.map(r => r.id === matchedId ? { ...r, votes: (r.votes || 0) + 1, verifications: (r.verifications || 0) + 1 } : r));
+                      setReports(prev => prev.map(r => r.id?.toString() === matchedId?.toString() ? { ...r, votes: (r.votes || 0) + 1, verifications: (r.verifications || 0) + 1 } : r));
                     }
                     
                     await logAgentActivity({
@@ -3871,7 +3844,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-amber-500">
                   <AlertCircle size={16} />
-                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">
+                  <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">
                     Submit Resolution Proof
                   </span>
                 </div>
@@ -3884,16 +3857,16 @@ Report Reference: #CF-${generatedRef}`;
               </div>
 
               {/* Form */}
-              <form onSubmit={submitResolutionProof} className="p-5 space-y-4 text-xs font-mono">
+              <form onSubmit={submitResolutionProof} className="p-5 space-y-4 text-sm font-mono">
                 <div>
-                  <div className="text-[#8e8e8f] uppercase text-[9px] font-bold">Grievance Info</div>
+                  <div className="text-[#8e8e8f] uppercase text-[11px] font-bold">Grievance Info</div>
                   <div className="text-white mt-1">
                     #CF-{activeResolveIncident.id.toString().substring(0, 4)}: {activeResolveIncident.type} at {activeResolveIncident.location}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Resolution Notes
                   </label>
                   <textarea
@@ -3901,13 +3874,13 @@ Report Reference: #CF-${generatedRef}`;
                     value={resolveNotes}
                     onChange={(e) => setResolveNotes(e.target.value)}
                     placeholder="Describe the actions taken to repair or clear this issue..."
-                    className="bg-[#0c0d12] border border-[#1b1d24] rounded p-2 text-white focus:outline-none focus:border-blue-500/50 w-full text-xs font-mono"
+                    className="bg-[#0c0d12] border border-[#1b1d24] rounded p-2 text-white focus:outline-none focus:border-blue-500/50 w-full text-sm font-mono"
                     required
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-mono text-[#8e8e8f] uppercase font-bold">
+                  <label className="text-[11px] font-mono text-[#8e8e8f] uppercase font-bold">
                     Upload Resolution Proof Image
                   </label>
                   <div className="flex items-center justify-center border border-dashed border-[#1b1d24] bg-[#0c0d12] rounded p-4 relative h-36">
@@ -3925,7 +3898,7 @@ Report Reference: #CF-${generatedRef}`;
                     ) : (
                       <label className="flex flex-col items-center justify-center cursor-pointer text-[#8e8e8f] hover:text-white transition-colors w-full h-full">
                         <Camera size={24} className="mb-1.5 mx-auto" />
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-center block">Choose Proof Image</span>
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-center block">Choose Proof Image</span>
                         <input 
                           type="file" 
                           accept="image/*"
@@ -3990,7 +3963,7 @@ Report Reference: #CF-${generatedRef}`;
               <div className="border-b border-[#1b1d24] bg-[#121318] p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-purple-400">
                   <Shield size={16} />
-                  <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">
+                  <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">
                     Warden Verification Audit
                   </span>
                 </div>
@@ -4002,17 +3975,17 @@ Report Reference: #CF-${generatedRef}`;
                 </button>
               </div>
 
-              <div className="p-5 space-y-4 text-xs font-mono max-h-[500px] overflow-y-auto no-scrollbar">
+              <div className="p-5 space-y-4 text-sm font-mono max-h-[500px] overflow-y-auto no-scrollbar">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <span className="text-[9px] uppercase font-bold text-[#555]">Original Report</span>
+                    <span className="text-[11px] uppercase font-bold text-[#555]">Original Report</span>
                     <div className="text-white font-bold">#CF-{activeAuditIncident.id.toString().substring(0, 4)}</div>
                     <div className="text-[#8e8e8f]">{activeAuditIncident.type} @ {activeAuditIncident.location}</div>
                     <div className="text-[#666] leading-normal font-sans italic">{activeAuditIncident.details || activeAuditIncident.description}</div>
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[9px] uppercase font-bold text-[#555]">Resolution Notes</span>
+                    <span className="text-[11px] uppercase font-bold text-[#555]">Resolution Notes</span>
                     <div className="text-white font-bold">Uploaded by Worker</div>
                     <div className="text-[#8e8e8f] leading-normal font-sans">{activeAuditIncident.resolutionNotes || "No notes logged."}</div>
                   </div>
@@ -4020,15 +3993,15 @@ Report Reference: #CF-${generatedRef}`;
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <span className="text-[9px] uppercase font-bold text-[#555]">AI Agent Audit Assessment</span>
-                    <div className="bg-[#121318] p-3 rounded border border-[#1b1d24] space-y-1.5 text-[10px]">
+                    <span className="text-[11px] uppercase font-bold text-[#555]">AI Agent Audit Assessment</span>
+                    <div className="bg-[#121318] p-3 rounded border border-[#1b1d24] space-y-1.5 text-[12px]">
                       <div className="font-bold text-emerald-400 uppercase">Decision: {activeAuditIncident.resolutionAuditDecision || "None"}</div>
                       <div className="text-[#8e8e8f]"><span className="text-[#555]">Reason:</span> {activeAuditIncident.resolutionAuditReason || "Verification pending."}</div>
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[9px] uppercase font-bold text-[#555]">Resolution Proof Image</span>
+                    <span className="text-[11px] uppercase font-bold text-[#555]">Resolution Proof Image</span>
                     <div className="w-full h-32 bg-black/60 rounded border border-[#1b1d24] overflow-hidden">
                       {activeAuditIncident.resolutionProofImage ? (
                         <img src={activeAuditIncident.resolutionProofImage} className="w-full h-full object-cover" alt="Proof" />
@@ -4043,14 +4016,14 @@ Report Reference: #CF-${generatedRef}`;
                   <button
                     onClick={() => handleWardenResolutionAudit(false)}
                     disabled={isAgentProcessing}
-                    className="border border-red-500/30 hover:bg-red-600/10 text-red-400 px-3.5 py-1.5 rounded transition-colors font-bold uppercase text-[10px]"
+                    className="border border-red-500/30 hover:bg-red-600/10 text-red-400 px-3.5 py-1.5 rounded transition-colors font-bold uppercase text-[12px]"
                   >
                     Reject Proof (Re-open)
                   </button>
                   <button
                     onClick={() => handleWardenResolutionAudit(true)}
                     disabled={isAgentProcessing}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded font-bold transition-colors uppercase text-[10px]"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded font-bold transition-colors uppercase text-[12px]"
                   >
                     Approve & Verify Resolution
                   </button>
@@ -4062,7 +4035,7 @@ Report Reference: #CF-${generatedRef}`;
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className={`h-[76px] pb-8 flex-shrink-0 flex flex-col items-center justify-center border-t py-1 px-4 text-center text-[9px] leading-relaxed relative z-10 font-bold uppercase tracking-widest transition-colors duration-300 ${
+      <footer className={`h-[76px] pb-8 flex-shrink-0 flex flex-col items-center justify-center border-t py-1 px-4 text-center text-[11px] leading-relaxed relative z-10 font-bold uppercase tracking-widest transition-colors duration-300 ${
         theme === 'light' ? 'border-slate-200/50 bg-slate-50/70 text-slate-500' : 'border-[#1e2333]/30 bg-[#07090d]/50 text-gray-500'
       }`}>
         <div>CivicFix v0.4.0 • Thalassery Town Community Command Center.</div>

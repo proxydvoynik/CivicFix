@@ -52,7 +52,7 @@ export default function ConsoleDrawer({ logs = [], theme }) {
       }`} onClick={() => setIsExpanded(!isExpanded)}>
         <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
           {/* Left Section: Title and Green pulsing status dot */}
-          <div className={`flex items-center gap-2 text-[9px] sm:text-[10px] font-bold tracking-wider transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+          <div className={`flex items-center gap-2 text-[11px] sm:text-[12px] font-bold tracking-wider transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
             <span className={`transition-colors duration-300 ${theme === 'light' ? 'text-blue-600' : 'text-cyan-400'}`}>⚡ TRIAGE AGENT COMMAND LOG</span>
             {logs.length > 0 && (
               <span className="relative flex h-1.5 w-1.5">
@@ -71,7 +71,7 @@ export default function ConsoleDrawer({ logs = [], theme }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.15 }}
-                className={`text-[10px] truncate max-w-xl mx-auto font-mono flex items-center justify-center gap-1 transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-400'}`}
+                className={`text-[12px] truncate max-w-xl mx-auto font-mono flex items-center justify-center gap-1 transition-colors duration-300 ${theme === 'light' ? 'text-slate-500' : 'text-gray-400'}`}
               >
                 <span>{lastLog}</span>
                 {logs.length > 0 && <span className={`w-1.5 h-3 blinking-caret inline-block transition-colors duration-300 ${theme === 'light' ? 'bg-blue-500' : 'bg-[#00f5d4]'}`}></span>}
@@ -81,7 +81,7 @@ export default function ConsoleDrawer({ logs = [], theme }) {
 
           {/* Right Section: Toggle Button */}
           <button
-            className={`text-[9px] font-bold transition-colors uppercase tracking-widest border px-2 py-0.5 rounded-md cursor-pointer ${
+            className={`text-[11px] font-bold transition-colors uppercase tracking-widest border px-2 py-0.5 rounded-md cursor-pointer ${
               theme === 'light'
                 ? 'text-blue-700 hover:text-blue-800 bg-blue-100 border-blue-200'
                 : 'text-[#00f5d4] hover:text-[#00f5d4]/80 bg-cyan-950/30 border-cyan-500/20'
@@ -96,7 +96,7 @@ export default function ConsoleDrawer({ logs = [], theme }) {
       <div className={`flex-1 overflow-y-auto no-scrollbar p-4 transition-colors duration-300 ${theme === 'light' ? 'bg-white/95' : 'bg-[#050608]/95'}`}>
         <div className="max-w-6xl mx-auto w-full space-y-1.5 text-left flex flex-col-reverse justify-end">
           {displayedLogs.length === 0 ? (
-            <div className={`text-[10px] italic select-none transition-colors duration-300 ${theme === 'light' ? 'text-slate-400' : 'text-gray-600'}`}>
+            <div className={`text-[12px] italic select-none transition-colors duration-300 ${theme === 'light' ? 'text-slate-400' : 'text-gray-600'}`}>
               &gt;&gt; Console idle. Awaiting operations feed...
             </div>
           ) : (
@@ -111,7 +111,7 @@ export default function ConsoleDrawer({ logs = [], theme }) {
                     exit={{ opacity: 0 }}
                     transition={{ type: "spring", stiffness: 450, damping: 30 }}
                     key={logKey} 
-                    className="flex items-start text-[10px] sm:text-xs leading-relaxed font-mono"
+                    className="flex items-start text-[12px] sm:text-sm leading-relaxed font-mono"
                   >
                     <span className={`mr-2.5 select-none font-bold transition-colors duration-300 mt-0.5 ${theme === 'light' ? 'text-blue-600' : 'text-[#00f5d4]'}`}>&gt;&gt;</span>
                     <span className={`whitespace-pre-wrap break-all transition-colors duration-300 ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>{formatLog(log)}</span>

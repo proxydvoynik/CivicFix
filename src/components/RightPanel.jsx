@@ -156,7 +156,7 @@ export default function RightPanel({
             }`}>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"></span>
-                <h3 className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${
+                <h3 className={`text-sm font-bold uppercase tracking-wider transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-800' : 'text-gray-200'
                 }`}>Precipitation & Hazards</h3>
               </div>
@@ -164,7 +164,7 @@ export default function RightPanel({
                 <motion.span 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className={`flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-widest transition-colors duration-300 ${
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-widest transition-colors duration-300 ${
                   theme === 'light' 
                     ? 'bg-emerald-50 text-emerald-600 border-emerald-200/50' 
                     : 'bg-emerald-950/20 text-emerald-400 border-emerald-500/20'
@@ -187,7 +187,7 @@ export default function RightPanel({
             ) : error ? (
               /* Error State */
               <div className="py-4 text-center flex-1 flex items-center justify-center">
-                <span className="text-xs text-gray-500 font-bold">Weather data unavailable</span>
+                <span className="text-sm text-gray-500 font-bold">Weather data unavailable</span>
               </div>
             ) : (
               /* Loaded Weather UI */
@@ -202,24 +202,24 @@ export default function RightPanel({
                   <div className={`border p-2 rounded-lg transition-colors duration-300 ${
                     theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-cyan-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-cyan-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                   }`}>
-                    <span className="text-[8px] text-gray-500 block font-bold tracking-wider">WIND</span>
-                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                    <span className="text-[10px] text-gray-500 block font-bold tracking-wider">WIND</span>
+                    <span className={`text-sm font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
                       <NumberTicker value={weatherStats.wind} /> km/h
                     </span>
                   </div>
                   <div className={`border p-2 rounded-lg transition-colors duration-300 ${
                     theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-amber-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-amber-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                   }`}>
-                    <span className="text-[8px] text-gray-500 block font-bold tracking-wider">HUMIDITY</span>
-                    <span className={`text-xs font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                    <span className="text-[10px] text-gray-500 block font-bold tracking-wider">HUMIDITY</span>
+                    <span className={`text-sm font-bold mt-0.5 block transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
                       <NumberTicker value={weatherStats.humidity} />%
                     </span>
                   </div>
                   <div className={`border p-2 rounded-lg transition-colors duration-300 ${
                     theme === 'light' ? 'border-slate-100 bg-slate-50 hover:border-emerald-500/30 shadow-[0_2px_4px_rgba(0,0,0,0.01)]' : 'border-[#1e2333]/85 bg-[#090b0e]/80 hover:border-emerald-500/30 shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                   }`}>
-                    <span className="text-[8px] text-gray-500 block font-bold tracking-wider">PRESSURE</span>
-                    <span className={`text-xs font-bold mt-0.5 block truncate transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                    <span className="text-[10px] text-gray-500 block font-bold tracking-wider">PRESSURE</span>
+                    <span className={`text-sm font-bold mt-0.5 block truncate transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
                       <NumberTicker value={weatherStats.pressure} /> hPa
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export default function RightPanel({
 
                 {/* Precipitation Bar chart */}
                 <div className="flex flex-col gap-1.5 min-h-0 justify-center flex-1 mt-3">
-                  <div className="flex items-center justify-between text-[8px] text-gray-500 uppercase font-bold tracking-widest flex-none">
+                  <div className="flex items-center justify-between text-[10px] text-gray-500 uppercase font-bold tracking-widest flex-none">
                     <span>Precipitation Forecast</span>
                     <span className="text-cyan-500">24H CYCLE</span>
                   </div>
@@ -297,7 +297,7 @@ export default function RightPanel({
                               x={x}
                               y="72"
                               textAnchor="middle"
-                              className="fill-gray-500 text-[6.5px] font-mono font-bold"
+                              className="fill-gray-500 text-[8px] font-mono font-bold"
                             >
                               {label}
                             </text>
@@ -320,11 +320,11 @@ export default function RightPanel({
             }`}>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                <h3 className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${
+                <h3 className={`text-sm font-bold uppercase tracking-wider transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-800' : 'text-gray-200'
                 }`}>Volunteer Karma Board</h3>
               </div>
-              <span className={`text-[8px] px-2 py-0.5 rounded-md border font-bold leading-none uppercase tracking-wider transition-colors duration-300 ${
+              <span className={`text-[10px] px-2 py-0.5 rounded-md border font-bold leading-none uppercase tracking-wider transition-colors duration-300 ${
                 theme === 'light' 
                   ? 'bg-cyan-50 text-cyan-600 border-cyan-200/50' 
                   : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
@@ -354,21 +354,21 @@ export default function RightPanel({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={`text-sm shrink-0 w-6 h-6 flex items-center justify-center rounded-md border text-xs font-bold transition-colors duration-300 ${
+                          <span className={`text-base shrink-0 w-6 h-6 flex items-center justify-center rounded-md border text-sm font-bold transition-colors duration-300 ${
                             theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#10131d] border-[#1e2333]/65'
                           }`}>
                             {rankIcons[idx] || (idx + 1)}
                           </span>
                           <div className="flex flex-col min-w-0">
-                            <span className={`text-[11px] font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{item.name}</span>
-                            <span className="text-[8px] font-mono text-gray-500 tracking-wider mt-0.5 uppercase truncate">{item.role}</span>
+                            <span className={`text-[13px] font-bold transition-colors duration-300 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{item.name}</span>
+                            <span className="text-[10px] font-mono text-gray-500 tracking-wider mt-0.5 uppercase truncate">{item.role}</span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-xs font-mono font-bold text-cyan-500">
+                          <span className="text-sm font-mono font-bold text-cyan-500">
                             <NumberTicker value={item.karma} />
                           </span>
-                          <span className="text-[7.5px] font-mono text-gray-500 block uppercase tracking-wider">KP</span>
+                          <span className="text-[10px] font-mono text-gray-500 block uppercase tracking-wider">KP</span>
                         </div>
                       </div>
                       

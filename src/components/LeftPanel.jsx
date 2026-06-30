@@ -161,9 +161,9 @@ export default function LeftPanel({
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00f5d4] animate-pulse shadow-[0_0_8px_#00f5d4]"></span>
-                  <span className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Thalassery Civic Grid</span>
+                  <span className="text-[11px] text-gray-500 uppercase tracking-wider font-bold">Thalassery Civic Grid</span>
                 </div>
-                <h3 className={`text-xs font-bold uppercase tracking-widest mt-0.5 transition-colors duration-300 ${
+                <h3 className={`text-sm font-bold uppercase tracking-widest mt-0.5 transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-800' : 'text-gray-200'
                 }`}>Environmental Health</h3>
               </div>
@@ -171,7 +171,7 @@ export default function LeftPanel({
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", delay: 0.5 }}
-                className={`text-[9px] font-bold px-2.5 py-1 rounded-md border transition-all duration-300 ${
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-md border transition-all duration-300 ${
                 averageScore >= 85 
                   ? (theme === 'light'
                       ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
@@ -234,7 +234,7 @@ export default function LeftPanel({
                     textAnchor={lp.textAnchor}
                     dy={lp.dy}
                     dx={lp.dx}
-                    className="fill-gray-500 text-[7px] font-bold font-mono tracking-tight"
+                    className="fill-gray-500 text-[9px] font-bold font-mono tracking-tight"
                   >
                     {ZONE_MAPPING[idx].shortName.toUpperCase()}
                   </text>
@@ -369,13 +369,13 @@ export default function LeftPanel({
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-bold tracking-wide uppercase transition-colors duration-300 ${
+                  <span className={`text-sm font-bold tracking-wide uppercase transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-800' : 'text-white'
                   }`}>Active Grid Alerts</span>
-                  <span className={`text-[9px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>Real-time incident dispatch console</span>
+                  <span className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>Real-time incident dispatch console</span>
                 </div>
               </div>
-              <span className={`transition-colors text-xs font-sans ${theme === 'light' ? 'text-slate-400 group-hover:text-blue-500' : 'text-gray-600 group-hover:text-blue-400'}`}>→</span>
+              <span className={`transition-colors text-sm font-sans ${theme === 'light' ? 'text-slate-400 group-hover:text-blue-500' : 'text-gray-600 group-hover:text-blue-400'}`}>→</span>
             </div>
           </motion.button>
           
@@ -404,13 +404,13 @@ export default function LeftPanel({
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-bold tracking-wide uppercase transition-colors duration-300 ${
+                  <span className={`text-sm font-bold tracking-wide uppercase transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-800' : 'text-white'
                   }`}>AI Dispatch Queue</span>
-                  <span className={`text-[9px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>Autonomous categorization & routing</span>
+                  <span className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>Autonomous categorization & routing</span>
                 </div>
               </div>
-              <span className={`transition-colors text-xs font-sans ${theme === 'light' ? 'text-slate-400 group-hover:text-cyan-500' : 'text-gray-600 group-hover:text-cyan-400'}`}>→</span>
+              <span className={`transition-colors text-sm font-sans ${theme === 'light' ? 'text-slate-400 group-hover:text-cyan-500' : 'text-gray-600 group-hover:text-cyan-400'}`}>→</span>
             </div>
           </motion.button>
 
@@ -439,13 +439,13 @@ export default function LeftPanel({
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-bold tracking-wide uppercase transition-colors duration-300 ${
+                  <span className={`text-sm font-bold tracking-wide uppercase transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-800' : 'text-white'
                   }`}>Risk Forecast Matrix</span>
-                  <span className={`text-[9px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>Predictive weather & ward warning index</span>
+                  <span className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>Predictive weather & ward warning index</span>
                 </div>
               </div>
-              <span className={`transition-colors text-xs font-sans ${theme === 'light' ? 'text-slate-400 group-hover:text-amber-500' : 'text-gray-600 group-hover:text-amber-400'}`}>→</span>
+              <span className={`transition-colors text-sm font-sans ${theme === 'light' ? 'text-slate-400 group-hover:text-amber-500' : 'text-gray-600 group-hover:text-amber-400'}`}>→</span>
             </div>
           </motion.button>
         </motion.div>

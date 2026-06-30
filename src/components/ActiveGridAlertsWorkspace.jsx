@@ -114,7 +114,7 @@ export default function ActiveGridAlertsWorkspace({
 
         polygon.bindTooltip(
           `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/><span style="color:${zoneColor}">${zone || "General"} Sector</span>`,
-          { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+          { direction: 'center', className: 'custom-ward-tooltip font-mono text-[12px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
         );
 
         polygon.addTo(map);
@@ -160,7 +160,7 @@ export default function ActiveGridAlertsWorkspace({
       
       marker.bindTooltip(`<strong>${inc.type}</strong><br/>${inc.location}`, {
         direction: 'top',
-        className: 'font-mono text-[9px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-1.5 rounded shadow-xl'
+        className: 'font-mono text-[11px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-1.5 rounded shadow-xl'
       });
 
       marker.on('click', () => {
@@ -210,7 +210,7 @@ export default function ActiveGridAlertsWorkspace({
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
           <div className="flex items-center gap-2 text-blue-400">
             <AlertCircle size={16} />
-            <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Active Grid Alerts Workspace</span>
+            <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">Active Grid Alerts Workspace</span>
           </div>
           <button 
             onClick={onClose}
@@ -227,7 +227,7 @@ export default function ActiveGridAlertsWorkspace({
           <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
             
             {/* Search Input */}
-            <div className="flex items-center gap-2 bg-[#0c0d12]/80 border border-[#1b1d24]/60 px-3 py-2 rounded text-xs font-mono mb-3">
+            <div className="flex items-center gap-2 bg-[#0c0d12]/80 border border-[#1b1d24]/60 px-3 py-2 rounded text-sm font-mono mb-3">
               <svg className="w-4 h-4 text-[#6b7280] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -236,12 +236,12 @@ export default function ActiveGridAlertsWorkspace({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search details, wards..."
-                className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-xs"
+                className="bg-transparent border-none text-[#e2e8f0] focus:outline-none placeholder-[#3b4453] w-full text-sm"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-[#6b7280] hover:text-white shrink-0 text-xs font-bold px-1"
+                  className="text-[#6b7280] hover:text-white shrink-0 text-sm font-bold px-1"
                 >
                   ×
                 </button>
@@ -249,7 +249,7 @@ export default function ActiveGridAlertsWorkspace({
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 mb-4 flex-none text-[10px] overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 mb-4 flex-none text-[12px] overflow-x-auto no-scrollbar">
               {["All", "Open", "Escalated", "Resolved"].map(pill => {
                 const isSelected = statusFilter === pill;
                 return (
@@ -274,9 +274,9 @@ export default function ActiveGridAlertsWorkspace({
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">No active incidents</span>
+                    <span className="text-sm font-bold text-white uppercase tracking-wider">No active incidents</span>
                   </div>
-                  <span className="text-[10px] text-[#9ca3af] uppercase">All clear in this zone</span>
+                  <span className="text-[12px] text-[#9ca3af] uppercase">All clear in this zone</span>
                 </div>
               ) : (
                 filtered.map(incident => {
@@ -297,30 +297,30 @@ export default function ActiveGridAlertsWorkspace({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-bold border px-1.5 py-0.2 rounded uppercase ${catInfo.bg}`}>
+                          <span className={`text-[11px] font-bold border px-1.5 py-0.2 rounded uppercase ${catInfo.bg}`}>
                             {catInfo.label}
                           </span>
-                          <span className={`text-[10px] font-mono font-semibold ${theme === 'light' ? 'text-slate-700' : 'text-[#9ca3af]'}`}>
+                          <span className={`text-[12px] font-mono font-semibold ${theme === 'light' ? 'text-slate-700' : 'text-[#9ca3af]'}`}>
                             CF-{incident.id.toString().substring(0, 4)}
                           </span>
                         </div>
-                        <span className={`text-[10px] font-mono font-medium ${theme === 'light' ? 'text-slate-600' : 'text-[#9ca3af]'}`}>
+                        <span className={`text-[12px] font-mono font-medium ${theme === 'light' ? 'text-slate-600' : 'text-[#9ca3af]'}`}>
                           {incident.timeAgo || "Just now"}
                         </span>
                       </div>
 
-                      <p className={`text-xs leading-relaxed line-clamp-2 font-medium ${theme === 'light' ? 'text-slate-900' : 'text-[#d1d5db]'}`}>
+                      <p className={`text-sm leading-relaxed line-clamp-2 font-medium ${theme === 'light' ? 'text-slate-900' : 'text-[#d1d5db]'}`}>
                         {incident.description || incident.details}
                       </p>
 
                       <div className={`flex items-center justify-between mt-1 pt-1.5 border-t ${theme === 'light' ? 'border-slate-200' : 'border-[#1b1d24]/30'}`}>
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] border px-1.5 py-0.2 rounded font-bold ${
+                          <span className={`text-[12px] border px-1.5 py-0.2 rounded font-bold ${
                             theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700' : 'bg-[#101115] border-[#1b1d24]/70 text-[#7d8590]'
                           }`}>
                             Ward {incident.ward}
                           </span>
-                          <span className={`text-[10px] flex items-center gap-0.5 font-medium ${theme === 'light' ? 'text-slate-700' : 'text-[#9ca3af]'}`}>
+                          <span className={`text-[12px] flex items-center gap-0.5 font-medium ${theme === 'light' ? 'text-slate-700' : 'text-[#9ca3af]'}`}>
                             🛡 {incident.verifications || 0} verified
                           </span>
                         </div>
@@ -328,7 +328,7 @@ export default function ActiveGridAlertsWorkspace({
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={(e) => { e.stopPropagation(); onUpvote(incident.id); }}
-                            className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-600 hover:text-white' : 'bg-blue-600/10 border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}
+                            className={`px-2 py-0.5 rounded border text-[12px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-600 hover:text-white' : 'bg-blue-600/10 border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}
                           >
                             ↑ Upvote ({incident.votes || 0})
                           </button>
@@ -342,14 +342,14 @@ export default function ActiveGridAlertsWorkspace({
                                 onAgentLog && onAgentLog(`>> Auto-escalated CF-${incident.id}: community threshold reached`);
                               }
                             }}
-                            className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'bg-emerald-600/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-600 hover:text-white'}`}
+                            className={`px-2 py-0.5 rounded border text-[12px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'bg-emerald-600/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-600 hover:text-white'}`}
                           >
                             ✓ Verify
                           </button>
                           {incident.status === 'escalated' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onViewLetter && onViewLetter(incident); }}
-                              className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-600 hover:text-white' : 'bg-purple-600/10 border-purple-500/20 text-purple-400 hover:bg-purple-600 hover:text-white'}`}
+                              className={`px-2 py-0.5 rounded border text-[12px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-600 hover:text-white' : 'bg-purple-600/10 border-purple-500/20 text-purple-400 hover:bg-purple-600 hover:text-white'}`}
                             >
                               ✉ Dispatch
                             </button>
@@ -357,7 +357,7 @@ export default function ActiveGridAlertsWorkspace({
                           {(incident.status !== 'resolved' && incident.status !== 'resolved_verified' && incident.status !== 'resolved_pending_verification') && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onResolveClick && onResolveClick(incident); }}
-                              className={`px-2 py-0.5 rounded border text-[10px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-600 hover:text-white' : 'bg-amber-600/10 border-amber-500/20 text-amber-400 hover:bg-amber-600 hover:text-white'}`}
+                              className={`px-2 py-0.5 rounded border text-[12px] font-bold font-mono transition-colors cursor-pointer ${theme === 'light' ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-600 hover:text-white' : 'bg-amber-600/10 border-amber-500/20 text-amber-400 hover:bg-amber-600 hover:text-white'}`}
                             >
                               ⚙ Resolve
                             </button>
@@ -365,7 +365,7 @@ export default function ActiveGridAlertsWorkspace({
                           {incident.status === 'resolved_pending_verification' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onAuditClick && onAuditClick(incident); }}
-                              className="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white px-2 py-0.5 rounded border border-purple-500/30 text-[10px] font-bold font-mono transition-colors cursor-pointer animate-pulse font-bold"
+                              className="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white px-2 py-0.5 rounded border border-purple-500/30 text-[12px] font-bold font-mono transition-colors cursor-pointer animate-pulse font-bold"
                             >
                               🔍 Audit Proof
                             </button>

@@ -116,7 +116,7 @@ export default function AiDispatchQueueWorkspace({
 
         polygon.bindTooltip(
           `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/><span style="color:${zoneColor}">${zone || "General"} Sector</span>`,
-          { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+          { direction: 'center', className: 'custom-ward-tooltip font-mono text-[12px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
         );
 
         polygon.addTo(map);
@@ -162,7 +162,7 @@ export default function AiDispatchQueueWorkspace({
       
       marker.bindTooltip(`<strong>${inc.type}</strong><br/>${inc.location}`, {
         direction: 'top',
-        className: 'font-mono text-[9px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-1.5 rounded shadow-xl'
+        className: 'font-mono text-[11px] bg-[#0c0d12]/95 text-white border border-[#1b1d24]/60 p-1.5 rounded shadow-xl'
       });
 
       marker.on('click', () => {
@@ -212,7 +212,7 @@ export default function AiDispatchQueueWorkspace({
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
           <div className="flex items-center gap-2 text-cyan-400">
             <AlertCircle size={16} />
-            <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">AI Dispatch Queue Workspace</span>
+            <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">AI Dispatch Queue Workspace</span>
           </div>
           <button 
             onClick={onClose}
@@ -227,7 +227,7 @@ export default function AiDispatchQueueWorkspace({
           
           {/* Left Column: Dispatch List */}
           <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
-            <div className="text-[11px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
+            <div className="text-[13px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
               Active Municipal Dispatches ({dispatchQueue.length})
             </div>
 
@@ -236,9 +236,9 @@ export default function AiDispatchQueueWorkspace({
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">No active dispatches</span>
+                    <span className="text-sm font-bold text-white uppercase tracking-wider">No active dispatches</span>
                   </div>
-                  <span className="text-[10px] text-[#9ca3af] uppercase">all clear in Thalassery</span>
+                  <span className="text-[12px] text-[#9ca3af] uppercase">all clear in Thalassery</span>
                 </div>
               ) : (
                 dispatchQueue.map(incident => {
@@ -258,17 +258,17 @@ export default function AiDispatchQueueWorkspace({
                       }}
                       className="cursor-pointer bg-[#16171d]/20 border border-[#1b1d24]/60 p-4 rounded-lg flex flex-col gap-2.5 hover:border-cyan-500/20 transition-all"
                     >
-                      <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <span className="text-white font-bold font-mono">{cfId}</span>
                           {incident.assignedDepartment && (
-                            <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-cyan-500/20">
+                            <span className="text-[11px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-cyan-400 border border-cyan-500/20">
                               {incident.assignedDepartment}
                             </span>
                           )}
                         </div>
                         <span 
-                          className="font-bold text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border" 
+                          className="font-bold text-[12px] uppercase tracking-wider px-1.5 py-0.5 rounded border" 
                           style={{ 
                             color: stageInfo.color,
                             borderColor: `${stageInfo.color}30`,
@@ -279,7 +279,7 @@ export default function AiDispatchQueueWorkspace({
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center text-[#9ca3af] text-xs">
+                      <div className="flex justify-between items-center text-[#9ca3af] text-sm">
                         <span className="truncate max-w-[240px]">{incident.type} @ Ward {incident.ward}</span>
                         <span className="font-semibold font-mono">{stageInfo.progress}% dispatched</span>
                       </div>
@@ -295,7 +295,7 @@ export default function AiDispatchQueueWorkspace({
                       </div>
 
                       {incident.escalationReason && (
-                        <div className="text-[10px] text-[#7d8590] italic leading-normal font-sans mt-0.5">
+                        <div className="text-[12px] text-[#7d8590] italic leading-normal font-sans mt-0.5">
                           🤖 {incident.escalationReason}
                         </div>
                       )}

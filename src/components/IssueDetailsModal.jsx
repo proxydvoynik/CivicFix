@@ -53,11 +53,11 @@ export default function IssueDetailsModal({
         {/* Header */}
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
           <div className="flex items-center gap-3">
-            <span className="text-white font-bold text-sm">{cfId}</span>
-            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-bold ${getSeverityColor(incident.severity)}`}>
+            <span className="text-white font-bold text-base">{cfId}</span>
+            <span className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded font-bold ${getSeverityColor(incident.severity)}`}>
               {incident.severity}
             </span>
-            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-bold ${getStatusColor(incident.status)}`}>
+            <span className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded font-bold ${getStatusColor(incident.status)}`}>
               {incident.status?.replace('_', ' ')}
             </span>
           </div>
@@ -83,7 +83,7 @@ export default function IssueDetailsModal({
                 />
                 
                 {/* Meta details badge inside photo view */}
-                <div className="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-sm border border-[#1b1d24]/60 p-2.5 rounded text-[9px] flex flex-col gap-1 leading-normal font-mono text-cyan-400">
+                <div className="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-sm border border-[#1b1d24]/60 p-2.5 rounded text-[11px] flex flex-col gap-1 leading-normal font-mono text-cyan-400">
                   <div>📷 EXIF MATCH STATUS: VALIDATED</div>
                   <div>📍 GPS LOCK: {incident.lat?.toFixed(6)}, {incident.lng?.toFixed(6)}</div>
                   {incident.uploadedAt && <div>📅 TIMESTAMP: {incident.uploadedAt}</div>}
@@ -91,9 +91,9 @@ export default function IssueDetailsModal({
               </div>
             ) : (
               <div className="w-full h-[260px] border border-[#1b1d24]/60 bg-black/20 rounded flex flex-col items-center justify-center text-center p-6 gap-3">
-                <span className="text-cyan-500/40 animate-pulse text-lg">📡</span>
-                <div className="text-xs text-[#7d8590] uppercase font-bold tracking-wider">No Photo Evidence Submissions</div>
-                <div className="text-[9px] text-cyan-400 uppercase font-mono">Location verified via citizen coordinates telemetry</div>
+                <span className="text-cyan-500/40 animate-pulse text-xl">📡</span>
+                <div className="text-sm text-[#7d8590] uppercase font-bold tracking-wider">No Photo Evidence Submissions</div>
+                <div className="text-[11px] text-cyan-400 uppercase font-mono">Location verified via citizen coordinates telemetry</div>
               </div>
             )}
           </div>
@@ -103,21 +103,21 @@ export default function IssueDetailsModal({
             
             {/* Category / Type info */}
             <div>
-              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Issue Category</div>
-              <div className="text-white text-base font-bold">{incident.type}</div>
+              <div className="text-[12px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Issue Category</div>
+              <div className="text-white text-lg font-bold">{incident.type}</div>
             </div>
 
             {/* Description */}
             <div>
-              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Description</div>
-              <p className="text-xs text-[#9ca3af] leading-relaxed font-sans">{incident.details || incident.description || "No description provided."}</p>
+              <div className="text-[12px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Description</div>
+              <p className="text-sm text-[#9ca3af] leading-relaxed font-sans">{incident.details || incident.description || "No description provided."}</p>
             </div>
 
             {/* Location */}
             <div>
-              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Geographic Location</div>
-              <p className="text-xs text-[#e2e8f0] font-sans">{incident.location}</p>
-              <div className="text-[10px] text-cyan-400 mt-1 font-mono">
+              <div className="text-[12px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Geographic Location</div>
+              <p className="text-sm text-[#e2e8f0] font-sans">{incident.location}</p>
+              <div className="text-[12px] text-cyan-400 mt-1 font-mono">
                 Coordinates: {incident.lat?.toFixed(6)}, {incident.lng?.toFixed(6)}
               </div>
             </div>
@@ -125,30 +125,30 @@ export default function IssueDetailsModal({
             {/* Ward Details */}
             <div className="grid grid-cols-2 gap-4 border-t border-b border-[#1b1d24]/60 py-4 my-2">
               <div>
-                <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold">Administrative Ward</div>
-                <div className="text-white text-xs font-bold mt-1">Ward {incident.ward} - {wardName}</div>
+                <div className="text-[12px] text-[#7d8590] uppercase tracking-wider font-bold">Administrative Ward</div>
+                <div className="text-white text-sm font-bold mt-1">Ward {incident.ward} - {wardName}</div>
               </div>
               <div>
-                <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold">Municipal Zone</div>
-                <div className="text-cyan-400 text-xs font-bold mt-1 uppercase">{zone}</div>
+                <div className="text-[12px] text-[#7d8590] uppercase tracking-wider font-bold">Municipal Zone</div>
+                <div className="text-cyan-400 text-sm font-bold mt-1 uppercase">{zone}</div>
               </div>
             </div>
 
             {/* Verification Statistics */}
             <div className="flex justify-between items-center bg-[#16171d]/40 border border-[#1b1d24]/60 p-4 rounded-lg">
               <div className="text-center flex-1 border-r border-[#1b1d24]/30">
-                <div className="text-[9px] text-[#7d8590] uppercase font-bold">Upvotes</div>
-                <div className="text-lg text-white font-bold font-mono mt-0.5">{incident.upvotes || 0}</div>
+                <div className="text-[11px] text-[#7d8590] uppercase font-bold">Upvotes</div>
+                <div className="text-xl text-white font-bold font-mono mt-0.5">{incident.upvotes || 0}</div>
               </div>
               <div className="text-center flex-1">
-                <div className="text-[9px] text-[#7d8590] uppercase font-bold">Warden Verifications</div>
-                <div className="text-lg text-emerald-400 font-bold font-mono mt-0.5">{incident.verifications || 0}</div>
+                <div className="text-[11px] text-[#7d8590] uppercase font-bold">Warden Verifications</div>
+                <div className="text-xl text-emerald-400 font-bold font-mono mt-0.5">{incident.verifications || 0}</div>
               </div>
             </div>
 
             {/* Actions button row */}
             <div className="flex flex-col gap-2 pt-2">
-              <div className="text-[10px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Incident Controls</div>
+              <div className="text-[12px] text-[#7d8590] uppercase tracking-wider font-bold mb-1">Incident Controls</div>
               <div className="flex flex-wrap gap-3">
                 
                 {/* Upvote Action */}
@@ -158,7 +158,7 @@ export default function IssueDetailsModal({
                       onUpvote(incident.id, incident.docId);
                       onClose();
                     }}
-                    className="flex-1 min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors shadow-[0_0_12px_rgba(37,99,235,0.2)]"
+                    className="flex-1 min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors shadow-[0_0_12px_rgba(37,99,235,0.2)]"
                   >
                     ▲ Upvote (+1)
                   </button>
@@ -171,7 +171,7 @@ export default function IssueDetailsModal({
                       onVerify(incident.id);
                       onClose();
                     }}
-                    className="flex-1 min-w-[120px] bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
+                    className="flex-1 min-w-[120px] bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[12px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
                   >
                     ✓ Verify Authenticity
                   </button>
@@ -184,7 +184,7 @@ export default function IssueDetailsModal({
                       onViewLetter(incident);
                       onClose();
                     }}
-                    className="flex-1 min-w-[120px] bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors shadow-[0_0_12px_rgba(147,51,234,0.2)]"
+                    className="flex-1 min-w-[120px] bg-purple-600 hover:bg-purple-700 text-white text-[12px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors shadow-[0_0_12px_rgba(147,51,234,0.2)]"
                   >
                     ✉ View Dispatch Notice
                   </button>
@@ -197,20 +197,20 @@ export default function IssueDetailsModal({
                       onResolveClick(incident);
                       onClose();
                     }}
-                    className="flex-1 min-w-[120px] bg-cyan-600 hover:bg-cyan-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
+                    className="flex-1 min-w-[120px] bg-cyan-600 hover:bg-cyan-700 text-white text-[12px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
                   >
                     🛠 Complete Clearance
                   </button>
                 )}
 
                 {/* Audit Action (Warden only) */}
-                {currentUserWarden && incident.status === 'resolved' && (
+                {currentUserWarden && (incident.status === 'resolved' || incident.status === 'resolved_pending_verification') && (
                   <button 
                     onClick={() => {
                       onAuditClick(incident);
                       onClose();
                     }}
-                    className="flex-1 min-w-[120px] bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
+                    className="flex-1 min-w-[120px] bg-amber-600 hover:bg-amber-700 text-white text-[12px] font-bold py-2 rounded font-mono uppercase tracking-wide cursor-pointer transition-colors"
                   >
                     🔎 Audit Work Evidence
                   </button>

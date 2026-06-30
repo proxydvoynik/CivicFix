@@ -81,7 +81,7 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
 
   return (
     <div 
-      className={`w-full h-10 overflow-hidden flex items-center px-4 font-mono text-xs select-none relative z-20 transition-all duration-300 ${
+      className={`w-full h-10 overflow-hidden flex items-center px-4 font-mono text-sm select-none relative z-20 transition-all duration-300 ${
         isLight 
           ? 'bg-gradient-to-r from-slate-100 via-white to-slate-100 border-b border-slate-200/80 shadow-sm'
           : 'bg-gradient-to-r from-[#0a0c10] via-[#121622] to-[#0a0c10] border-b border-[#1e2333]/70 shadow-[0_2px_15px_rgba(0,0,0,0.5)]'
@@ -99,7 +99,7 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           transition={{ duration: 0.2 }}
-          className={`${badgeInfo.bg} flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-1 rounded-md mr-4 flex-shrink-0 tracking-widest font-mono border z-10`}
+          className={`${badgeInfo.bg} flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-md mr-4 flex-shrink-0 tracking-widest font-mono border z-10`}
         >
           <Icon size={10} className={badgeInfo.bg.includes('text-black') ? 'text-black' : 'text-white'} />
           <span>{badgeInfo.label}</span>
@@ -113,13 +113,13 @@ export default function LiveTicker({ incidents = [], floodRisk = false, theme })
           style={{ '--marquee-duration': `${marqueeDuration}s` }}
         >
           {/* First run */}
-          <div ref={firstTickerRunRef} className={`flex items-center gap-12 shrink-0 whitespace-nowrap text-[11px] font-mono tracking-wide ${
+          <div ref={firstTickerRunRef} className={`flex items-center gap-12 shrink-0 whitespace-nowrap text-[13px] font-mono tracking-wide ${
             isLight ? 'text-slate-800 font-bold' : 'text-[#e2e8f0]'
           }`}>
             <span>{tickerText}</span>
           </div>
           {/* Second duplicate run for seamless loop */}
-          <div className={`flex items-center gap-12 shrink-0 whitespace-nowrap text-[11px] font-mono tracking-wide ${
+          <div className={`flex items-center gap-12 shrink-0 whitespace-nowrap text-[13px] font-mono tracking-wide ${
             isLight ? 'text-slate-800 font-bold' : 'text-[#e2e8f0]'
           }`}>
             <span>{tickerText}</span>

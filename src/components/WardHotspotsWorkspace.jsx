@@ -178,7 +178,7 @@ export default function WardHotspotsWorkspace({
       polygon.bindTooltip(
         `<strong>Ward ${wp.wardNo}: ${canonicalWard ? canonicalWard.wardName : "Unknown"}</strong><br/>
          Risk Level: <span style="font-weight:bold;text-transform:uppercase;color:${fillColor}">${riskLevel}</span>`,
-        { direction: 'center', className: 'custom-ward-tooltip font-mono text-[10px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
+        { direction: 'center', className: 'custom-ward-tooltip font-mono text-[12px] text-white border-none bg-[#090b10]/95 p-2.5 rounded shadow-xl' }
       );
 
       polygon.on('click', () => {
@@ -265,7 +265,7 @@ export default function WardHotspotsWorkspace({
         <div className="border-b border-[#1b1d24]/60 bg-[#121318] p-4 flex items-center justify-between flex-none">
           <div className="flex items-center gap-2 text-amber-400">
             <AlertCircle size={16} />
-            <span className="text-xs font-bold font-sans uppercase tracking-wide text-white">Ward Hotspots & Risk Predictions</span>
+            <span className="text-sm font-bold font-sans uppercase tracking-wide text-white">Ward Hotspots & Risk Predictions</span>
           </div>
           <button 
             onClick={onClose}
@@ -280,7 +280,7 @@ export default function WardHotspotsWorkspace({
           
           {/* Left Column: Forecast Cards */}
           <div className="w-full md:w-[480px] border-r border-[#1b1d24]/60 flex flex-col p-4 overflow-hidden h-full">
-            <div className="text-[11px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
+            <div className="text-[13px] text-[#9ca3af] uppercase tracking-wider font-bold mb-3 flex-none">
               Municipal Risk Forecast ({riskArray.length})
             </div>
 
@@ -288,9 +288,9 @@ export default function WardHotspotsWorkspace({
               {Object.entries(localWardRisks).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="flex items-center gap-2 mb-1.5 animate-pulse">
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">Generating Risk Forecast...</span>
+                    <span className="text-sm font-bold text-white uppercase tracking-wider">Generating Risk Forecast...</span>
                   </div>
-                  <span className="text-[10px] text-[#9ca3af] uppercase">Running predictive models</span>
+                  <span className="text-[12px] text-[#9ca3af] uppercase">Running predictive models</span>
                 </div>
               ) : (
                 Object.entries(localWardRisks).map(([wardNoStr, risk]) => {
@@ -314,41 +314,41 @@ export default function WardHotspotsWorkspace({
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex flex-col">
-                          <span className="font-bold text-white text-xs">{displayTitle}</span>
+                          <span className="font-bold text-white text-sm">{displayTitle}</span>
                           {displayZone && (
-                            <span className="text-[9px] text-[#7d8590] mt-0.5 uppercase tracking-wide">
+                            <span className="text-[11px] text-[#7d8590] mt-0.5 uppercase tracking-wide">
                               {displayZone} Sector
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           {risk.isAIAnalysed ? (
-                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold border border-purple-500/20 bg-purple-950/15 text-purple-400">
+                            <span className="text-[11px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold border border-purple-500/20 bg-purple-950/15 text-purple-400">
                               🤖 AI Certified
                             </span>
                           ) : (
-                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold border border-blue-500/20 bg-blue-950/15 text-blue-400">
+                            <span className="text-[11px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold border border-blue-500/20 bg-blue-950/15 text-blue-400">
                               ⚖ Heuristic
                             </span>
                           )}
-                          <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold ${getRiskColor(risk.riskLevel)}`}>
+                          <span className={`text-[11px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold ${getRiskColor(risk.riskLevel)}`}>
                             {risk.riskLevel}
                           </span>
                         </div>
                       </div>
                       
                       {risk.confidence && (
-                        <div className="text-[10px] text-[#7d8590] font-semibold">
+                        <div className="text-[12px] text-[#7d8590] font-semibold">
                           Confidence: {(risk.confidence * 100).toFixed(0)}%
                         </div>
                       )}
 
-                      <p className="text-[11px] text-[#8e8e8f] leading-relaxed font-sans italic mt-0.5">
+                      <p className="text-[13px] text-[#8e8e8f] leading-relaxed font-sans italic mt-0.5">
                         {risk.reason}
                       </p>
                       
                       {risk.recommendedAction && (
-                        <div className="text-[10px] text-cyan-400 font-bold leading-normal font-sans mt-0.5 border-t border-[#1b1d24]/30 pt-1.5">
+                        <div className="text-[12px] text-cyan-400 font-bold leading-normal font-sans mt-0.5 border-t border-[#1b1d24]/30 pt-1.5">
                           Action Plan: {risk.recommendedAction}
                         </div>
                       )}
@@ -361,7 +361,7 @@ export default function WardHotspotsWorkspace({
                             runAiDiagnosticsForWard(wardNoVal, risk.wardName);
                           }}
                           disabled={loadingAIWards[wardNoVal]}
-                          className="mt-2 bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white px-2.5 py-1 rounded border border-purple-500/20 text-[10px] font-bold font-mono transition-colors cursor-pointer w-full flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="mt-2 bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white px-2.5 py-1 rounded border border-purple-500/20 text-[12px] font-bold font-mono transition-colors cursor-pointer w-full flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {loadingAIWards[wardNoVal] ? (
                             <>
